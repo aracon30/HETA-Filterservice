@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id            String        @id @default(cuid())
+  name          String
+  contactName   String?
+  email         String?
+  phone         String?
+  address       String?
+  createdAt     DateTime      @default(now())
+  plants        Plant[]
+  jobs          ServiceJob[]
+  opportunities Opportunity[]
+}
+
+model Plant {
+  id           String     @id @default(cuid())
+  name         String
+  type         String
+  serialNumber String?
+  location     String?
+  installedAt  DateTime?
+  customer     Customer   @relation(fields: [customerId], references: [id])
+  customerId   String
+  jobs         ServiceJob[]
+}
+
+model ServiceJob {
+  id              String          @id @default(cuid())
+  jobNumber       String          @unique
+  status          JobStatus       @default(PLANNED)
+  scheduledAt     DateTime
+  completedAt     DateTime?
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  customerId      String
+  plant           Plant?          @relation(fields: [plantId], references: [id])
+  plantId         String?
+  technicianName  String?
+  description     String?
+  findings        String?
+  recommendations String?
+  checklistItems  ChecklistItem[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ChecklistItem {
+  id      String     @id @default(cuid())
+  label   String
+  checked Boolean    @default(false)
+  job     ServiceJob @relation(fields: [jobId], references: [id])
+  jobId   String
+}
+
+model Opportunity {
+  id         String           @id @default(cuid())
+  title      String
+  value      Float?
+  stage      OpportunityStage @default(IDENTIFIED)
+  customer   Customer         @relation(fields: [customerId], references: [id])
+  customerId String
+  notes      String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+enum JobStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OpportunityStage {
+  IDENTIFIED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
