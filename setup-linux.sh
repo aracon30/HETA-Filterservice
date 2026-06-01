@@ -12,8 +12,17 @@ DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=publ
 
 # 1. Start PostgreSQL if not running
 echo "[1/5] Starte PostgreSQL..."
-if ! pg_lsclusters | grep -q "online"; then
-  pg_ctlcluster 16 main start
+if ! pg_isready -q 2>/dev/null; then
+  if command -v systemctl &>/dev/null; then
+    sudo systemctl start postgresql
+  elif command -v service &>/dev/null; then
+    sudo service postgresql start
+  else
+    echo "FEHLER: PostgreSQL läuft nicht und konnte nicht automatisch gestartet werden."
+    echo "Bitte starte PostgreSQL manuell und führe das Skript erneut aus."
+    exit 1
+  fi
+  sleep 2
 fi
 
 # 2. Create DB user and database
