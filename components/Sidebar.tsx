@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 
 const navItems = [
   {
@@ -46,13 +47,28 @@ const navItems = [
   },
 ]
 
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admin',
+  SERVICE_MANAGER: 'Service Manager',
+  SERVICE_TECHNICIAN: 'Techniker',
+  MAINTENANCE_MANAGER: 'Instandhaltungsleiter',
+  MAINTENANCE_TECHNICIAN: 'Instandhaltungstechniker',
+  BUYER: 'Einkäufer',
+}
+
+const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
+
 export default function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
     return pathname.startsWith(href)
   }
+
+  const role = session?.user?.role as string | undefined
+  const isInternal = role ? INTERNAL_ROLES.includes(role) : false
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col min-h-screen fixed left-0 top-0 bottom-0">
@@ -91,8 +107,68 @@ export default function Sidebar() {
         ))}
       </nav>
 
+      {/* Admin Links */}
+      {(role === 'ADMIN' || role === 'SERVICE_MANAGER') && (
+        <div className="px-3 py-3 border-t border-slate-700 space-y-1">
+          {role === 'ADMIN' && (
+            <Link
+              href="/admin/users"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive('/admin/users')
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              Benutzerverwaltung
+            </Link>
+          )}
+          <Link
+            href="/admin/permissions"
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive('/admin/permissions')
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Berechtigungen
+          </Link>
+        </div>
+      )}
+
+      {/* User Info & Logout */}
+      {session?.user && (
+        <div className="px-4 py-4 border-t border-slate-700">
+          <div className="mb-3">
+            <p className="text-sm font-medium text-white truncate">{session.user.name}</p>
+            <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+              isInternal ? 'bg-blue-500 text-white' : 'bg-green-600 text-white'
+            }`}>
+              {ROLE_LABELS[role ?? ''] ?? role}
+            </span>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Abmelden
+          </button>
+        </div>
+      )}
+
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-slate-700">
+      <div className="px-6 py-3 border-t border-slate-700">
         <p className="text-xs text-slate-500">HETA Filtrationssysteme</p>
         <p className="text-xs text-slate-600">v1.0.0</p>
       </div>

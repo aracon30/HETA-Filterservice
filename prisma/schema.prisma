@@ -7,6 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  SERVICE_MANAGER
+  SERVICE_TECHNICIAN
+  MAINTENANCE_MANAGER
+  MAINTENANCE_TECHNICIAN
+  BUYER
+}
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String
+  password   String
+  role       UserRole
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model RolePermission {
+  id        String   @id @default(cuid())
+  role      UserRole
+  resource  String
+  canView   Boolean  @default(false)
+  canCreate Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
+  scope     String   @default("all")
+  updatedAt DateTime @updatedAt
+
+  @@unique([role, resource])
+}
+
 model Customer {
   id            String        @id @default(cuid())
   name          String
@@ -18,6 +54,7 @@ model Customer {
   plants        Plant[]
   jobs          ServiceJob[]
   opportunities Opportunity[]
+  users         User[]
 }
 
 model Plant {
