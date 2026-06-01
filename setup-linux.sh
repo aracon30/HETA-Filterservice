@@ -120,6 +120,7 @@ echo "    .env erstellt."
 echo ""
 echo "[5/6] Installiere App-Abhängigkeiten und richte Schema ein..."
 
+rm -rf node_modules
 npm install --silent
 npx prisma db push --skip-generate 2>&1 | grep -E "Your database|Error" || true
 npx prisma generate -q
@@ -148,9 +149,11 @@ if ! command -v pm2 &>/dev/null; then
   sudo npm install -g pm2 --silent
 fi
 
-# Bestehende Instanz stoppen falls vorhanden
+# Bestehende Instanz und Prozesse auf Port 3000 stoppen
 pm2 stop heta-servicehub 2>/dev/null || true
 pm2 delete heta-servicehub 2>/dev/null || true
+fuser -k 3000/tcp 2>/dev/null || true
+sleep 1
 
 # App starten
 APP_DIR="$(pwd)"
