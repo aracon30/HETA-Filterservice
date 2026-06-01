@@ -91,3 +91,24 @@ export async function PUT(
 
   return NextResponse.json(job)
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user)
+    return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  if (!(await checkPermission(session, 'jobs', 'delete')))
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+
+  const job = await prisma.serviceJob.findUnique({ where: { id: params.id } })
+  if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  await prisma.$transaction([
+    prisma.checklistItem.deleteMany({ where: { jobId: params.id } }),
+    prisma.serviceJob.delete({ where: { id: params.id } }),
+  ])
+
+  return NextResponse.json({ success: true })
+}

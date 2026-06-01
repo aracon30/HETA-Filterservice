@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import { JOB_STATUS_LABELS } from '@/lib/constants'
@@ -44,12 +44,15 @@ function formatDate(date: string) {
 
 export default function JobDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
 
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [findings, setFindings] = useState('')
   const [recommendations, setRecommendations] = useState('')
@@ -91,6 +94,13 @@ export default function JobDetailPage() {
     setJob(updated)
   }
 
+  const handleDelete = async () => {
+    setDeleting(true)
+    const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' })
+    if (res.ok) router.push('/jobs')
+    else setDeleting(false)
+  }
+
   const toggleCheckItem = (itemId: string) => {
     setChecklist((prev) =>
       prev.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)
@@ -129,6 +139,29 @@ export default function JobDetailPage() {
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-2xl font-bold text-gray-900">{job.jobNumber}</h1>
             <StatusBadge status={job.status} />
+            <div className="ml-auto flex gap-2">
+              {!confirmDelete ? (
+                <button onClick={() => setConfirmDelete(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                  Löschen
+                </button>
+              ) : (
+                <>
+                  <span className="text-sm text-gray-500 self-center">Wirklich löschen?</span>
+                  <button onClick={handleDelete} disabled={deleting}
+                    className="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
+                    {deleting ? '...' : 'Ja, löschen'}
+                  </button>
+                  <button onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
+                    Abbrechen
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-6 text-sm text-gray-500">
             <span className="flex items-center gap-1.5">
