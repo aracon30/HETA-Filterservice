@@ -35,15 +35,15 @@ export async function POST() {
   const pulled = await run('Git Pull', 'git pull origin main')
   if (!pulled) return NextResponse.json({ success: false, steps }, { status: 500 })
 
-  // 2. npm install (nur wenn package.json geändert)
-  await run('npm install', 'npm install --prefer-offline')
+  // 2. npm install — inkl. devDependencies (tailwindcss etc. werden beim Build gebraucht)
+  await run('npm install', 'npm install --include=dev')
 
   // 3. Prisma generate + db push
   await run('Prisma', 'npx prisma generate && npx prisma db push')
 
-  // 4. Build (Cache löschen um veraltete Module-Referenzen zu vermeiden)
-  await run('Cache leeren', 'rm -rf .next')
-  const built = await run('Build', 'npm run build')
+  // 4. Build — Cache und node_modules/.cache leeren
+  await run('Cache leeren', 'rm -rf .next node_modules/.cache')
+  const built = await run('Build', 'NODE_ENV=production npm run build')
   if (!built) return NextResponse.json({ success: false, steps }, { status: 500 })
 
   // 5. Neustart — PM2 bevorzugt, sonst touch .next/server/app/page.js als Signal
