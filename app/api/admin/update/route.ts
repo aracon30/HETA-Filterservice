@@ -41,7 +41,8 @@ export async function POST() {
   // 3. Prisma generate + db push
   await run('Prisma', 'npx prisma generate && npx prisma db push')
 
-  // 4. Build
+  // 4. Build (Cache löschen um veraltete Module-Referenzen zu vermeiden)
+  await run('Cache leeren', 'rm -rf .next')
   const built = await run('Build', 'npm run build')
   if (!built) return NextResponse.json({ success: false, steps }, { status: 500 })
 
