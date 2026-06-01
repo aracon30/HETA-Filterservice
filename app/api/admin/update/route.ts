@@ -51,10 +51,23 @@ export async function POST() {
   // 1. Git: neuesten Stand holen
   await run('Git Fetch', 'git fetch origin main')
   await run('Git Sparse-Checkout', 'git sparse-checkout disable 2>/dev/null || true', { ignoreFail: true })
+  // skip-worktree / assume-unchanged Flags entfernen — sonst ignoriert git reset diese Dateien!
+  await run('Git Flags reset', "git ls-files -v | grep '^[hS]' | awk '{print $2}' | xargs -r git update-index --no-skip-worktree --no-assume-unchanged", { ignoreFail: true })
   const pulled = await run('Git Reset', 'git reset --hard origin/main')
   if (!pulled) return NextResponse.json({ success: false, steps }, { status: 500 })
-  // Alle Dateien aus Remote explizit auschecken (Sicherheitsnetz gegen unvollständige Checkouts)
   await run('Git Checkout', 'git checkout origin/main -- .')
+  // Prüfen ob kritische Dateien vorhanden sind
+  const fs = require('fs')
+  const critical = ['components/StatusBadge.tsx', 'lib/constants.ts', 'components/JobCalendar.tsx', 'lib/plant-types.ts']
+  const missing = critical.filter(f => !fs.existsSync(`${APP_DIR}/${f}`))
+  if (missing.length > 0) {
+    // Letzter Versuch: Dateien direkt aus git-Objekten extrahieren
+    for (const f of missing) {
+      await run(`Git Extract ${f}`, `git show origin/main:${f} > ${f}`, { ignoreFail: true })
+    }
+  }
+  const stillMissing = critical.filter(f => !fs.existsSync(`${APP_DIR}/${f}`))
+  steps.push({ step: 'Datei-Check', output: stillMissing.length === 0 ? 'Alle Dateien vorhanden' : `Fehlend: ${stillMissing.join(', ')}`, error: stillMissing.length > 0 })
 
   // 2. Alle Build-Caches und node_modules entfernen für saubere Installation
   // node_modules wird komplett gelöscht um veraltete Modul-Auflösungen zu vermeiden
