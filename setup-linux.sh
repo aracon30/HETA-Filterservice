@@ -22,7 +22,7 @@ if [ -f ".env" ] && grep -q "DATABASE_URL" .env; then
   DB_PASS=$(grep DATABASE_URL .env | sed 's|.*://[^:]*:\([^@]*\)@.*|\1|')
   echo "    Bestehendes Datenbankpasswort aus .env übernommen."
 else
-  DB_PASS="${DB_PASS:-$(openssl rand -base64 16)}"
+  DB_PASS="${DB_PASS:-$(openssl rand -hex 16)}"
 fi
 
 # -----------------------------------------------
