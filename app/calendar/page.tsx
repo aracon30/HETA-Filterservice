@@ -179,7 +179,7 @@ function CalendarPage() {
       if (!res.ok) throw new Error('Fetch failed')
       const data = await res.json()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setEvents(data.map((e: any) => ({
+      setEvents(data.map((e: Record<string, any>) => ({
         ...e,
         start: new Date(e.start),
         end: new Date(e.end),
@@ -259,7 +259,7 @@ function CalendarPage() {
 
   // Drag & Drop handlers
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleEventDrop = useCallback(async (args: any) => {
+  const handleEventDrop = useCallback(async (args: Record<string, any>) => {
     const { event, start, end } = args as EventInteractionArgs<CalendarEvent>
     const newStart = start instanceof Date ? start : new Date(start)
     const newEnd = end instanceof Date ? end : new Date(end)
@@ -297,7 +297,7 @@ function CalendarPage() {
   }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleEventResize = useCallback(async (args: any) => {
+  const handleEventResize = useCallback(async (args: Record<string, any>) => {
     await handleEventDrop(args)
   }, [handleEventDrop])
 
