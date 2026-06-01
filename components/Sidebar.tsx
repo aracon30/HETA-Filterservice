@@ -4,10 +4,14 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 
+const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
+const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
+
 const navItems = [
   {
     href: '/',
     label: 'Dashboard',
+    roles: null,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -18,6 +22,7 @@ const navItems = [
   {
     href: '/jobs',
     label: 'Einsätze',
+    roles: null,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -28,6 +33,7 @@ const navItems = [
   {
     href: '/customers',
     label: 'Kunden',
+    roles: INTERNAL_ROLES,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -38,6 +44,7 @@ const navItems = [
   {
     href: '/opportunities',
     label: 'Vertrieb',
+    roles: INTERNAL_ROLES,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -56,8 +63,6 @@ const ROLE_LABELS: Record<string, string> = {
   BUYER: 'Einkäufer',
 }
 
-const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
-
 export default function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
@@ -69,6 +74,11 @@ export default function Sidebar() {
 
   const role = session?.user?.role as string | undefined
   const isInternal = role ? INTERNAL_ROLES.includes(role) : false
+  const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
+
+  const visibleNavItems = navItems.filter(item =>
+    item.roles === null || (role && item.roles.includes(role))
+  )
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col min-h-screen fixed left-0 top-0 bottom-0">
@@ -89,9 +99,17 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* Kundenportal-Badge für externe Nutzer */}
+      {isExternal && (
+        <div className="mx-3 mt-3 px-3 py-2 bg-green-900/40 border border-green-700/40 rounded-lg">
+          <p className="text-xs text-green-400 font-medium">Kundenportal</p>
+          <p className="text-xs text-green-600 truncate">{session?.user?.name}</p>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -107,67 +125,35 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Admin Links */}
+      {/* Admin Links — nur intern */}
       {(role === 'ADMIN' || role === 'SERVICE_MANAGER') && (
         <div className="px-3 py-3 border-t border-slate-700 space-y-1">
           {role === 'ADMIN' && (
-            <Link
-              href="/admin/users"
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/admin/users')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
+            <Link href="/admin/users" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/admin/users') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
               Benutzerverwaltung
             </Link>
           )}
-          <Link
-            href="/admin/permissions"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isActive('/admin/permissions')
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
+          <Link href="/admin/permissions" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/admin/permissions') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
             Berechtigungen
           </Link>
           {role === 'ADMIN' && (
-            <Link
-              href="/admin/backup"
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/admin/backup')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
+            <Link href="/admin/backup" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/admin/backup') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
               Datensicherung
             </Link>
           )}
           {role === 'ADMIN' && (
-            <Link
-              href="/admin/update"
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/admin/update')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
+            <Link href="/admin/update" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/admin/update') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Server-Update
             </Link>
@@ -180,9 +166,7 @@ export default function Sidebar() {
         <div className="px-4 py-4 border-t border-slate-700">
           <div className="mb-3">
             <p className="text-sm font-medium text-white truncate">{session.user.name}</p>
-            <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-              isInternal ? 'bg-blue-500 text-white' : 'bg-green-600 text-white'
-            }`}>
+            <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${isInternal ? 'bg-blue-500 text-white' : 'bg-green-600 text-white'}`}>
               {ROLE_LABELS[role ?? ''] ?? role}
             </span>
           </div>
@@ -191,15 +175,13 @@ export default function Sidebar() {
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Abmelden
           </button>
         </div>
       )}
 
-      {/* Footer */}
       <div className="px-6 py-3 border-t border-slate-700">
         <p className="text-xs text-slate-500">HETA Filtrationssysteme</p>
         <p className="text-xs text-slate-600">v1.0.0</p>

@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
+
+const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -276,6 +279,9 @@ export default function JobInspectionPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
+  const { data: session } = useSession()
+  const role = session?.user?.role as string | undefined
+  const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
 
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
@@ -397,6 +403,66 @@ export default function JobInspectionPage() {
   const totalItems = checklist.length
   const doneItems = checklist.filter(i => i.status !== 'open').length
   const nioItems = checklist.filter(i => i.status === 'nio').length
+
+  // ── External read-only view for non-completed jobs ───────────────────────
+  if (isExternal && !isCompleted) {
+    return (
+      <div className="max-w-2xl mx-auto pb-12">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/jobs" className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">{job.jobNumber}</h1>
+          <StatusBadge status={job.status} />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Datum</p>
+              <p className="font-medium text-gray-900">{fmt(job.scheduledAt)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Techniker</p>
+              <p className="font-medium text-gray-900">{job.technicianName ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Kunde</p>
+              <p className="font-medium text-gray-900">{job.customer.name}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Anlage</p>
+              <p className="font-medium text-gray-900">{job.plant?.name ?? '—'}</p>
+            </div>
+            {job.plant && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Anlagentyp</p>
+                <p className="font-medium text-gray-900">{job.plant.type}</p>
+              </div>
+            )}
+            {job.plant?.location && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Standort</p>
+                <p className="font-medium text-gray-900">{job.plant.location}</p>
+              </div>
+            )}
+          </div>
+          {job.description && (
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Beschreibung</p>
+              <p className="text-sm text-gray-700">{job.description}</p>
+            </div>
+          )}
+        </div>
+
+        <p className="mt-6 text-center text-sm text-gray-400">
+          Das Protokoll ist nach Abschluss der Inspektion einsehbar.
+        </p>
+      </div>
+    )
+  }
 
   // ── Completed / read-only summary ─────────────────────────────────────────
   if (isCompleted && step === 'summary') {
@@ -529,8 +595,8 @@ export default function JobInspectionPage() {
           </div>
           <p className="text-sm text-gray-500">{fmt(job.scheduledAt)}</p>
         </div>
-        {/* Delete */}
-        {!confirmDelete ? (
+        {/* Delete — internal only */}
+        {!isExternal && (!confirmDelete ? (
           <button onClick={() => setConfirmDelete(true)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -544,7 +610,7 @@ export default function JobInspectionPage() {
             </button>
             <button onClick={() => setConfirmDelete(false)} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg">Nein</button>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Step indicator */}

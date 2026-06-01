@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import { JOB_STATUS_LABELS } from '@/lib/constants'
 import dynamic from 'next/dynamic'
+
+const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
 
 const JobCalendar = dynamic(() => import('@/components/JobCalendar'), { ssr: false, loading: () => (
   <div className="flex items-center justify-center h-96 text-gray-400">Kalender wird geladen...</div>
@@ -36,6 +39,9 @@ function formatDate(date: string) {
 function JobsPageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { data: session } = useSession()
+  const role = session?.user?.role as string | undefined
+  const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
   const [view, setView] = useState<'list' | 'calendar'>(
     (searchParams.get('view') as 'list' | 'calendar') ?? 'list'
   )
@@ -104,15 +110,17 @@ function JobsPageInner() {
               Kalender
             </button>
           </div>
-          <Link
-            href="/jobs/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
-            </svg>
-            Neuer Einsatz
-          </Link>
+          {!isExternal && (
+            <Link
+              href="/jobs/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+              </svg>
+              Neuer Einsatz
+            </Link>
+          )}
         </div>
       </div>
 
@@ -166,14 +174,14 @@ function JobsPageInner() {
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Anlage</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Techniker</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3"></th>
+                  {!isExternal && <th className="px-6 py-3"></th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-400">Laden...</td></tr>
+                  <tr><td colSpan={isExternal ? 6 : 7} className="px-6 py-12 text-center text-sm text-gray-400">Laden...</td></tr>
                 ) : jobs.length === 0 ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-400">Keine Einsätze gefunden</td></tr>
+                  <tr><td colSpan={isExternal ? 6 : 7} className="px-6 py-12 text-center text-sm text-gray-400">Keine Einsätze gefunden</td></tr>
                 ) : (
                   jobs.map((job) => (
                     <tr key={job.id} className="hover:bg-gray-50 transition-colors">
@@ -187,24 +195,26 @@ function JobsPageInner() {
                       <td className="px-6 py-4 text-sm text-gray-500">{job.plant?.name ?? '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{job.technicianName ?? '—'}</td>
                       <td className="px-6 py-4"><StatusBadge status={job.status} /></td>
-                      <td className="px-6 py-4 text-right">
-                        {confirmDelete === job.id ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-gray-500">Löschen?</span>
-                            <button onClick={() => handleDelete(job.id)}
-                              className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700">Ja</button>
-                            <button onClick={() => setConfirmDelete(null)}
-                              className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200">Nein</button>
-                          </div>
-                        ) : (
-                          <button onClick={() => setConfirmDelete(job.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                          </button>
-                        )}
-                      </td>
+                      {!isExternal && (
+                        <td className="px-6 py-4 text-right">
+                          {confirmDelete === job.id ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-xs text-gray-500">Löschen?</span>
+                              <button onClick={() => handleDelete(job.id)}
+                                className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700">Ja</button>
+                              <button onClick={() => setConfirmDelete(null)}
+                                className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200">Nein</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmDelete(job.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                              </svg>
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
