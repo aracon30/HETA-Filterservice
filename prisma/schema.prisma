@@ -58,15 +58,20 @@ model Customer {
 }
 
 model Plant {
-  id           String     @id @default(cuid())
-  name         String
-  type         String
-  serialNumber String?
-  location     String?
-  installedAt  DateTime?
-  customer     Customer   @relation(fields: [customerId], references: [id])
-  customerId   String
-  jobs         ServiceJob[]
+  id            String       @id @default(cuid())
+  name          String
+  type          String
+  serialNumber  String?
+  location      String?
+  installedAt   DateTime?
+  buildYear     Int?
+  description   String?
+  contactPerson String?
+  manufacturer  String?
+  model         String?
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  customerId    String
+  jobs          ServiceJob[]
 }
 
 model ServiceJob {
