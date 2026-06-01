@@ -27,8 +27,7 @@ export default function LoginPage() {
     if (result?.error) {
       setError('Ungültige E-Mail-Adresse oder falsches Passwort.')
     } else {
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     }
   }
 
