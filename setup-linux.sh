@@ -14,9 +14,16 @@ fi
 
 # Config — kann per Umgebungsvariable überschrieben werden
 DB_USER="${DB_USER:-heta_user}"
-DB_PASS="${DB_PASS:-$(openssl rand -base64 16)}"
 DB_NAME="${DB_NAME:-heta_servicehub}"
 NODE_VERSION="20"
+
+# Passwort aus bestehender .env lesen, sonst neu generieren
+if [ -f ".env" ] && grep -q "DATABASE_URL" .env; then
+  DB_PASS=$(grep DATABASE_URL .env | sed 's|.*://[^:]*:\([^@]*\)@.*|\1|')
+  echo "    Bestehendes Datenbankpasswort aus .env übernommen."
+else
+  DB_PASS="${DB_PASS:-$(openssl rand -base64 16)}"
+fi
 
 # -----------------------------------------------
 # SCHRITT 1: Systempakete & Node.js installieren
@@ -87,11 +94,15 @@ echo "    PostgreSQL läuft."
 echo ""
 echo "[3/6] Richte Datenbank ein..."
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='${DB_USER}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;"
+if sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='${DB_USER}'" | grep -q 1; then
+  # Benutzer existiert — Passwort aktualisieren damit es mit .env übereinstimmt
+  sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;" -q
+else
+  sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;" -q
+fi
 
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
+  sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" -q
 
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" -q
 
