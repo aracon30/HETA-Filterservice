@@ -96,15 +96,15 @@ echo "[3/6] Richte Datenbank ein..."
 
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='${DB_USER}'" | grep -q 1; then
   # Benutzer existiert — Passwort aktualisieren damit es mit .env übereinstimmt
-  sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;" -q
+  sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;"
 else
-  sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;" -q
+  sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}' CREATEDB;"
 fi
 
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" -q
+  sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
 
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" -q
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
 
 echo "    Datenbank '${DB_NAME}' bereit."
 
@@ -134,7 +134,7 @@ echo "[5/6] Installiere App-Abhängigkeiten und richte Schema ein..."
 rm -rf node_modules
 npm install --silent
 npx prisma db push --skip-generate 2>&1 | grep -E "Your database|Error" || true
-npx prisma generate -q
+npx prisma generate
 npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
 
 echo "    Abhängigkeiten und Datenbank eingerichtet."
