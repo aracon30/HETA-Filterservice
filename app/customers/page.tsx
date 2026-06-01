@@ -182,9 +182,10 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">{c.phone ?? '—'}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center justify-center w-7 h-7 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                    <Link href={`/customers/${c.id}`} title="Anlagen verwalten"
+                      className="inline-flex items-center justify-center w-7 h-7 bg-blue-50 text-blue-700 text-sm font-medium rounded-full hover:bg-blue-100 transition-colors">
                       {c.plants.length}
-                    </span>
+                    </Link>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className={`inline-flex items-center justify-center w-7 h-7 text-sm font-medium rounded-full ${
