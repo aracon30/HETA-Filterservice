@@ -27,7 +27,7 @@ echo "[1/6] Installiere Systempakete..."
 sudo apt-get update -qq
 
 # Basis-Tools
-sudo apt-get install -y -qq curl gnupg ca-certificates lsb-release openssl
+sudo apt-get install -y -qq curl gnupg ca-certificates lsb-release openssl xdg-utils
 
 # Node.js installieren (falls nicht vorhanden oder zu alt)
 NODE_OK=0
@@ -131,9 +131,48 @@ echo "    Abhängigkeiten und Datenbank eingerichtet."
 # SCHRITT 6: Produktions-Build
 # -----------------------------------------------
 echo ""
-echo "[6/6] Erstelle Produktions-Build..."
+echo "[6/7] Erstelle Produktions-Build..."
 
 npm run build
+echo "    Build abgeschlossen."
+
+# -----------------------------------------------
+# SCHRITT 7: App starten mit PM2
+# -----------------------------------------------
+echo ""
+echo "[7/7] Starte App..."
+
+# PM2 installieren falls nicht vorhanden
+if ! command -v pm2 &>/dev/null; then
+  echo "    Installiere PM2..."
+  sudo npm install -g pm2 --silent
+fi
+
+# Bestehende Instanz stoppen falls vorhanden
+pm2 stop heta-servicehub 2>/dev/null || true
+pm2 delete heta-servicehub 2>/dev/null || true
+
+# App starten
+APP_DIR="$(pwd)"
+pm2 start npm --name "heta-servicehub" -- run start
+pm2 save
+
+# Beim Systemstart automatisch starten
+pm2 startup 2>/dev/null | grep "sudo" | bash 2>/dev/null || true
+
+# Warten bis App erreichbar ist
+echo "    Warte auf App..."
+for i in $(seq 1 15); do
+  if curl -s http://localhost:3000 > /dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+# Browser öffnen
+if command -v xdg-open &>/dev/null; then
+  xdg-open http://localhost:3000 2>/dev/null || true
+fi
 
 # -----------------------------------------------
 # Zusammenfassung
@@ -143,15 +182,17 @@ echo "========================================"
 echo "  Setup abgeschlossen!"
 echo "========================================"
 echo ""
-echo "  App starten:     npm run start"
-echo "  Browser öffnen:  http://localhost:3000"
+echo "  App läuft unter: http://localhost:3000"
 echo ""
 echo "  Demo-Zugangsdaten:"
-echo "    admin@heta.de        / Admin1234!"
-echo "    manager@heta.de      / Manager1234!"
-echo "    techniker@heta.de    / Tech1234!"
+echo "    admin@heta.de              / Admin1234!"
+echo "    manager@heta.de            / Manager1234!"
+echo "    techniker@heta.de          / Tech1234!"
 echo "    instandhaltung@chemiewerk.de / Kunde1234!"
 echo ""
-echo "  Datenbank: ${DB_NAME}"
-echo "  DB-User:   ${DB_USER}"
+echo "  Nützliche Befehle:"
+echo "    pm2 status          — App-Status anzeigen"
+echo "    pm2 logs            — Logs anzeigen"
+echo "    pm2 restart heta-servicehub — App neu starten"
+echo "    pm2 stop heta-servicehub    — App stoppen"
 echo "========================================"
