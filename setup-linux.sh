@@ -42,7 +42,7 @@ fi
 
 if [ "$NODE_OK" -eq 0 ]; then
   echo "    Installiere Node.js ${NODE_VERSION}..."
-  curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash - -qq
+  curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
   sudo apt-get install -y -qq nodejs
   echo "    Node.js $(node --version) installiert."
 fi
