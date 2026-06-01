@@ -13,11 +13,18 @@ DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=publ
 # 1. Start PostgreSQL if not running
 echo "[1/5] Starte PostgreSQL..."
 if ! pg_isready -q 2>/dev/null; then
-  if command -v systemctl &>/dev/null; then
-    sudo systemctl start postgresql
-  elif command -v service &>/dev/null; then
-    sudo service postgresql start
-  else
+  STARTED=0
+  # service-Befehl (funktioniert auf den meisten Linux-Systemen)
+  if command -v service &>/dev/null; then
+    sudo service postgresql start 2>/dev/null && STARTED=1
+  fi
+  # systemctl als Fallback (nur wenn systemd aktiv ist)
+  if [ "$STARTED" -eq 0 ] && command -v systemctl &>/dev/null; then
+    for SVC in postgresql postgresql-16 postgresql-15 postgresql-14; do
+      sudo systemctl start "$SVC" 2>/dev/null && STARTED=1 && break
+    done
+  fi
+  if [ "$STARTED" -eq 0 ]; then
     echo "FEHLER: PostgreSQL läuft nicht und konnte nicht automatisch gestartet werden."
     echo "Bitte starte PostgreSQL manuell und führe das Skript erneut aus."
     exit 1
