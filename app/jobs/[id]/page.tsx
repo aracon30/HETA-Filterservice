@@ -9,6 +9,7 @@ import { JOB_STATUS_LABELS } from '@/lib/constants'
 interface ChecklistItem {
   id: string
   label: string
+  section: string | null
   checked: boolean
 }
 
@@ -245,24 +246,45 @@ export default function JobDetailPage() {
                 style={{ width: checklist.length > 0 ? `${(checkedCount / checklist.length) * 100}%` : '0%' }}
               />
             </div>
-            <div className="space-y-3">
-              {checklist.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-start gap-3 cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={() => toggleCheckItem(item.id)}
-                    className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className={`text-sm ${item.checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                    {item.label}
-                  </span>
-                </label>
-              ))}
-            </div>
+            {(() => {
+              // Group by section
+              const hasSections = checklist.some(i => i.section)
+              if (!hasSections) {
+                return (
+                  <div className="space-y-3">
+                    {checklist.map((item) => (
+                      <ChecklistRow key={item.id} item={item} onToggle={toggleCheckItem} />
+                    ))}
+                  </div>
+                )
+              }
+              const sections: Record<string, typeof checklist> = {}
+              checklist.forEach(item => {
+                const sec = item.section ?? 'Allgemein'
+                if (!sections[sec]) sections[sec] = []
+                sections[sec].push(item)
+              })
+              return (
+                <div className="space-y-5">
+                  {Object.entries(sections).map(([sec, items]) => {
+                    const secChecked = items.filter(i => i.checked).length
+                    return (
+                      <div key={sec}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{sec}</h3>
+                          <span className="text-xs text-gray-400">{secChecked}/{items.length}</span>
+                        </div>
+                        <div className="space-y-2 pl-1 border-l-2 border-gray-100">
+                          {items.map(item => (
+                            <ChecklistRow key={item.id} item={item} onToggle={toggleCheckItem} />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
           </div>
         </div>
 
@@ -337,5 +359,21 @@ export default function JobDetailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function ChecklistRow({ item, onToggle }: { item: { id: string; label: string; checked: boolean }; onToggle: (id: string) => void }) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer group">
+      <input
+        type="checkbox"
+        checked={item.checked}
+        onChange={() => onToggle(item.id)}
+        className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+      />
+      <span className={`text-sm ${item.checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+        {item.label}
+      </span>
+    </label>
   )
 }

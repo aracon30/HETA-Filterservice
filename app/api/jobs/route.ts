@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/constants'
+import { getChecklistForPlantType } from '@/lib/plant-types'
 import { JobStatus } from '@prisma/client'
 import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
 
@@ -63,6 +64,21 @@ export async function POST(request: NextRequest) {
   const count = await prisma.serviceJob.count()
   const jobNumber = `SJ-${String(count + 1001).padStart(4, '0')}`
 
+  // Determine checklist based on plant type
+  let checklistItems: { label: string; section?: string }[] = []
+  if (plantId) {
+    const plant = await prisma.plant.findUnique({ where: { id: plantId }, select: { type: true } })
+    if (plant) {
+      const typed = getChecklistForPlantType(plant.type)
+      if (typed.length > 0) {
+        checklistItems = typed
+      }
+    }
+  }
+  if (checklistItems.length === 0) {
+    checklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
+  }
+
   const job = await prisma.serviceJob.create({
     data: {
       jobNumber,
@@ -75,7 +91,7 @@ export async function POST(request: NextRequest) {
       duration: duration ? Number(duration) : 480,
       vehicle: vehicle || null,
       checklistItems: {
-        create: DEFAULT_CHECKLIST_ITEMS.map((label) => ({ label })),
+        create: checklistItems,
       },
     },
     include: {

@@ -101,6 +101,7 @@ model ServiceJob {
 model ChecklistItem {
   id      String     @id @default(cuid())
   label   String
+  section String?
   checked Boolean    @default(false)
   job     ServiceJob @relation(fields: [jobId], references: [id])
   jobId   String

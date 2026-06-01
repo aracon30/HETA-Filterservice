@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useParams, useRouter } from 'next/navigation'
+import { PLANT_TYPES } from '@/lib/plant-types'
 import Link from 'next/link'
 
 interface Plant {
@@ -560,14 +561,24 @@ export default function CustomerDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Typ <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={plantForm.type}
                     onChange={e => setPlantForm(f => ({ ...f, type: e.target.value }))}
                     required
-                    placeholder="z.B. Druckfilter"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">Anlagentyp auswählen...</option>
+                    {PLANT_TYPES.map(pt => (
+                      <option key={pt.value} value={pt.value}>{pt.label}</option>
+                    ))}
+                  </select>
+                  {plantForm.type && PLANT_TYPES.find(p => p.value === plantForm.type)?.checklist.length ? (
+                    <p className="mt-1 text-xs text-green-600">
+                      ✓ Typspezifische Checkliste ({PLANT_TYPES.find(p => p.value === plantForm.type)!.checklist.length} Punkte) wird bei Einsätzen verwendet
+                    </p>
+                  ) : plantForm.type ? (
+                    <p className="mt-1 text-xs text-gray-400">Standard-Checkliste wird verwendet</p>
+                  ) : null}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
