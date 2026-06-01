@@ -49,10 +49,21 @@ export async function POST() {
   // Debug: Projektverzeichnis im ersten Schritt anzeigen
   steps.push({ step: 'Verzeichnis', output: APP_DIR })
 
-  // 1. Alle Dateien auf Remote-Stand zurücksetzen (stellt fehlende Dateien wieder her)
+  // 1. Alle Dateien auf Remote-Stand zurücksetzen
   await run('Git Fetch', 'git fetch origin main')
+  // Sparse-Checkout deaktivieren falls aktiv, dann hart zurücksetzen
+  await run('Git Sparse-Checkout', 'git sparse-checkout disable 2>/dev/null || true')
   const pulled = await run('Git Reset', 'git reset --hard origin/main')
   if (!pulled) return NextResponse.json({ success: false, steps }, { status: 500 })
+  // Sicherheitshalber alle Dateien explizit auschecken
+  await run('Git Checkout', 'git checkout origin/main -- .')
+  // Dateien nach Reset prüfen
+  const { execSync } = require('child_process')
+  const missing: string[] = []
+  for (const f of ['components/StatusBadge.tsx', 'lib/constants.ts', 'components/JobCalendar.tsx']) {
+    try { execSync(`test -f ${f}`, { cwd: APP_DIR }) } catch { missing.push(f) }
+  }
+  steps.push({ step: 'Datei-Check', output: missing.length === 0 ? 'Alle Dateien vorhanden' : `Fehlend: ${missing.join(', ')}`, error: missing.length > 0 })
 
   // 2. npm install
   await run('npm install', 'npm install')
