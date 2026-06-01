@@ -35,8 +35,8 @@ export async function POST() {
   const pulled = await run('Git Pull', 'git pull origin main')
   if (!pulled) return NextResponse.json({ success: false, steps }, { status: 500 })
 
-  // 2. npm install — inkl. devDependencies (tailwindcss etc. werden beim Build gebraucht)
-  await run('npm install', 'npm install --include=dev')
+  // 2. npm install
+  await run('npm install', 'npm install')
 
   // 3. Prisma generate + db push
   await run('Prisma', 'npx prisma generate && npx prisma db push')
