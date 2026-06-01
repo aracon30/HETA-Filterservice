@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   // Find jobs that overlap with [start, end]
   // Overlap: jobStart < end AND jobEnd > start
   const baseWhere = {
-    status: { in: ['PLANNED', 'IN_PROGRESS'] as const },
+    status: { in: ['PLANNED', 'IN_PROGRESS'] as ('PLANNED' | 'IN_PROGRESS')[] },
     id: excludeJobId ? { not: excludeJobId } : undefined,
     scheduledAt: { lt: end },
   }
