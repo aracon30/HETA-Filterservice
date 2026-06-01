@@ -1,4 +1,5 @@
-import { PrismaClient, JobStatus, OpportunityStage } from '@prisma/client'
+import { PrismaClient, JobStatus, OpportunityStage, UserRole } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -23,7 +24,9 @@ async function main() {
   await prisma.serviceJob.deleteMany()
   await prisma.opportunity.deleteMany()
   await prisma.plant.deleteMany()
+  await prisma.user.deleteMany()
   await prisma.customer.deleteMany()
+  await prisma.rolePermission.deleteMany()
 
   // Customer 1: Chemiewerk Rhein GmbH
   const customer1 = await prisma.customer.create({
@@ -258,6 +261,132 @@ async function main() {
       notes: 'Geplante Erweiterung Reinraum Obergeschoss. Gespräch mit Technikleitung vereinbart.',
     },
   })
+
+  // ─── Users ───────────────────────────────────────────────────────────────
+  console.log('Creating users...')
+
+  const hashPw = (pw: string) => bcrypt.hash(pw, 12)
+
+  await prisma.user.create({
+    data: {
+      name: 'Administrator',
+      email: 'admin@heta.de',
+      password: await hashPw('Admin1234!'),
+      role: UserRole.ADMIN,
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      name: 'Service Manager',
+      email: 'manager@heta.de',
+      password: await hashPw('Manager1234!'),
+      role: UserRole.SERVICE_MANAGER,
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      name: 'Techniker Intern',
+      email: 'techniker@heta.de',
+      password: await hashPw('Tech1234!'),
+      role: UserRole.SERVICE_TECHNICIAN,
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      name: 'Instandhaltungsleiter Chemiewerk',
+      email: 'instandhaltung@chemiewerk.de',
+      password: await hashPw('Kunde1234!'),
+      role: UserRole.MAINTENANCE_MANAGER,
+      customerId: customer1.id,
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      name: 'Techniker Chemiewerk',
+      email: 'techniker@chemiewerk.de',
+      password: await hashPw('Kunde1234!'),
+      role: UserRole.MAINTENANCE_TECHNICIAN,
+      customerId: customer1.id,
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      name: 'Einkäufer Chemiewerk',
+      email: 'einkauf@chemiewerk.de',
+      password: await hashPw('Kunde1234!'),
+      role: UserRole.BUYER,
+      customerId: customer1.id,
+    },
+  })
+
+  // ─── Role Permissions ─────────────────────────────────────────────────────
+  console.log('Creating role permissions...')
+
+  type PermInput = {
+    role: UserRole
+    resource: string
+    canView: boolean
+    canCreate: boolean
+    canEdit: boolean
+    canDelete: boolean
+    scope: string
+  }
+
+  const permissions: PermInput[] = [
+    // ADMIN – all CRUD, all resources, scope=all (immutable)
+    ...['customers', 'plants', 'jobs', 'checklist', 'opportunities', 'users'].map((r) => ({
+      role: UserRole.ADMIN, resource: r,
+      canView: true, canCreate: true, canEdit: true, canDelete: true, scope: 'all',
+    })),
+
+    // SERVICE_MANAGER – full operational access, view-only users
+    ...['customers', 'plants', 'jobs', 'checklist', 'opportunities'].map((r) => ({
+      role: UserRole.SERVICE_MANAGER, resource: r,
+      canView: true, canCreate: true, canEdit: true, canDelete: true, scope: 'all',
+    })),
+    { role: UserRole.SERVICE_MANAGER, resource: 'users', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+
+    // SERVICE_TECHNICIAN
+    { role: UserRole.SERVICE_TECHNICIAN, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.SERVICE_TECHNICIAN, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.SERVICE_TECHNICIAN, resource: 'jobs', canView: true, canCreate: true, canEdit: true, canDelete: false, scope: 'all' },
+    { role: UserRole.SERVICE_TECHNICIAN, resource: 'checklist', canView: true, canCreate: false, canEdit: true, canDelete: false, scope: 'all' },
+    { role: UserRole.SERVICE_TECHNICIAN, resource: 'opportunities', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.SERVICE_TECHNICIAN, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+
+    // MAINTENANCE_MANAGER
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'jobs', canView: true, canCreate: true, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'checklist', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'opportunities', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+
+    // MAINTENANCE_TECHNICIAN
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'jobs', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'checklist', canView: true, canCreate: false, canEdit: true, canDelete: false, scope: 'own_plant' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'opportunities', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+
+    // BUYER
+    { role: UserRole.BUYER, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'jobs', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'checklist', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.BUYER, resource: 'opportunities', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+  ]
+
+  for (const perm of permissions) {
+    await prisma.rolePermission.create({ data: perm })
+  }
 
   console.log('Seeding complete!')
 }

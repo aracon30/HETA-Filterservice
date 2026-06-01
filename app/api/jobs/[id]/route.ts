@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { JobStatus } from '@prisma/client'
+import { checkPermission } from '@/lib/permissions'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  }
+  if (!(await checkPermission(session, 'jobs', 'view'))) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
   const job = await prisma.serviceJob.findUnique({
     where: { id: params.id },
     include: {
@@ -26,6 +37,14 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  }
+  if (!(await checkPermission(session, 'jobs', 'edit'))) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
   const body = await request.json()
   const { status, findings, recommendations, checklistItems } = body
 
