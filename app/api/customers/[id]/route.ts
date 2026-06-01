@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: params.id },
+    include: {
+      plants: {
+        orderBy: { name: 'asc' },
+        include: { _count: { select: { jobs: true } } },
+      },
+      _count: { select: { jobs: true } },
+    },
+  })
+
+  if (!customer) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
+
+  // External users may only see their own customer
+  const role = session.user.role as string
+  if (['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER'].includes(role)) {
+    if (customer.id !== (session.user as any).customerId) {
+      return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+    }
+  }
+
+  return NextResponse.json(customer)
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const role = session.user.role as string
+  if (!['ADMIN', 'SERVICE_MANAGER'].includes(role)) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
+  const body = await req.json()
+  const customer = await prisma.customer.update({
+    where: { id: params.id },
+    data: {
+      name: body.name,
+      contactName: body.contactName || null,
+      email: body.email || null,
+      phone: body.phone || null,
+      address: body.address || null,
+    },
+  })
+
+  return NextResponse.json(customer)
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const role = session.user.role as string
+  if (!['ADMIN', 'SERVICE_MANAGER'].includes(role)) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
+  // Block if active jobs exist
+  const activeJobs = await prisma.serviceJob.count({
+    where: { customerId: params.id, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+  })
+  if (activeJobs > 0) {
+    return NextResponse.json(
+      { error: `Kunde hat ${activeJobs} aktive Einsätze und kann nicht gelöscht werden.` },
+      { status: 409 }
+    )
+  }
+
+  await prisma.$transaction([
+    prisma.checklistItem.deleteMany({ where: { job: { customerId: params.id } } }),
+    prisma.serviceJob.deleteMany({ where: { customerId: params.id } }),
+    prisma.plant.deleteMany({ where: { customerId: params.id } }),
+    prisma.customer.delete({ where: { id: params.id } }),
+  ])
+
+  return NextResponse.json({ success: true })
+}

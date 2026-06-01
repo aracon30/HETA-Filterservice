@@ -32,3 +32,32 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(plants)
 }
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const role = session.user.role as string
+  if (!['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role)) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
+  const body = await req.json()
+  const plant = await prisma.plant.create({
+    data: {
+      name: body.name,
+      type: body.type,
+      customerId: body.customerId,
+      serialNumber: body.serialNumber || null,
+      location: body.location || null,
+      installedAt: body.installedAt ? new Date(body.installedAt) : null,
+      buildYear: body.buildYear ?? null,
+      description: body.description || null,
+      contactPerson: body.contactPerson || null,
+      manufacturer: body.manufacturer || null,
+      model: body.model || null,
+    },
+  })
+
+  return NextResponse.json(plant, { status: 201 })
+}

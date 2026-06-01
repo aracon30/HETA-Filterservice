@@ -1,0 +1,67 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const plant = await prisma.plant.findUnique({ where: { id: params.id } })
+  if (!plant) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
+
+  return NextResponse.json(plant)
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const role = session.user.role as string
+  if (!['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role)) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
+  const body = await req.json()
+  const plant = await prisma.plant.update({
+    where: { id: params.id },
+    data: {
+      name: body.name,
+      type: body.type,
+      serialNumber: body.serialNumber || null,
+      location: body.location || null,
+      installedAt: body.installedAt ? new Date(body.installedAt) : null,
+      buildYear: body.buildYear ?? null,
+      description: body.description || null,
+      contactPerson: body.contactPerson || null,
+      manufacturer: body.manufacturer || null,
+      model: body.model || null,
+    },
+  })
+
+  return NextResponse.json(plant)
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+  const role = session.user.role as string
+  if (!['ADMIN', 'SERVICE_MANAGER'].includes(role)) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
+  const activeJobs = await prisma.serviceJob.count({
+    where: { plantId: params.id, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+  })
+  if (activeJobs > 0) {
+    return NextResponse.json(
+      { error: `Anlage hat ${activeJobs} aktive Einsätze und kann nicht gelöscht werden.` },
+      { status: 409 }
+    )
+  }
+
+  await prisma.plant.delete({ where: { id: params.id } })
+
+  return NextResponse.json({ success: true })
+}
