@@ -132,7 +132,7 @@ echo ""
 echo "[5/6] Installiere App-Abhängigkeiten und richte Schema ein..."
 
 rm -rf node_modules
-npm install --silent
+npm install --silent --no-warnings 2>&1 | grep -v "^npm warn" || true
 npx prisma db push --skip-generate 2>&1 | grep -E "Your database|Error" || true
 npx prisma generate
 npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
