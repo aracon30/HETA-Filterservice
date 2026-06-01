@@ -17,16 +17,17 @@ enum UserRole {
 }
 
 model User {
-  id         String    @id @default(cuid())
-  email      String    @unique
-  name       String
-  password   String
-  role       UserRole
-  customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  active     Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  password     String
+  role         UserRole
+  customerId   String?
+  customer     Customer?    @relation(fields: [customerId], references: [id])
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  assignedJobs ServiceJob[] @relation("TechnicianJobs")
 }
 
 model RolePermission {
@@ -85,7 +86,9 @@ model ServiceJob {
   plant           Plant?          @relation(fields: [plantId], references: [id])
   plantId         String?
   technicianName  String?
-  duration        Int             @default(60)
+  technicianId    String?
+  technician      User?           @relation("TechnicianJobs", fields: [technicianId], references: [id])
+  duration        Int             @default(480)
   vehicle         String?
   description     String?
   findings        String?

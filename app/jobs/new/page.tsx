@@ -1,18 +1,45 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-interface Customer {
+interface Customer { id: string; name: string }
+interface Plant { id: string; name: string; type: string }
+interface Technician { id: string; name: string; role: string }
+
+interface ConflictJob {
   id: string
-  name: string
+  jobNumber: string
+  scheduledAt: string
+  duration: number
+  technicianName: string | null
+  vehicle: string | null
+  customer: { name: string }
 }
 
-interface Plant {
-  id: string
-  name: string
-  type: string
+const VEHICLES = [
+  'VW T6 MKK-HT-49',
+  'Mercedes Sprinter GI-HT-50E',
+]
+
+const DURATION_PRESETS = [
+  { label: 'Halber Tag', value: 240 },
+  { label: 'Ganzer Tag', value: 480 },
+]
+
+const MULTI_DAY_OPTIONS = [
+  { label: '2 Tage', value: 960 },
+  { label: '3 Tage', value: 1440 },
+  { label: '4 Tage', value: 1920 },
+  { label: '5 Tage', value: 2400 },
+]
+
+function formatConflictTime(scheduledAt: string, duration: number) {
+  const start = new Date(scheduledAt)
+  const end = new Date(start.getTime() + duration * 60 * 1000)
+  const fmt = (d: Date) => d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return `${fmt(start)} – ${fmt(end)}`
 }
 
 export default function NewJobPageWrapper() {
@@ -28,10 +55,17 @@ function NewJobPage() {
   const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [plants, setPlants] = useState<Plant[]>([])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // Pre-fill date from calendar click
+  const [techConflicts, setTechConflicts] = useState<ConflictJob[]>([])
+  const [vehicleConflicts, setVehicleConflicts] = useState<ConflictJob[]>([])
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
+
+  // Duration mode: 'preset' | 'multiday'
+  const [durationMode, setDurationMode] = useState<'preset' | 'multiday'>('preset')
+
   const prefillDate = searchParams.get('date')
   const defaultScheduledAt = prefillDate
     ? new Date(prefillDate).toISOString().slice(0, 16)
@@ -41,60 +75,76 @@ function NewJobPage() {
     customerId: '',
     plantId: '',
     scheduledAt: defaultScheduledAt,
-    technicianName: '',
+    technicianId: '',
     description: '',
-    duration: 60,
+    duration: 480,
     vehicle: '',
   })
 
   useEffect(() => {
-    fetch('/api/customers')
-      .then((r) => r.json())
-      .then(setCustomers)
+    fetch('/api/customers').then(r => r.json()).then(setCustomers)
+    fetch('/api/technicians').then(r => r.json()).then((data) => {
+      if (Array.isArray(data)) setTechnicians(data)
+    })
   }, [])
 
   useEffect(() => {
-    if (!form.customerId) {
-      setPlants([])
-      setForm((f) => ({ ...f, plantId: '' }))
-      return
-    }
-    fetch(`/api/plants?customerId=${form.customerId}`)
-      .then((r) => r.json())
-      .then(setPlants)
-    setForm((f) => ({ ...f, plantId: '' }))
+    if (!form.customerId) { setPlants([]); setForm(f => ({ ...f, plantId: '' })); return }
+    fetch(`/api/plants?customerId=${form.customerId}`).then(r => r.json()).then(setPlants)
+    setForm(f => ({ ...f, plantId: '' }))
   }, [form.customerId])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const value = e.target.type === 'number' ? Number(e.target.value) : e.target.value
-    setForm((f) => ({ ...f, [e.target.name]: value }))
-  }
+  const checkAvailability = useCallback(async (
+    date: string, duration: number, technicianId: string, vehicle: string
+  ) => {
+    if (!date) { setTechConflicts([]); setVehicleConflicts([]); return }
+    setCheckingAvailability(true)
+    try {
+      const params = new URLSearchParams({ date, duration: String(duration) })
+      if (technicianId) params.set('technicianId', technicianId)
+      if (vehicle) params.set('vehicle', vehicle)
+      const res = await fetch(`/api/availability?${params}`)
+      if (res.ok) {
+        const { technicianConflicts, vehicleConflicts } = await res.json()
+        setTechConflicts(technicianConflicts)
+        setVehicleConflicts(vehicleConflicts)
+      }
+    } finally {
+      setCheckingAvailability(false)
+    }
+  }, [])
+
+  // Re-check whenever relevant fields change
+  useEffect(() => {
+    checkAvailability(form.scheduledAt, form.duration, form.technicianId, form.vehicle)
+  }, [form.scheduledAt, form.duration, form.technicianId, form.vehicle, checkAvailability])
+
+  const setField = (field: string, value: string | number) =>
+    setForm(f => ({ ...f, [field]: value }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
     if (!form.customerId || !form.scheduledAt) {
       setError('Bitte Kunde und Datum angeben.')
       return
     }
-
+    const selectedTech = technicians.find(t => t.id === form.technicianId)
     setSubmitting(true)
     const res = await fetch('/api/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        technicianName: selectedTech?.name ?? '',
+      }),
     })
-
-    if (!res.ok) {
-      setError('Fehler beim Erstellen des Einsatzes.')
-      setSubmitting(false)
-      return
-    }
-
+    if (!res.ok) { setError('Fehler beim Erstellen des Einsatzes.'); setSubmitting(false); return }
     const job = await res.json()
     router.push(`/jobs/${job.id}`)
   }
+
+  const hasConflicts = techConflicts.length > 0 || vehicleConflicts.length > 0
 
   return (
     <div className="max-w-2xl">
@@ -112,139 +162,184 @@ function NewJobPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {error}
-          </div>
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Kunde */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Kunde <span className="text-red-500">*</span>
             </label>
             <select
-              name="customerId"
               value={form.customerId}
-              onChange={handleChange}
+              onChange={e => setField('customerId', e.target.value)}
               required
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Kunde auswählen...</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
 
+          {/* Anlage */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Anlage
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Anlage</label>
             <select
-              name="plantId"
               value={form.plantId}
-              onChange={handleChange}
+              onChange={e => setField('plantId', e.target.value)}
               disabled={!form.customerId}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
             >
-              <option value="">
-                {form.customerId ? 'Anlage auswählen (optional)' : 'Zuerst Kunde wählen'}
-              </option>
-              {plants.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
-              ))}
+              <option value="">{form.customerId ? 'Anlage auswählen (optional)' : 'Zuerst Kunde wählen'}</option>
+              {plants.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type})</option>)}
             </select>
           </div>
 
+          {/* Datum & Uhrzeit */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Datum & Uhrzeit <span className="text-red-500">*</span>
             </label>
             <input
               type="datetime-local"
-              name="scheduledAt"
               value={form.scheduledAt}
-              onChange={handleChange}
+              onChange={e => setField('scheduledAt', e.target.value)}
               required
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
+          {/* Dauer */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Techniker
-            </label>
-            <input
-              type="text"
-              name="technicianName"
-              value={form.technicianName}
-              onChange={handleChange}
-              placeholder="Name des Technikers"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Dauer (Minuten)
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                name="duration"
-                value={form.duration}
-                onChange={handleChange}
-                min={15}
-                step={15}
-                className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-500">Minuten</span>
-            </div>
-            <div className="flex gap-2 mt-2">
-              {[{ label: '30 Min', value: 30 }, { label: '1 Std', value: 60 }, { label: '2 Std', value: 120 }, { label: '4 Std', value: 240 }, { label: '8 Std', value: 480 }].map(({ label, value }) => (
+            <label className="block text-sm font-medium text-gray-700 mb-2">Dauer</label>
+            <div className="flex gap-2 flex-wrap">
+              {DURATION_PRESETS.map(p => (
                 <button
-                  key={value}
+                  key={p.value}
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, duration: value }))}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors border ${
-                    form.duration === value
+                  onClick={() => { setDurationMode('preset'); setField('duration', p.value) }}
+                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors border ${
+                    durationMode === 'preset' && form.duration === p.value
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  {label}
+                  {p.label}
                 </button>
               ))}
+              <div className="flex items-center gap-1">
+                <span className={`text-sm font-medium px-1 ${durationMode === 'multiday' ? 'text-blue-600' : 'text-gray-500'}`}>
+                  Mehrere Tage:
+                </span>
+                <select
+                  value={durationMode === 'multiday' ? form.duration : ''}
+                  onChange={e => { setDurationMode('multiday'); setField('duration', Number(e.target.value)) }}
+                  onFocus={() => setDurationMode('multiday')}
+                  className={`px-2 py-1.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    durationMode === 'multiday' ? 'border-blue-600 bg-blue-50' : 'border-gray-200'
+                  }`}
+                >
+                  <option value="">auswählen...</option>
+                  {MULTI_DAY_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
+          {/* Techniker */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Fahrzeug
-            </label>
-            <input
-              type="text"
-              name="vehicle"
-              value={form.vehicle}
-              onChange={handleChange}
-              placeholder="z.B. VW Crafter HH-HE 123"
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Techniker</label>
+            <select
+              value={form.technicianId}
+              onChange={e => setField('technicianId', e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">Techniker auswählen (optional)</option>
+              {technicians.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            {techConflicts.length > 0 && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-1.5 text-amber-700 text-sm font-medium mb-1.5">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  Techniker bereits gebucht:
+                </div>
+                {techConflicts.map(j => (
+                  <div key={j.id} className="text-xs text-amber-700">
+                    {j.jobNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.technicianId && techConflicts.length === 0 && form.scheduledAt && !checkingAvailability && (
+              <div className="mt-1.5 flex items-center gap-1 text-xs text-green-600">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Techniker verfügbar
+              </div>
+            )}
           </div>
 
+          {/* Fahrzeug */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Beschreibung
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Fahrzeug</label>
+            <select
+              value={form.vehicle}
+              onChange={e => setField('vehicle', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Fahrzeug auswählen (optional)</option>
+              {VEHICLES.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            {vehicleConflicts.length > 0 && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-1.5 text-amber-700 text-sm font-medium mb-1.5">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  Fahrzeug bereits gebucht:
+                </div>
+                {vehicleConflicts.map(j => (
+                  <div key={j.id} className="text-xs text-amber-700">
+                    {j.jobNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.vehicle && vehicleConflicts.length === 0 && form.scheduledAt && !checkingAvailability && (
+              <div className="mt-1.5 flex items-center gap-1 text-xs text-green-600">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Fahrzeug verfügbar
+              </div>
+            )}
+          </div>
+
+          {/* Beschreibung */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Beschreibung</label>
             <textarea
-              name="description"
               value={form.description}
-              onChange={handleChange}
+              onChange={e => setField('description', e.target.value)}
               rows={4}
               placeholder="Beschreibung des Einsatzes..."
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
+
+          {hasConflicts && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+              Achtung: Es bestehen Konflikte. Du kannst den Einsatz trotzdem anlegen.
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button
