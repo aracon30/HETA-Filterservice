@@ -67,7 +67,11 @@ export async function POST() {
     }
   }
   const stillMissing = critical.filter(f => !fs.existsSync(`${APP_DIR}/${f}`))
-  steps.push({ step: 'Datei-Check', output: stillMissing.length === 0 ? 'Alle Dateien vorhanden' : `Fehlend: ${stillMissing.join(', ')}`, error: stillMissing.length > 0 })
+  // Dateigrößen ausgeben um leere Dateien zu erkennen
+  const fileSizes = critical.map(f => {
+    try { return `${f}: ${fs.statSync(`${APP_DIR}/${f}`).size}B` } catch { return `${f}: FEHLT` }
+  }).join(' | ')
+  steps.push({ step: 'Datei-Check', output: fileSizes, error: stillMissing.length > 0 })
 
   // 2. Alle Build-Caches und node_modules entfernen für saubere Installation
   // node_modules wird komplett gelöscht um veraltete Modul-Auflösungen zu vermeiden
