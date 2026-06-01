@@ -139,7 +139,9 @@ async function main() {
     description: string,
     findings?: string,
     recommendations?: string,
-    completedAt?: Date
+    completedAt?: Date,
+    duration: number = 60,
+    vehicle?: string
   ) => {
     jobCounter++
     return prisma.serviceJob.create({
@@ -154,6 +156,8 @@ async function main() {
         description,
         findings,
         recommendations,
+        duration,
+        vehicle: vehicle ?? null,
         checklistItems: {
           create: DEFAULT_CHECKLIST.map((label, i) => ({
             label,
@@ -171,7 +175,7 @@ async function main() {
     'Halbjährliche Wartung Druckfilter Produktionslinie 1',
     'Filterelemente stark verschmutzt, Dichtung am Einlassflansch leicht undicht',
     'Dichtung ausgetauscht, Filterelemente erneuert. Nächste Wartung in 6 Monaten.',
-    new Date('2024-01-15')
+    new Date('2024-01-15'), 180, 'HH-HE 123'
   )
 
   await createJob(
@@ -180,14 +184,14 @@ async function main() {
     'Inspektion Bandfilter Kühlwasserkreislauf – Routinecheck',
     'Bandverschleiß im normalen Bereich',
     undefined,
-    undefined
+    undefined, 90, 'HH-ST 456'
   )
 
   await createJob(
     customer1.id, plant1a.id, JobStatus.PLANNED,
     new Date('2024-04-10'), 'Klaus Meier',
     'Halbjährliche Wartung Druckfilter – Frühjahrsservice',
-    undefined, undefined, undefined
+    undefined, undefined, undefined, 240, 'HH-HE 123'
   )
 
   // Jobs for Customer 2
@@ -197,21 +201,21 @@ async function main() {
     'Reinigung und Inspektion Magnetfilter',
     'Starke Metallpartikel-Ansammlung. System arbeitete nahe Kapazitätsgrenze.',
     'Reinigungsintervall von 3 auf 2 Monate reduzieren.',
-    new Date('2024-02-20')
+    new Date('2024-02-20'), 120, 'HH-PB 789'
   )
 
   await createJob(
     customer2.id, plant2b.id, JobStatus.PLANNED,
     new Date('2024-03-25'), 'Anna Schulz',
     'Jahresinspektion Mehrschichtfilter Prozesswasseraufbereitung',
-    undefined, undefined, undefined
+    undefined, undefined, undefined, 60, 'HH-ST 456'
   )
 
   await createJob(
     customer2.id, plant2a.id, JobStatus.PLANNED,
     new Date('2024-04-20'), 'Peter Baum',
     'Routinereinigung Magnetfilter (2-Monats-Intervall)',
-    undefined, undefined, undefined
+    undefined, undefined, undefined, 60, 'HH-PB 789'
   )
 
   // Jobs for Customer 3
@@ -221,14 +225,14 @@ async function main() {
     'Quartalsservice RO-Anlage – Membranprüfung',
     'Membranen in gutem Zustand. Leitfähigkeit Permeat: 2,1 µS/cm (Grenzwert: 5 µS/cm).',
     'Anlage in einwandfreiem Betriebszustand. Nächster Service in 3 Monaten.',
-    new Date('2024-01-30')
+    new Date('2024-01-30'), 180, 'HH-HE 123'
   )
 
   await createJob(
     customer3.id, plant3b.id, JobStatus.PLANNED,
     new Date('2024-03-22'), 'Anna Schulz',
     'Jährlicher Filterwechsel HEPA-Anlage Lager B',
-    undefined, undefined, undefined
+    undefined, undefined, undefined, 120, 'HH-ST 456'
   )
 
   // Opportunities

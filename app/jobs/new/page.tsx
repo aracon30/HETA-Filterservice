@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 interface Customer {
@@ -15,19 +15,36 @@ interface Plant {
   type: string
 }
 
-export default function NewJobPage() {
+export default function NewJobPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-400">Laden...</div>}>
+      <NewJobPage />
+    </Suspense>
+  )
+}
+
+function NewJobPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [plants, setPlants] = useState<Plant[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  // Pre-fill date from calendar click
+  const prefillDate = searchParams.get('date')
+  const defaultScheduledAt = prefillDate
+    ? new Date(prefillDate).toISOString().slice(0, 16)
+    : ''
+
   const [form, setForm] = useState({
     customerId: '',
     plantId: '',
-    scheduledAt: '',
+    scheduledAt: defaultScheduledAt,
     technicianName: '',
     description: '',
+    duration: 60,
+    vehicle: '',
   })
 
   useEffect(() => {
@@ -49,7 +66,8 @@ export default function NewJobPage() {
   }, [form.customerId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+    const value = e.target.type === 'number' ? Number(e.target.value) : e.target.value
+    setForm((f) => ({ ...f, [e.target.name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,6 +180,54 @@ export default function NewJobPage() {
               value={form.technicianName}
               onChange={handleChange}
               placeholder="Name des Technikers"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Dauer (Minuten)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                name="duration"
+                value={form.duration}
+                onChange={handleChange}
+                min={15}
+                step={15}
+                className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-500">Minuten</span>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {[{ label: '30 Min', value: 30 }, { label: '1 Std', value: 60 }, { label: '2 Std', value: 120 }, { label: '4 Std', value: 240 }, { label: '8 Std', value: 480 }].map(({ label, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, duration: value }))}
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors border ${
+                    form.duration === value
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Fahrzeug
+            </label>
+            <input
+              type="text"
+              name="vehicle"
+              value={form.vehicle}
+              onChange={handleChange}
+              placeholder="z.B. VW Crafter HH-HE 123"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

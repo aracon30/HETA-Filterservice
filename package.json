@@ -15,9 +15,11 @@
   "dependencies": {
     "@prisma/client": "^5.9.1",
     "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
     "next": "14.1.0",
     "next-auth": "^4.24.14",
     "react": "^18",
+    "react-big-calendar": "^1.20.0",
     "react-dom": "^18"
   },
   "prisma": {
@@ -27,6 +29,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
+    "@types/react-big-calendar": "^1.16.3",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",

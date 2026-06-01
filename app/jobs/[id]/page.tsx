@@ -19,6 +19,8 @@ interface Job {
   scheduledAt: string
   completedAt: string | null
   technicianName: string | null
+  duration: number
+  vehicle: string | null
   description: string | null
   findings: string | null
   recommendations: string | null
@@ -275,6 +277,20 @@ export default function JobDetailPage() {
                   <dd className="text-gray-900 font-medium mt-0.5">{job.technicianName}</dd>
                 </div>
               )}
+              {job.vehicle && (
+                <div>
+                  <dt className="text-gray-500">Fahrzeug</dt>
+                  <dd className="text-gray-900 font-medium mt-0.5">{job.vehicle}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-gray-500">Dauer</dt>
+                <dd className="text-gray-900 font-medium mt-0.5">
+                  {job.duration >= 60
+                    ? `${Math.floor(job.duration / 60)} Std.${job.duration % 60 > 0 ? ` ${job.duration % 60} Min.` : ''}`
+                    : `${job.duration} Min.`}
+                </dd>
+              </div>
               {job.completedAt && (
                 <div>
                   <dt className="text-gray-500">Abgeschlossen</dt>
