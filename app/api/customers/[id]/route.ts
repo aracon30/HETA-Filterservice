@@ -75,12 +75,21 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     )
   }
 
-  await prisma.$transaction([
-    prisma.checklistItem.deleteMany({ where: { job: { customerId: params.id } } }),
-    prisma.serviceJob.deleteMany({ where: { customerId: params.id } }),
-    prisma.plant.deleteMany({ where: { customerId: params.id } }),
-    prisma.customer.delete({ where: { id: params.id } }),
-  ])
+  await prisma.$transaction(async (tx) => {
+    // Erst alle Job-Checklisten löschen
+    const jobs = await tx.serviceJob.findMany({
+      where: { customerId: params.id },
+      select: { id: true },
+    })
+    const jobIds = jobs.map(j => j.id)
+    if (jobIds.length > 0) {
+      await tx.checklistItem.deleteMany({ where: { jobId: { in: jobIds } } })
+    }
+    await tx.serviceJob.deleteMany({ where: { customerId: params.id } })
+    await tx.plant.deleteMany({ where: { customerId: params.id } })
+    await tx.opportunity.deleteMany({ where: { customerId: params.id } })
+    await tx.customer.delete({ where: { id: params.id } })
+  })
 
   return NextResponse.json({ success: true })
 }
