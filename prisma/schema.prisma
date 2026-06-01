@@ -17,17 +17,33 @@ enum UserRole {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  name         String
-  password     String
-  role         UserRole
-  customerId   String?
-  customer     Customer?    @relation(fields: [customerId], references: [id])
-  active       Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  assignedJobs ServiceJob[] @relation("TechnicianJobs")
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  password        String
+  role            UserRole
+  customerId      String?
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  assignedJobs    ServiceJob[]     @relation("TechnicianJobs")
+  userPermissions UserPermission[]
+}
+
+model UserPermission {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource  String
+  canView   Boolean  @default(false)
+  canCreate Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canDelete Boolean  @default(false)
+  scope     String   @default("all")
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, resource])
 }
 
 model RolePermission {

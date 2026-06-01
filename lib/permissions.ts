@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 export type Resource = 'customers' | 'plants' | 'jobs' | 'checklist' | 'opportunities' | 'users'
 export type Action = 'view' | 'create' | 'edit' | 'delete'
 
-// Fetch permissions from DB with caching
+// Fetch role-level permissions from DB with caching
 export const getPermissions = unstable_cache(
   async (role: UserRole, resource: Resource) => {
     const perm = await prisma.rolePermission.findUnique({
@@ -18,7 +18,15 @@ export const getPermissions = unstable_cache(
   { revalidate: 60 }
 )
 
+// Fetch user-specific permissions (overrides role defaults)
+async function getUserPermission(userId: string, resource: Resource) {
+  return prisma.userPermission.findUnique({
+    where: { userId_resource: { userId, resource } },
+  })
+}
+
 // Check if the session user can perform an action on a resource
+// User-specific permissions take precedence over role defaults
 export async function checkPermission(
   session: Session | null,
   resource: Resource,
@@ -31,6 +39,22 @@ export async function checkPermission(
   // Admin always has full access
   if (role === 'ADMIN') return true
 
+  // Check user-specific permissions first
+  const userId = session.user.id
+  if (userId) {
+    const userPerm = await getUserPermission(userId, resource)
+    if (userPerm) {
+      switch (action) {
+        case 'view':   return userPerm.canView
+        case 'create': return userPerm.canCreate
+        case 'edit':   return userPerm.canEdit
+        case 'delete': return userPerm.canDelete
+        default:       return false
+      }
+    }
+  }
+
+  // Fall back to role permissions
   const perm = await getPermissions(role, resource)
   if (!perm) return false
 
