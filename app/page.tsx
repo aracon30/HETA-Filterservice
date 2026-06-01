@@ -1,8 +1,12 @@
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 
 export const dynamic = 'force-dynamic'
+
+const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString('de-DE', {
@@ -17,27 +21,35 @@ function formatCurrency(value: number) {
 }
 
 export default async function DashboardPage() {
+  const session = await getServerSession(authOptions)
+  const role = session?.user?.role as string | undefined
+  const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
+  const customerId = session?.user?.customerId as string | undefined
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
+  const jobFilter = isExternal && customerId ? { customerId } : {}
+
   const [openJobs, todayJobs, opportunities, upcomingJobs] = await Promise.all([
     prisma.serviceJob.count({
-      where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+      where: { ...jobFilter, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
     }),
     prisma.serviceJob.count({
       where: {
+        ...jobFilter,
         scheduledAt: { gte: today, lt: tomorrow },
         status: { in: ['PLANNED', 'IN_PROGRESS'] },
       },
     }),
-    prisma.opportunity.findMany({
+    isExternal ? Promise.resolve([]) : prisma.opportunity.findMany({
       where: { stage: { notIn: ['WON', 'LOST'] } },
       select: { value: true },
     }),
     prisma.serviceJob.findMany({
-      where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+      where: { ...jobFilter, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
       include: {
         customer: { select: { name: true } },
         plant: { select: { name: true } },
@@ -47,7 +59,7 @@ export default async function DashboardPage() {
     }),
   ])
 
-  const totalOpportunityValue = opportunities.reduce((sum, o) => sum + (o.value ?? 0), 0)
+  const totalOpportunityValue = (opportunities as { value: number | null }[]).reduce((sum, o) => sum + (o.value ?? 0), 0)
 
   return (
     <div>
@@ -58,30 +70,32 @@ export default async function DashboardPage() {
             {new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link
-            href="/jobs/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Neuer Einsatz
-          </Link>
-          <Link
-            href="/customers"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-            Neuer Kunde
-          </Link>
-        </div>
+        {!isExternal && (
+          <div className="flex gap-3">
+            <Link
+              href="/jobs/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Neuer Einsatz
+            </Link>
+            <Link
+              href="/customers"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Neuer Kunde
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-6 mb-8">
+      <div className={`grid gap-6 mb-8 ${isExternal ? 'grid-cols-2' : 'grid-cols-3'}`}>
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -108,18 +122,20 @@ export default async function DashboardPage() {
           <div className="text-sm text-gray-500 mt-1">Einsätze heute</div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+        {!isExternal && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
             </div>
+            <div className="text-3xl font-bold text-gray-900">{formatCurrency(totalOpportunityValue)}</div>
+            <div className="text-sm text-gray-500 mt-1">Offene Vertriebschancen ({(opportunities as any[]).length})</div>
           </div>
-          <div className="text-3xl font-bold text-gray-900">{formatCurrency(totalOpportunityValue)}</div>
-          <div className="text-sm text-gray-500 mt-1">Offene Vertriebschancen ({opportunities.length})</div>
-        </div>
+        )}
       </div>
 
       {/* Upcoming Jobs Table */}
