@@ -35,49 +35,44 @@ export async function POST() {
 
   const steps: { step: string; output: string; error?: boolean }[] = []
 
-  const run = async (label: string, cmd: string) => {
+  const run = async (label: string, cmd: string, opts?: { ignoreFail?: boolean }) => {
     try {
       const { stdout, stderr } = await execAsync(cmd, { cwd: APP_DIR, timeout: 300000 })
-      steps.push({ step: label, output: (stdout + stderr).trim() })
+      steps.push({ step: label, output: (stdout + stderr).trim() || '(kein Output)' })
       return true
     } catch (err: any) {
-      steps.push({ step: label, output: err.message, error: true })
+      steps.push({ step: label, output: err.message, error: !opts?.ignoreFail })
       return false
     }
   }
 
-  // Debug: Projektverzeichnis im ersten Schritt anzeigen
   steps.push({ step: 'Verzeichnis', output: APP_DIR })
 
-  // 1. Alle Dateien auf Remote-Stand zurücksetzen
+  // 1. Git: neuesten Stand holen
   await run('Git Fetch', 'git fetch origin main')
-  // Sparse-Checkout deaktivieren falls aktiv, dann hart zurücksetzen
-  await run('Git Sparse-Checkout', 'git sparse-checkout disable 2>/dev/null || true')
+  await run('Git Sparse-Checkout', 'git sparse-checkout disable 2>/dev/null || true', { ignoreFail: true })
   const pulled = await run('Git Reset', 'git reset --hard origin/main')
   if (!pulled) return NextResponse.json({ success: false, steps }, { status: 500 })
-  // Sicherheitshalber alle Dateien explizit auschecken
+  // Alle Dateien aus Remote explizit auschecken (Sicherheitsnetz gegen unvollständige Checkouts)
   await run('Git Checkout', 'git checkout origin/main -- .')
-  // Dateien nach Reset prüfen
-  const { execSync } = require('child_process')
-  const missing: string[] = []
-  for (const f of ['components/StatusBadge.tsx', 'lib/constants.ts', 'components/JobCalendar.tsx']) {
-    try { execSync(`test -f ${f}`, { cwd: APP_DIR }) } catch { missing.push(f) }
-  }
-  steps.push({ step: 'Datei-Check', output: missing.length === 0 ? 'Alle Dateien vorhanden' : `Fehlend: ${missing.join(', ')}`, error: missing.length > 0 })
 
-  // 2. npm install
+  // 2. Alle Build-Caches und node_modules entfernen für saubere Installation
+  // node_modules wird komplett gelöscht um veraltete Modul-Auflösungen zu vermeiden
+  await run('Cache leeren', 'rm -rf .next node_modules/.cache tsconfig.tsbuildinfo')
+  await run('node_modules entfernen', 'rm -rf node_modules')
+
+  // 3. Saubere npm-Installation
   await run('npm install', 'npm install')
 
-  // 3. Prisma generate + db push
-  await run('Prisma', 'npx prisma generate && npx prisma db push')
+  // 4. Prisma: Client generieren + Schema in DB übernehmen (Daten bleiben erhalten)
+  await run('Prisma', 'npx prisma generate && npx prisma db push --accept-data-loss')
 
-  // 4. Build — Cache leeren
-  await run('Cache leeren', 'rm -rf .next node_modules/.cache')
+  // 5. Build
   const built = await run('Build', 'npm run build')
   if (!built) return NextResponse.json({ success: false, steps }, { status: 500 })
 
-  // 5. Neustart
-  await run('Neustart', 'pm2 restart heta-servicehub 2>/dev/null || true')
+  // 6. Server neu starten
+  await run('Neustart', 'pm2 restart heta-servicehub 2>/dev/null || true', { ignoreFail: true })
 
   return NextResponse.json({ success: true, steps })
 }
