@@ -10,12 +10,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-  }
-  if (!(await checkPermission(session, 'jobs', 'view'))) {
-    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
-  }
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  if (!(await checkPermission(session, 'jobs', 'view'))) return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   const job = await prisma.serviceJob.findUnique({
     where: { id: params.id },
@@ -26,10 +22,7 @@ export async function GET(
     },
   })
 
-  if (!job) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-
+  if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(job)
 }
 
@@ -38,15 +31,15 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-  }
-  if (!(await checkPermission(session, 'jobs', 'edit'))) {
-    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
-  }
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  if (!(await checkPermission(session, 'jobs', 'edit'))) return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   const body = await request.json()
-  const { status, findings, recommendations, checklistItems, duration, vehicle, scheduledAt, technicianName } = body
+  const {
+    status, findings, recommendations, checklistItems,
+    duration, vehicle, scheduledAt, technicianName,
+    technicianSignature, customerSignature, complete,
+  } = body
 
   const updateData: Record<string, unknown> = {}
 
@@ -57,35 +50,38 @@ export async function PUT(
   if (vehicle !== undefined) updateData.vehicle = vehicle || null
   if (scheduledAt !== undefined) updateData.scheduledAt = new Date(scheduledAt)
   if (technicianName !== undefined) updateData.technicianName = technicianName
-  if (status === 'COMPLETED' && !body.completedAt) {
+  if (technicianSignature !== undefined) updateData.technicianSignature = technicianSignature
+  if (customerSignature !== undefined) updateData.customerSignature = customerSignature
+
+  if (complete) {
+    updateData.status = 'COMPLETED'
     updateData.completedAt = new Date()
-  }
-  if (status === 'PLANNED' || status === 'IN_PROGRESS') {
+  } else if (status === 'COMPLETED') {
+    updateData.completedAt = new Date()
+  } else if (status === 'PLANNED' || status === 'IN_PROGRESS') {
     updateData.completedAt = null
   }
 
   const job = await prisma.$transaction(async (tx) => {
-    const updatedJob = await tx.serviceJob.update({
-      where: { id: params.id },
-      data: updateData,
-    })
+    await tx.serviceJob.update({ where: { id: params.id }, data: updateData })
 
     if (checklistItems && Array.isArray(checklistItems)) {
       for (const item of checklistItems) {
         await tx.checklistItem.update({
           where: { id: item.id },
-          data: { checked: item.checked },
+          data: {
+            status: item.status ?? 'open',
+            checked: item.status === 'io',
+            comment: item.comment ?? null,
+            photoUrl: item.photoUrl ?? undefined,
+          },
         })
       }
     }
 
     return tx.serviceJob.findUnique({
       where: { id: params.id },
-      include: {
-        customer: true,
-        plant: true,
-        checklistItems: { orderBy: { id: 'asc' } },
-      },
+      include: { customer: true, plant: true, checklistItems: { orderBy: { id: 'asc' } } },
     })
   })
 
@@ -97,13 +93,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions)
-  if (!session?.user)
-    return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-  if (!(await checkPermission(session, 'jobs', 'delete')))
-    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
-
-  const job = await prisma.serviceJob.findUnique({ where: { id: params.id } })
-  if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  if (!(await checkPermission(session, 'jobs', 'delete'))) return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   await prisma.$transaction([
     prisma.checklistItem.deleteMany({ where: { jobId: params.id } }),

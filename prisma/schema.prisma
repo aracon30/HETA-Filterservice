@@ -85,11 +85,13 @@ model ServiceJob {
   customerId      String
   plant           Plant?          @relation(fields: [plantId], references: [id])
   plantId         String?
-  technicianName  String?
-  technicianId    String?
-  technician      User?           @relation("TechnicianJobs", fields: [technicianId], references: [id])
-  duration        Int             @default(480)
-  vehicle         String?
+  technicianName       String?
+  technicianId         String?
+  technician           User?           @relation("TechnicianJobs", fields: [technicianId], references: [id])
+  duration             Int             @default(480)
+  vehicle              String?
+  technicianSignature  String?
+  customerSignature    String?
   description     String?
   findings        String?
   recommendations String?
@@ -99,12 +101,15 @@ model ServiceJob {
 }
 
 model ChecklistItem {
-  id      String     @id @default(cuid())
-  label   String
-  section String?
-  checked Boolean    @default(false)
-  job     ServiceJob @relation(fields: [jobId], references: [id])
-  jobId   String
+  id       String     @id @default(cuid())
+  label    String
+  section  String?
+  status   String     @default("open")
+  checked  Boolean    @default(false)
+  comment  String?
+  photoUrl String?
+  job      ServiceJob @relation(fields: [jobId], references: [id])
+  jobId    String
 }
 
 model Opportunity {

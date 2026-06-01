@@ -1,16 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
-import { JOB_STATUS_LABELS } from '@/lib/constants'
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface ChecklistItem {
   id: string
   label: string
   section: string | null
+  status: 'open' | 'io' | 'nio'
   checked: boolean
+  comment: string | null
+  photoUrl: string | null
 }
 
 interface Job {
@@ -20,79 +24,339 @@ interface Job {
   scheduledAt: string
   completedAt: string | null
   technicianName: string | null
+  technicianSignature: string | null
+  customerSignature: string | null
   duration: number
   vehicle: string | null
   description: string | null
   findings: string | null
   recommendations: string | null
-  customer: { id: string; name: string }
-  plant: { id: string; name: string; type: string } | null
+  customer: { id: string; name: string; address: string | null; contactName: string | null }
+  plant: { id: string; name: string; type: string; serialNumber: string | null; location: string | null; manufacturer: string | null; model: string | null; buildYear: number | null } | null
   checklistItems: ChecklistItem[]
 }
 
-const STATUS_OPTIONS = [
-  { value: 'PLANNED', label: JOB_STATUS_LABELS.PLANNED },
-  { value: 'IN_PROGRESS', label: JOB_STATUS_LABELS.IN_PROGRESS },
-  { value: 'COMPLETED', label: JOB_STATUS_LABELS.COMPLETED },
-  { value: 'CANCELLED', label: JOB_STATUS_LABELS.CANCELLED },
+type Step = 'verify' | 'inspection' | 'findings' | 'summary'
+
+const STEPS: { key: Step; label: string; short: string }[] = [
+  { key: 'verify',     label: 'Anlagenprüfung', short: '1' },
+  { key: 'inspection', label: 'Inspektionsbericht', short: '2' },
+  { key: 'findings',   label: 'Befunde',  short: '3' },
+  { key: 'summary',    label: 'Abschluss', short: '4' },
 ]
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('de-DE', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+function fmt(date: string) {
+  return new Date(date).toLocaleString('de-DE', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 }
 
-export default function JobDetailPage() {
+function fmtShort(date: string) {
+  return new Date(date).toLocaleString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+// ─── Signature Canvas ────────────────────────────────────────────────────────
+
+function SignatureCanvas({ label, value, onChange }: {
+  label: string
+  value: string
+  onChange: (data: string) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing = useRef(false)
+  const [hasSignature, setHasSignature] = useState(!!value)
+
+  useEffect(() => {
+    if (value && canvasRef.current) {
+      const img = new Image()
+      img.onload = () => {
+        const ctx = canvasRef.current?.getContext('2d')
+        if (ctx && canvasRef.current) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+          ctx.drawImage(img, 0, 0)
+        }
+      }
+      img.src = value
+    }
+  }, [])
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    if ('touches' in e) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
+      }
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    }
+  }
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault()
+    drawing.current = true
+    const ctx = canvasRef.current!.getContext('2d')!
+    const pos = getPos(e)
+    ctx.beginPath()
+    ctx.moveTo(pos.x, pos.y)
+  }
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault()
+    if (!drawing.current) return
+    const ctx = canvasRef.current!.getContext('2d')!
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#1e293b'
+    const pos = getPos(e)
+    ctx.lineTo(pos.x, pos.y)
+    ctx.stroke()
+  }
+
+  const endDraw = () => {
+    if (!drawing.current) return
+    drawing.current = false
+    const data = canvasRef.current!.toDataURL()
+    onChange(data)
+    setHasSignature(true)
+  }
+
+  const clear = () => {
+    const canvas = canvasRef.current!
+    const ctx = canvas.getContext('2d')!
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    onChange('')
+    setHasSignature(false)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-sm font-medium text-gray-700">{label}</label>
+        {hasSignature && (
+          <button type="button" onClick={clear} className="text-xs text-red-500 hover:text-red-700">
+            Löschen
+          </button>
+        )}
+      </div>
+      <div className="relative border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 touch-none">
+        <canvas
+          ref={canvasRef}
+          width={600}
+          height={160}
+          className="w-full h-32 cursor-crosshair touch-none rounded-lg"
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
+        {!hasSignature && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-sm text-gray-400">Hier unterschreiben</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Checklist Item Row ───────────────────────────────────────────────────────
+
+function InspectionItemRow({ item, onChange, onPhotoUpload, uploading }: {
+  item: ChecklistItem
+  onChange: (update: Partial<ChecklistItem>) => void
+  onPhotoUpload: (itemId: string, file: File) => void
+  uploading: string | null
+}) {
+  return (
+    <div className={`p-4 rounded-lg border transition-colors ${
+      item.status === 'io'  ? 'bg-green-50 border-green-200' :
+      item.status === 'nio' ? 'bg-red-50 border-red-200' :
+      'bg-white border-gray-200'
+    }`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-800">{item.label}</p>
+        </div>
+        {/* i.O. / n.i.O. Buttons */}
+        <div className="flex gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onChange({ status: item.status === 'io' ? 'open' : 'io' })}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+              item.status === 'io'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-gray-500 border-gray-300 hover:border-green-400 hover:text-green-600'
+            }`}
+          >
+            i.O.
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ status: item.status === 'nio' ? 'open' : 'nio' })}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+              item.status === 'nio'
+                ? 'bg-red-600 text-white border-red-600'
+                : 'bg-white text-gray-500 border-gray-300 hover:border-red-400 hover:text-red-600'
+            }`}
+          >
+            n.i.O.
+          </button>
+        </div>
+      </div>
+
+      {/* Comment (always visible if nio, optional otherwise) */}
+      {(item.status === 'nio' || item.comment) && (
+        <textarea
+          value={item.comment ?? ''}
+          onChange={e => onChange({ comment: e.target.value })}
+          placeholder="Kommentar / Bemerkung..."
+          rows={2}
+          className="mt-3 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white"
+        />
+      )}
+      {item.status === 'io' && !item.comment && (
+        <button
+          type="button"
+          onClick={() => onChange({ comment: '' })}
+          className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+        >
+          + Kommentar hinzufügen
+        </button>
+      )}
+
+      {/* Photo */}
+      <div className="mt-3 flex items-center gap-3">
+        <label className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border cursor-pointer transition-colors ${
+          uploading === item.id ? 'opacity-50' : 'bg-white border-gray-200 hover:bg-gray-50'
+        }`}>
+          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          {uploading === item.id ? 'Lädt...' : 'Foto'}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={!!uploading}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) onPhotoUpload(item.id, file)
+              e.target.value = ''
+            }}
+          />
+        </label>
+        {item.photoUrl && (
+          <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+            <img src={item.photoUrl} className="w-8 h-8 object-cover rounded border" alt="" />
+            Foto ansehen
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function JobInspectionPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
 
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
+  const [step, setStep] = useState<Step>('verify')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [uploadingItem, setUploadingItem] = useState<string | null>(null)
+
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([])
+  const [findings, setFindings] = useState('')
+  const [recommendations, setRecommendations] = useState('')
+  const [techSignature, setTechSignature] = useState('')
+  const [customerSignature, setCustomerSignature] = useState('')
+
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const [findings, setFindings] = useState('')
-  const [recommendations, setRecommendations] = useState('')
-  const [status, setStatus] = useState('')
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([])
-
-  useEffect(() => {
-    fetch(`/api/jobs/${id}`)
-      .then((r) => r.json())
-      .then((data: Job) => {
-        setJob(data)
-        setFindings(data.findings ?? '')
-        setRecommendations(data.recommendations ?? '')
-        setStatus(data.status)
-        setChecklist(data.checklistItems)
-        setLoading(false)
-      })
+  const loadJob = useCallback(async () => {
+    const data: Job = await fetch(`/api/jobs/${id}`).then(r => r.json())
+    setJob(data)
+    setChecklist(data.checklistItems.map(i => ({ ...i, status: (i.status as any) || (i.checked ? 'io' : 'open') })))
+    setFindings(data.findings ?? '')
+    setRecommendations(data.recommendations ?? '')
+    setTechSignature(data.technicianSignature ?? '')
+    setCustomerSignature(data.customerSignature ?? '')
+    setLoading(false)
+    // Jump directly to completed view if already done
+    if (data.status === 'COMPLETED') setStep('summary')
   }, [id])
 
-  const handleSave = async () => {
+  useEffect(() => { loadJob() }, [loadJob])
+
+  const save = async (extra?: Record<string, unknown>) => {
     setSaving(true)
-    setSaved(false)
     await fetch(`/api/jobs/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        status,
         findings,
         recommendations,
         checklistItems: checklist,
+        technicianSignature: techSignature,
+        customerSignature,
+        ...extra,
       }),
     })
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  }
 
-    // Refresh job data
-    const updated = await fetch(`/api/jobs/${id}`).then((r) => r.json())
-    setJob(updated)
+  const handlePhotoUpload = async (itemId: string, file: File) => {
+    setUploadingItem(itemId)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    if (res.ok) {
+      const { url } = await res.json()
+      setChecklist(prev => prev.map(i => i.id === itemId ? { ...i, photoUrl: url } : i))
+    }
+    setUploadingItem(null)
+  }
+
+  const updateItem = (itemId: string, update: Partial<ChecklistItem>) => {
+    setChecklist(prev => prev.map(i => i.id === itemId ? { ...i, ...update } : i))
+  }
+
+  const handleFinish = async () => {
+    setSaving(true)
+    // Set to IN_PROGRESS first when starting
+    if (job?.status === 'PLANNED') {
+      await fetch(`/api/jobs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'IN_PROGRESS' }),
+      })
+    }
+    setSaving(false)
+    setStep('inspection')
+  }
+
+  const handleComplete = async () => {
+    await save({ complete: true })
+    await loadJob()
   }
 
   const handleDelete = async () => {
@@ -102,18 +366,10 @@ export default function JobDetailPage() {
     else setDeleting(false)
   }
 
-  const toggleCheckItem = (itemId: string) => {
-    setChecklist((prev) =>
-      prev.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)
-    )
-  }
-
-  const checkedCount = checklist.filter((i) => i.checked).length
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400">Laden...</div>
+        <div className="text-gray-400 text-sm">Laden...</div>
       </div>
     )
   }
@@ -122,258 +378,487 @@ export default function JobDetailPage() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Einsatz nicht gefunden.</p>
-        <Link href="/jobs" className="text-blue-600 hover:underline mt-2 inline-block">Zurück zur Liste</Link>
+        <Link href="/jobs" className="text-blue-600 hover:underline mt-2 inline-block">Zurück</Link>
       </div>
     )
   }
 
+  const isCompleted = job.status === 'COMPLETED'
+  const stepIdx = STEPS.findIndex(s => s.key === step)
+
+  // Group checklist by section
+  const sections: Record<string, ChecklistItem[]> = {}
+  checklist.forEach(item => {
+    const sec = item.section ?? 'Allgemein'
+    if (!sections[sec]) sections[sec] = []
+    sections[sec].push(item)
+  })
+
+  const totalItems = checklist.length
+  const doneItems = checklist.filter(i => i.status !== 'open').length
+  const nioItems = checklist.filter(i => i.status === 'nio').length
+
+  // ── Completed / read-only summary ─────────────────────────────────────────
+  if (isCompleted && step === 'summary') {
+    return (
+      <div className="max-w-3xl mx-auto pb-12">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/jobs" className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">{job.jobNumber} — Inspektionsbericht</h1>
+          <StatusBadge status={job.status} />
+        </div>
+
+        {/* Stamp */}
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+          <svg className="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-green-800">Inspektion abgeschlossen</p>
+            <p className="text-xs text-green-700">{job.completedAt ? fmtShort(job.completedAt) : '—'} · {job.technicianName ?? '—'}</p>
+          </div>
+        </div>
+
+        {/* Plant + Customer */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Kunde</p>
+            <p className="font-medium">{job.customer.name}</p>
+            {job.customer.address && <p className="text-gray-500 text-xs">{job.customer.address}</p>}
+          </div>
+          {job.plant && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Anlage</p>
+              <p className="font-medium">{job.plant.name}</p>
+              <p className="text-xs text-gray-500">{job.plant.type}{job.plant.serialNumber ? ` · SN: ${job.plant.serialNumber}` : ''}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Checklist summary */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">
+            Inspektionsbericht · {doneItems}/{totalItems} geprüft · {nioItems} n.i.O.
+          </h2>
+          {Object.entries(sections).map(([sec, items]) => (
+            <div key={sec} className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{sec}</h3>
+              <div className="space-y-1">
+                {items.map(item => (
+                  <div key={item.id} className="flex items-start gap-3 text-sm py-1.5 border-b border-gray-100 last:border-0">
+                    <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 text-xs font-bold rounded ${
+                      item.status === 'io'  ? 'bg-green-100 text-green-700' :
+                      item.status === 'nio' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-400'
+                    }`}>
+                      {item.status === 'io' ? 'i.O.' : item.status === 'nio' ? 'n.i.O.' : '—'}
+                    </span>
+                    <div className="flex-1">
+                      <p className={item.status === 'nio' ? 'text-red-800 font-medium' : 'text-gray-700'}>{item.label}</p>
+                      {item.comment && <p className="text-xs text-gray-500 mt-0.5 italic">{item.comment}</p>}
+                    </div>
+                    {item.photoUrl && (
+                      <a href={item.photoUrl} target="_blank" rel="noopener noreferrer">
+                        <img src={item.photoUrl} className="w-10 h-10 object-cover rounded border" alt="" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Findings */}
+        {(findings || recommendations) && (
+          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4 grid grid-cols-1 gap-4">
+            {findings && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Befunde</h3>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{findings}</p>
+              </div>
+            )}
+            {recommendations && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Empfehlungen</h3>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{recommendations}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Signatures */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 grid grid-cols-2 gap-6">
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Techniker · {job.technicianName ?? '—'}</p>
+            {techSignature
+              ? <img src={techSignature} className="w-full h-24 object-contain border rounded bg-gray-50" alt="Unterschrift Techniker" />
+              : <div className="w-full h-24 border rounded bg-gray-50 flex items-center justify-center text-xs text-gray-400">Keine Unterschrift</div>
+            }
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Kunde · {job.customer.name}</p>
+            {customerSignature
+              ? <img src={customerSignature} className="w-full h-24 object-contain border rounded bg-gray-50" alt="Unterschrift Kunde" />
+              : <div className="w-full h-24 border rounded bg-gray-50 flex items-center justify-center text-xs text-gray-400">Keine Unterschrift</div>
+            }
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Wizard (active inspection) ─────────────────────────────────────────────
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-3xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex items-start gap-4 mb-8">
-        <Link href="/jobs" className="mt-1 text-gray-400 hover:text-gray-600 transition-colors">
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/jobs" className="text-gray-400 hover:text-gray-600">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900">{job.jobNumber}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">{job.jobNumber}</h1>
             <StatusBadge status={job.status} />
-            <div className="ml-auto flex gap-2">
-              {!confirmDelete ? (
-                <button onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                  </svg>
-                  Löschen
-                </button>
-              ) : (
-                <>
-                  <span className="text-sm text-gray-500 self-center">Wirklich löschen?</span>
-                  <button onClick={handleDelete} disabled={deleting}
-                    className="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
-                    {deleting ? '...' : 'Ja, löschen'}
-                  </button>
-                  <button onClick={() => setConfirmDelete(false)}
-                    className="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
-                    Abbrechen
-                  </button>
-                </>
-              )}
-            </div>
           </div>
-          <div className="flex flex-wrap gap-6 text-sm text-gray-500">
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              {formatDate(job.scheduledAt)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              {job.customer.name}
-            </span>
-            {job.plant && (
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                {job.plant.name} ({job.plant.type})
-              </span>
-            )}
-            {job.technicianName && (
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                {job.technicianName}
-              </span>
-            )}
-          </div>
-          {job.description && (
-            <p className="mt-3 text-sm text-gray-600 bg-gray-50 rounded-lg px-4 py-3">{job.description}</p>
-          )}
+          <p className="text-sm text-gray-500">{fmt(job.scheduledAt)}</p>
         </div>
+        {/* Delete */}
+        {!confirmDelete ? (
+          <button onClick={() => setConfirmDelete(true)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Löschen?</span>
+            <button onClick={handleDelete} disabled={deleting} className="px-2 py-1 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+              {deleting ? '...' : 'Ja'}
+            </button>
+            <button onClick={() => setConfirmDelete(false)} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg">Nein</button>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Main content */}
-        <div className="col-span-2 space-y-6">
-          {/* Findings */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Befunde</h2>
-            <textarea
-              value={findings}
-              onChange={(e) => setFindings(e.target.value)}
-              rows={5}
-              placeholder="Befunde des Einsatzes eintragen..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
-
-          {/* Recommendations */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Empfehlungen</h2>
-            <textarea
-              value={recommendations}
-              onChange={(e) => setRecommendations(e.target.value)}
-              rows={5}
-              placeholder="Empfehlungen für den Kunden..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
-
-          {/* Checklist */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Checkliste</h2>
-              <span className="text-sm text-gray-500">
-                {checkedCount}/{checklist.length} abgehakt
-              </span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5">
-              <div
-                className="bg-blue-600 h-1.5 rounded-full transition-all"
-                style={{ width: checklist.length > 0 ? `${(checkedCount / checklist.length) * 100}%` : '0%' }}
-              />
-            </div>
-            {(() => {
-              // Group by section
-              const hasSections = checklist.some(i => i.section)
-              if (!hasSections) {
-                return (
-                  <div className="space-y-3">
-                    {checklist.map((item) => (
-                      <ChecklistRow key={item.id} item={item} onToggle={toggleCheckItem} />
-                    ))}
-                  </div>
-                )
-              }
-              const sections: Record<string, typeof checklist> = {}
-              checklist.forEach(item => {
-                const sec = item.section ?? 'Allgemein'
-                if (!sections[sec]) sections[sec] = []
-                sections[sec].push(item)
-              })
-              return (
-                <div className="space-y-5">
-                  {Object.entries(sections).map(([sec, items]) => {
-                    const secChecked = items.filter(i => i.checked).length
-                    return (
-                      <div key={sec}>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{sec}</h3>
-                          <span className="text-xs text-gray-400">{secChecked}/{items.length}</span>
-                        </div>
-                        <div className="space-y-2 pl-1 border-l-2 border-gray-100">
-                          {items.map(item => (
-                            <ChecklistRow key={item.id} item={item} onToggle={toggleCheckItem} />
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })()}
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Status */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Status ändern</h3>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
+      {/* Step indicator */}
+      <div className="flex items-center mb-8">
+        {STEPS.map((s, i) => (
+          <div key={s.key} className="flex items-center flex-1 last:flex-none">
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              onClick={() => i < stepIdx || isCompleted ? setStep(s.key) : undefined}
+              className={`flex items-center gap-2 ${i <= stepIdx || isCompleted ? 'cursor-pointer' : 'cursor-default'}`}
             >
-              {saving ? 'Speichern...' : saved ? '✓ Gespeichert' : 'Speichern'}
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                i < stepIdx || isCompleted ? 'bg-green-600 text-white' :
+                i === stepIdx ? 'bg-blue-600 text-white' :
+                'bg-gray-200 text-gray-500'
+              }`}>
+                {i < stepIdx || isCompleted
+                  ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  : s.short
+                }
+              </div>
+              <span className={`text-xs font-medium hidden sm:block ${i === stepIdx ? 'text-blue-600' : i < stepIdx ? 'text-green-600' : 'text-gray-400'}`}>
+                {s.label}
+              </span>
             </button>
+            {i < STEPS.length - 1 && (
+              <div className={`flex-1 h-0.5 mx-2 ${i < stepIdx ? 'bg-green-600' : 'bg-gray-200'}`} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Step 1: Anlage verifizieren ── */}
+      {step === 'verify' && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h2 className="text-base font-semibold text-blue-900 mb-1">Schritt 1: Anlagenprüfung</h2>
+            <p className="text-sm text-blue-700">Bitte überprüfen Sie, ob Sie sich an der richtigen Anlage befinden.</p>
           </div>
 
-          {/* Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Informationen</h3>
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-gray-500">Kunde</dt>
-                <dd className="text-gray-900 font-medium mt-0.5">{job.customer.name}</dd>
-              </div>
-              {job.plant && (
+          {/* Customer */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Kunde</h3>
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold text-gray-900 text-base">{job.customer.name}</p>
+              {job.customer.contactName && <p className="text-gray-600">Ansprechpartner: {job.customer.contactName}</p>}
+              {job.customer.address && <p className="text-gray-600">{job.customer.address}</p>}
+            </div>
+          </div>
+
+          {/* Plant */}
+          {job.plant ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Anlage</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <dt className="text-gray-500">Anlage</dt>
-                  <dd className="text-gray-900 font-medium mt-0.5">{job.plant.name}</dd>
+                  <p className="text-xs text-gray-500">Name</p>
+                  <p className="font-semibold text-gray-900">{job.plant.name}</p>
                 </div>
-              )}
+                <div>
+                  <p className="text-xs text-gray-500">Typ</p>
+                  <p className="font-medium text-gray-800">{job.plant.type}</p>
+                </div>
+                {job.plant.manufacturer && (
+                  <div>
+                    <p className="text-xs text-gray-500">Hersteller</p>
+                    <p className="text-gray-800">{job.plant.manufacturer}{job.plant.model ? ` · ${job.plant.model}` : ''}</p>
+                  </div>
+                )}
+                {job.plant.buildYear && (
+                  <div>
+                    <p className="text-xs text-gray-500">Baujahr</p>
+                    <p className="text-gray-800">{job.plant.buildYear}</p>
+                  </div>
+                )}
+                {job.plant.serialNumber && (
+                  <div>
+                    <p className="text-xs text-gray-500">Seriennummer</p>
+                    <p className="text-gray-800 font-mono">{job.plant.serialNumber}</p>
+                  </div>
+                )}
+                {job.plant.location && (
+                  <div>
+                    <p className="text-xs text-gray-500">Standort</p>
+                    <p className="text-gray-800">{job.plant.location}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+              Keine Anlage zugewiesen.
+            </div>
+          )}
+
+          {/* Technician + vehicle */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Einsatzdetails</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
               {job.technicianName && (
                 <div>
-                  <dt className="text-gray-500">Techniker</dt>
-                  <dd className="text-gray-900 font-medium mt-0.5">{job.technicianName}</dd>
+                  <p className="text-xs text-gray-500">Techniker</p>
+                  <p className="font-medium text-gray-800">{job.technicianName}</p>
                 </div>
               )}
               {job.vehicle && (
                 <div>
-                  <dt className="text-gray-500">Fahrzeug</dt>
-                  <dd className="text-gray-900 font-medium mt-0.5">{job.vehicle}</dd>
+                  <p className="text-xs text-gray-500">Fahrzeug</p>
+                  <p className="font-medium text-gray-800">{job.vehicle}</p>
                 </div>
               )}
               <div>
-                <dt className="text-gray-500">Dauer</dt>
-                <dd className="text-gray-900 font-medium mt-0.5">
-                  {job.duration >= 60
-                    ? `${Math.floor(job.duration / 60)} Std.${job.duration % 60 > 0 ? ` ${job.duration % 60} Min.` : ''}`
-                    : `${job.duration} Min.`}
-                </dd>
+                <p className="text-xs text-gray-500">Datum</p>
+                <p className="font-medium text-gray-800">{fmtShort(job.scheduledAt)}</p>
               </div>
-              {job.completedAt && (
-                <div>
-                  <dt className="text-gray-500">Abgeschlossen</dt>
-                  <dd className="text-gray-900 font-medium mt-0.5">
-                    {new Date(job.completedAt).toLocaleDateString('de-DE')}
-                  </dd>
+              {job.description && (
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500">Beschreibung</p>
+                  <p className="text-gray-800">{job.description}</p>
                 </div>
               )}
-            </dl>
+            </div>
+          </div>
+
+          <button
+            onClick={handleFinish}
+            disabled={saving}
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            ✓ Anlage bestätigt — Inspektion starten
+          </button>
+        </div>
+      )}
+
+      {/* ── Step 2: Inspektionsbericht ── */}
+      {step === 'inspection' && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-blue-900">Schritt 2: Inspektionsbericht</h2>
+              <p className="text-sm text-blue-700">{doneItems}/{totalItems} geprüft · {nioItems > 0 ? `${nioItems} n.i.O.` : 'alle i.O.'}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-blue-700">{totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0}%</div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${totalItems > 0 ? (doneItems / totalItems) * 100 : 0}%` }} />
+          </div>
+
+          {Object.entries(sections).map(([sec, items]) => {
+            const secDone = items.filter(i => i.status !== 'open').length
+            const secNio = items.filter(i => i.status === 'nio').length
+            return (
+              <div key={sec} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-800">{sec}</h3>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    secNio > 0 ? 'bg-red-100 text-red-700' :
+                    secDone === items.length ? 'bg-green-100 text-green-700' :
+                    'bg-gray-100 text-gray-500'
+                  }`}>
+                    {secDone}/{items.length}
+                  </span>
+                </div>
+                <div className="p-3 space-y-2">
+                  {items.map(item => (
+                    <InspectionItemRow
+                      key={item.id}
+                      item={item}
+                      onChange={update => updateItem(item.id, update)}
+                      onPhotoUpload={handlePhotoUpload}
+                      uploading={uploadingItem}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep('verify')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
+              ← Zurück
+            </button>
+            <button
+              onClick={async () => { await save(); setStep('findings') }}
+              disabled={saving}
+              className="flex-2 px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Speichern...' : 'Weiter →'}
+            </button>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
+      )}
 
-function ChecklistRow({ item, onToggle }: { item: { id: string; label: string; checked: boolean }; onToggle: (id: string) => void }) {
-  return (
-    <label className="flex items-start gap-3 cursor-pointer group">
-      <input
-        type="checkbox"
-        checked={item.checked}
-        onChange={() => onToggle(item.id)}
-        className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-      />
-      <span className={`text-sm ${item.checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-        {item.label}
-      </span>
-    </label>
+      {/* ── Step 3: Befunde & Empfehlungen ── */}
+      {step === 'findings' && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h2 className="text-base font-semibold text-blue-900">Schritt 3: Befunde & Empfehlungen</h2>
+            <p className="text-sm text-blue-700">Zusammenfassung der Feststellungen und Handlungsempfehlungen.</p>
+          </div>
+
+          {nioItems > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+              <p className="font-semibold mb-1">{nioItems} n.i.O. Punkt{nioItems > 1 ? 'e' : ''} festgestellt</p>
+              {checklist.filter(i => i.status === 'nio').map(i => (
+                <div key={i.id} className="text-xs mt-1">• {i.label}{i.comment ? `: ${i.comment}` : ''}</div>
+              ))}
+            </div>
+          )}
+
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Befunde</label>
+              <textarea
+                value={findings}
+                onChange={e => setFindings(e.target.value)}
+                rows={5}
+                placeholder="Festgestellte Mängel, Auffälligkeiten, Messungen..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Empfehlungen</label>
+              <textarea
+                value={recommendations}
+                onChange={e => setRecommendations(e.target.value)}
+                rows={4}
+                placeholder="Empfohlene Maßnahmen, Wartungsintervalle, Ersatzteile..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep('inspection')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
+              ← Zurück
+            </button>
+            <button
+              onClick={async () => { await save(); setStep('summary') }}
+              disabled={saving}
+              className="flex-2 px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Speichern...' : 'Weiter →'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 4: Abschluss ── */}
+      {step === 'summary' && !isCompleted && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h2 className="text-base font-semibold text-blue-900">Schritt 4: Zusammenfassung & Abschluss</h2>
+            <p className="text-sm text-blue-700">Bitte überprüfen Sie die Angaben und unterschreiben Sie.</p>
+          </div>
+
+          {/* Summary */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Übersicht</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-2xl font-bold text-gray-800">{totalItems}</p>
+                <p className="text-xs text-gray-500">Geprüft</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3">
+                <p className="text-2xl font-bold text-green-700">{checklist.filter(i => i.status === 'io').length}</p>
+                <p className="text-xs text-green-600">i.O.</p>
+              </div>
+              <div className={`rounded-lg p-3 ${nioItems > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                <p className={`text-2xl font-bold ${nioItems > 0 ? 'text-red-700' : 'text-gray-400'}`}>{nioItems}</p>
+                <p className={`text-xs ${nioItems > 0 ? 'text-red-600' : 'text-gray-400'}`}>n.i.O.</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-500 mb-1">Zeitstempel Abschluss</p>
+              <p className="font-medium text-gray-900">{fmtShort(new Date().toISOString())}</p>
+            </div>
+          </div>
+
+          {/* Signatures */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Unterschriften</h3>
+            <SignatureCanvas
+              label={`Techniker: ${job.technicianName ?? 'Techniker'}`}
+              value={techSignature}
+              onChange={setTechSignature}
+            />
+            <SignatureCanvas
+              label={`Kunde: ${job.customer.name}`}
+              value={customerSignature}
+              onChange={setCustomerSignature}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep('findings')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
+              ← Zurück
+            </button>
+            <button
+              onClick={handleComplete}
+              disabled={saving || (!techSignature && !customerSignature)}
+              className="flex-2 px-8 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50"
+            >
+              {saving ? 'Wird abgeschlossen...' : '✓ Abschließen & Speichern'}
+            </button>
+          </div>
+          {!techSignature && !customerSignature && (
+            <p className="text-xs text-center text-gray-400">Mindestens eine Unterschrift erforderlich</p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

@@ -39,3 +39,7 @@ next-env.d.ts
 
 # Datenbank-Backups
 backups/
+
+# Hochgeladene Fotos (serverseitig gespeichert)
+public/uploads/*
+!public/uploads/.gitkeep
