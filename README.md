@@ -5,15 +5,44 @@ Interne Serviceplattform für einen Maschinenbau-Servicebetrieb (Filtrationssyst
 ## Voraussetzungen
 
 - **Node.js** 18 oder höher
-- **PostgreSQL** 14 oder höher (lokal oder remote)
-- npm 9+
+- **PostgreSQL** 14 oder höher
+- **npm** 9+
+- **sudo**-Rechte (für PostgreSQL-Setup)
 
-## Setup
+## Schnellinstallation (Linux/Ubuntu)
+
+```bash
+git clone https://github.com/aracon30/HETA-Filterservice.git
+cd HETA-Filterservice
+chmod +x setup-linux.sh
+./setup-linux.sh
+```
+
+Das Skript erledigt automatisch:
+1. PostgreSQL starten
+2. Datenbankbenutzer und Datenbank anlegen
+3. `.env` Datei erstellen
+4. npm-Abhängigkeiten installieren
+5. Datenbankschema einrichten
+6. Testdaten einspielen
+7. Produktions-Build erstellen
+
+Danach die App starten:
+
+```bash
+npm run start
+```
+
+Die Anwendung ist unter [http://localhost:3000](http://localhost:3000) erreichbar.
+
+---
+
+## Manuelle Installation
 
 ### 1. Repository klonen & Abhängigkeiten installieren
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/aracon30/HETA-Filterservice.git
 cd HETA-Filterservice
 npm install
 ```
@@ -24,107 +53,156 @@ npm install
 cp .env.example .env
 ```
 
-Passe die `DATABASE_URL` in `.env` an deine PostgreSQL-Instanz an:
+`.env` anpassen:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/heta_servicehub?schema=public"
+NEXTAUTH_SECRET="<zufälliger-langer-string>"
+NEXTAUTH_URL="http://localhost:3000"
 ```
 
-### 3. Datenbank migrieren
+> `NEXTAUTH_SECRET` kann mit `openssl rand -base64 32` generiert werden.
+
+### 3. Datenbank einrichten
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma db push
 ```
 
-### 4. Seed-Daten laden
+### 4. Testdaten laden
 
 ```bash
-npm run db:seed
+npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
 ```
 
-Dies erstellt:
-- 3 Beispielkunden mit je 2 Anlagen
-- 8 Serviceeinsätze in verschiedenen Status (geplant, in Bearbeitung, abgeschlossen)
-- 3 Vertriebschancen
-
-### 5. Entwicklungsserver starten
+### 5. App starten
 
 ```bash
-npm run dev
+npm run build && npm run start   # Produktion
+# oder
+npm run dev                      # Entwicklung
 ```
 
-Die Anwendung ist unter [http://localhost:3000](http://localhost:3000) erreichbar.
+---
+
+## Demo-Zugangsdaten
+
+> Diese Zugangsdaten sind nur für lokale Testumgebungen gedacht — nicht in Produktion verwenden.
+
+| Email | Passwort | Rolle |
+|-------|----------|-------|
+| `admin@heta.de` | `Admin1234!` | Admin |
+| `manager@heta.de` | `Manager1234!` | Service Manager |
+| `techniker@heta.de` | `Tech1234!` | Service Techniker |
+| `instandhaltung@chemiewerk.de` | `Kunde1234!` | Instandhaltungsleiter |
+| `techniker@chemiewerk.de` | `Kunde1234!` | Instandhaltungstechniker |
+| `einkauf@chemiewerk.de` | `Kunde1234!` | Einkäufer |
+
+---
+
+## Benutzerrollen & Berechtigungen
+
+### Interne Rollen (Zugriff auf alle Kunden und Projekte)
+
+| Rolle | Rechte |
+|-------|--------|
+| **Admin** | Vollzugriff, Benutzerverwaltung, Berechtigungen konfigurieren |
+| **Service Manager** | Vollzugriff operativ, Berechtigungen anderer Rollen anpassen |
+| **Service Techniker** | Einsätze ansehen/erstellen/bearbeiten, Checklisten pflegen |
+
+### Externe Rollen (nur Zugriff auf die eigene Firma/Anlage)
+
+| Rolle | Rechte |
+|-------|--------|
+| **Instandhaltungsleiter** | Einsätze und Anlagen der eigenen Firma ansehen, Serviceanfragen stellen |
+| **Instandhaltungstechniker** | Einsätze der eigenen Anlage ansehen, Checklisten bearbeiten |
+| **Einkäufer** | Einsätze und Vertriebschancen der eigenen Firma ansehen |
+
+Berechtigungen sind dynamisch und können im Admin-Bereich unter `/admin/permissions` angepasst werden.
+
+---
 
 ## Seiten & Funktionen
 
 | Seite | URL | Beschreibung |
 |-------|-----|--------------|
-| **Dashboard** | `/` | KPI-Kacheln (offene Einsätze, Einsätze heute, Vertriebspotenzial), nächste 5 Einsätze |
-| **Einsatzliste** | `/jobs` | Alle Serviceeinsätze, filterbar nach Status, suchbar nach Kunde/Jobnummer |
-| **Neuer Einsatz** | `/jobs/new` | Einsatz erstellen mit Kundenwahl, Anlagenwahl (gefiltert), Datum, Techniker |
-| **Einsatzdetail** | `/jobs/[id]` | Befunde & Empfehlungen, 10-Punkte-Checkliste, Statusänderung |
-| **Kunden** | `/customers` | Kundenliste mit Anlagenanzahl & offenen Einsätzen, Neukunde anlegen |
-| **Vertrieb** | `/opportunities` | Kanban-Board + Tabellenansicht, Vertriebschancen anlegen |
+| **Login** | `/login` | Anmeldung mit Email und Passwort |
+| **Dashboard** | `/` | KPI-Kacheln, nächste 5 Einsätze |
+| **Einsatzliste** | `/jobs` | Alle Serviceeinsätze, filterbar nach Status |
+| **Neuer Einsatz** | `/jobs/new` | Einsatz mit Kunde, Anlage, Datum, Techniker anlegen |
+| **Einsatzdetail** | `/jobs/[id]` | Befunde, Empfehlungen, 10-Punkte-Checkliste |
+| **Kunden** | `/customers` | Kundenliste, Neukunde anlegen |
+| **Vertrieb** | `/opportunities` | Kanban-Board + Tabellenansicht |
+| **Benutzerverwaltung** | `/admin/users` | Benutzer anlegen/bearbeiten (Admin) |
+| **Berechtigungen** | `/admin/permissions` | Berechtigungsmatrix konfigurieren (Admin/Manager) |
+
+---
 
 ## API-Routen
 
+Alle Endpunkte erfordern eine aktive Session. Berechtigungen werden serverseitig geprüft.
+
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|--------------|
-| `GET` | `/api/jobs` | Alle Einsätze (Filter: `status`, `search`) |
-| `POST` | `/api/jobs` | Neuen Einsatz erstellen (mit Standard-Checkliste) |
-| `GET` | `/api/jobs/[id]` | Einsatz mit Checkliste laden |
-| `PUT` | `/api/jobs/[id]` | Status, Befunde, Empfehlungen, Checkliste speichern |
-| `GET` | `/api/customers` | Alle Kunden |
+| `GET` | `/api/jobs` | Einsätze (gefiltert nach Rolle/Scope) |
+| `POST` | `/api/jobs` | Neuen Einsatz erstellen |
+| `GET` | `/api/jobs/[id]` | Einsatz mit Checkliste |
+| `PUT` | `/api/jobs/[id]` | Einsatz aktualisieren |
+| `GET` | `/api/customers` | Kunden (gefiltert nach Rolle/Scope) |
 | `POST` | `/api/customers` | Neuen Kunden anlegen |
 | `GET` | `/api/plants` | Anlagen (Filter: `customerId`) |
-| `GET` | `/api/opportunities` | Alle Vertriebschancen |
+| `GET` | `/api/opportunities` | Vertriebschancen (gefiltert nach Rolle/Scope) |
 | `POST` | `/api/opportunities` | Neue Vertriebschance anlegen |
+| `GET/POST` | `/api/users` | Benutzerliste / Benutzer anlegen |
+| `PUT/DELETE` | `/api/users/[id]` | Benutzer bearbeiten / löschen |
+| `GET/PUT` | `/api/permissions` | Berechtigungen lesen / aktualisieren |
 
-## Standard-Checkliste
-
-Jeder neue Einsatz erhält automatisch diese 10 Prüfpunkte:
-
-1. Sichtprüfung Gehäuse und Dichtungen
-2. Differenzdruckmessung durchgeführt
-3. Filterelemente auf Zustand geprüft
-4. Reinigung Filtergehäuse
-5. Dichtheit nach Zusammenbau geprüft
-6. Betriebsparameter dokumentiert (Druck, Durchfluss, Temperatur)
-7. Ventile und Armaturen geprüft
-8. Elektrische Anschlüsse geprüft (falls vorhanden)
-9. Kundenpersonal eingewiesen
-10. Servicebericht unterzeichnet
+---
 
 ## Datenbankschema
 
 ```
-Customer ─── Plant ──┐
-    │                └── ServiceJob ─── ChecklistItem
-    └────────────────────────┘
-    └─── Opportunity
+Customer ─── Plant ──── ServiceJob ─── ChecklistItem
+    │                       │
+    └─── Opportunity    User (intern: kein customerId)
+                            │
+                        User (extern: customerId → Customer)
+
+RolePermission (pro Rolle × Ressource)
 ```
+
+---
 
 ## Hilfreiche Befehle
 
 ```bash
+# Entwicklungsserver
+npm run dev
+
 # Prisma Studio (Datenbankansicht im Browser)
 npm run db:studio
 
-# Neue Migration erstellen
-npx prisma migrate dev --name <beschreibung>
+# Schema-Änderungen übernehmen
+npx prisma db push
 
 # Prisma Client neu generieren
 npx prisma generate
 
 # Datenbank zurücksetzen und neu seeden
-npx prisma migrate reset
+npx prisma db push --force-reset
+npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
 ```
+
+---
 
 ## Technologie-Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Sprache**: TypeScript
-- **Styling**: Tailwind CSS
-- **Datenbank**: PostgreSQL
-- **ORM**: Prisma
-- **Rendering**: Server Components (Dashboard) + Client Components (interaktive Seiten)
+| Bereich | Technologie |
+|---------|-------------|
+| Framework | Next.js 14 (App Router) |
+| Sprache | TypeScript |
+| Styling | Tailwind CSS |
+| Authentifizierung | NextAuth.js |
+| Datenbank | PostgreSQL |
+| ORM | Prisma |
+| Passwort-Hashing | bcryptjs |
