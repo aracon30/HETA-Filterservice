@@ -46,13 +46,17 @@ export async function PUT(
   }
 
   const body = await request.json()
-  const { status, findings, recommendations, checklistItems } = body
+  const { status, findings, recommendations, checklistItems, duration, vehicle, scheduledAt, technicianName } = body
 
   const updateData: Record<string, unknown> = {}
 
   if (status !== undefined) updateData.status = status as JobStatus
   if (findings !== undefined) updateData.findings = findings
   if (recommendations !== undefined) updateData.recommendations = recommendations
+  if (duration !== undefined) updateData.duration = Number(duration)
+  if (vehicle !== undefined) updateData.vehicle = vehicle || null
+  if (scheduledAt !== undefined) updateData.scheduledAt = new Date(scheduledAt)
+  if (technicianName !== undefined) updateData.technicianName = technicianName
   if (status === 'COMPLETED' && !body.completedAt) {
     updateData.completedAt = new Date()
   }

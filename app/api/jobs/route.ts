@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { customerId, plantId, scheduledAt, technicianName, description } = body
+  const { customerId, plantId, scheduledAt, technicianName, description, duration, vehicle } = body
 
   // Generate job number
   const count = await prisma.serviceJob.count()
@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
       scheduledAt: new Date(scheduledAt),
       technicianName,
       description,
+      duration: duration ? Number(duration) : 60,
+      vehicle: vehicle || null,
       checklistItems: {
         create: DEFAULT_CHECKLIST_ITEMS.map((label) => ({ label })),
       },

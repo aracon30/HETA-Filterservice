@@ -80,6 +80,8 @@ model ServiceJob {
   plant           Plant?          @relation(fields: [plantId], references: [id])
   plantId         String?
   technicianName  String?
+  duration        Int             @default(60)
+  vehicle         String?
   description     String?
   findings        String?
   recommendations String?
