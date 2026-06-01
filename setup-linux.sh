@@ -4,10 +4,10 @@ set -e
 
 echo "=== HETA ServiceHub - Linux Setup ==="
 
-# Config
-DB_USER="heta_user"
-DB_PASS="heta_pass123"
-DB_NAME="heta_servicehub"
+# Config — passe diese Werte an deine Umgebung an
+DB_USER="${DB_USER:-heta_user}"
+DB_PASS="${DB_PASS:-$(openssl rand -base64 16)}"
+DB_NAME="${DB_NAME:-heta_servicehub}"
 DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=public"
 
 # 1. Start PostgreSQL if not running
