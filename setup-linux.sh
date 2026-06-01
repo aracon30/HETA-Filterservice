@@ -12,25 +12,33 @@ DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=publ
 
 # 1. Start PostgreSQL if not running
 echo "[1/5] Starte PostgreSQL..."
-if ! pg_isready -q 2>/dev/null; then
-  STARTED=0
+pg_running() {
+  # Prüfe ob PostgreSQL erreichbar ist (mehrere Methoden)
+  if command -v pg_isready &>/dev/null && pg_isready -q 2>/dev/null; then return 0; fi
+  if sudo -u postgres psql -c "SELECT 1" &>/dev/null 2>&1; then return 0; fi
+  return 1
+}
+
+if ! pg_running; then
+  echo "    PostgreSQL nicht aktiv, starte..."
   # service-Befehl (funktioniert auf den meisten Linux-Systemen)
   if command -v service &>/dev/null; then
-    sudo service postgresql start 2>/dev/null && STARTED=1
+    sudo service postgresql start 2>/dev/null || true
   fi
-  # systemctl als Fallback (nur wenn systemd aktiv ist)
-  if [ "$STARTED" -eq 0 ] && command -v systemctl &>/dev/null; then
+  # systemctl als Fallback
+  if command -v systemctl &>/dev/null && systemctl is-system-running &>/dev/null 2>&1; then
     for SVC in postgresql postgresql-16 postgresql-15 postgresql-14; do
-      sudo systemctl start "$SVC" 2>/dev/null && STARTED=1 && break
+      sudo systemctl start "$SVC" 2>/dev/null && break || true
     done
   fi
-  if [ "$STARTED" -eq 0 ]; then
+  sleep 2
+  if ! pg_running; then
     echo "FEHLER: PostgreSQL läuft nicht und konnte nicht automatisch gestartet werden."
-    echo "Bitte starte PostgreSQL manuell und führe das Skript erneut aus."
+    echo "Bitte starte PostgreSQL manuell (z.B.: sudo service postgresql start)"
     exit 1
   fi
-  sleep 2
 fi
+echo "    PostgreSQL läuft."
 
 # 2. Create DB user and database
 echo "[2/5] Erstelle Datenbankbenutzer und Datenbank..."
