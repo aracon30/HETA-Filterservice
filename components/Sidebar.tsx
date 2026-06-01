@@ -59,7 +59,7 @@ const ROLE_LABELS: Record<string, string> = {
   SERVICE_MANAGER: 'Service Manager',
   SERVICE_TECHNICIAN: 'Techniker',
   MAINTENANCE_MANAGER: 'Instandhaltungsleiter',
-  MAINTENANCE_TECHNICIAN: 'Instandhaltungstechniker',
+  MAINTENANCE_TECHNICIAN: 'Instandh.-Techniker',
   BUYER: 'Einkäufer',
 }
 
@@ -75,6 +75,7 @@ export default function Sidebar() {
   const role = session?.user?.role as string | undefined
   const isInternal = role ? INTERNAL_ROLES.includes(role) : false
   const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
+  const customerName = (session?.user as any)?.customerName as string | null | undefined
 
   const visibleNavItems = navItems.filter(item =>
     item.roles === null || (role && item.roles.includes(role))
@@ -99,12 +100,32 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Kundenportal-Badge für externe Nutzer */}
+      {/* Firmen-Badge für externe Nutzer — klickbar */}
       {isExternal && (
-        <div className="mx-3 mt-3 px-3 py-2 bg-green-900/40 border border-green-700/40 rounded-lg">
-          <p className="text-xs text-green-400 font-medium">Kundenportal</p>
-          <p className="text-xs text-green-600 truncate">{session?.user?.name}</p>
-        </div>
+        <Link
+          href="/portal"
+          className={`mx-3 mt-3 px-3 py-2.5 rounded-lg border flex items-center gap-2.5 transition-colors group ${
+            isActive('/portal')
+              ? 'bg-green-700/50 border-green-600/60'
+              : 'bg-green-900/30 border-green-700/30 hover:bg-green-800/40 hover:border-green-600/50'
+          }`}
+        >
+          <div className="w-7 h-7 bg-green-700/60 rounded-md flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-green-400 font-semibold leading-tight truncate">
+              {customerName ?? 'Mein Unternehmen'}
+            </p>
+            <p className="text-xs text-green-600 leading-tight">Unternehmensportal</p>
+          </div>
+          <svg className="w-3.5 h-3.5 text-green-600 group-hover:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
       )}
 
       {/* Navigation */}

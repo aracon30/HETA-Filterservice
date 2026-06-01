@@ -404,8 +404,11 @@ export default function JobInspectionPage() {
   const doneItems = checklist.filter(i => i.status !== 'open').length
   const nioItems = checklist.filter(i => i.status === 'nio').length
 
-  // ── External read-only view for non-completed jobs ───────────────────────
-  if (isExternal && !isCompleted) {
+  // MAINTENANCE_TECHNICIAN sees overview-only even for completed jobs
+  const technicianReadOnly = role === 'MAINTENANCE_TECHNICIAN'
+
+  // ── External read-only view: non-completed jobs OR technician role ────────
+  if (isExternal && (!isCompleted || technicianReadOnly)) {
     return (
       <div className="max-w-2xl mx-auto pb-12">
         <div className="flex items-center gap-3 mb-6">
@@ -457,9 +460,16 @@ export default function JobInspectionPage() {
           )}
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-400">
-          Das Protokoll ist nach Abschluss der Inspektion einsehbar.
-        </p>
+        {!isCompleted && (
+          <p className="mt-6 text-center text-sm text-gray-400">
+            Das Protokoll ist nach Abschluss der Inspektion einsehbar.
+          </p>
+        )}
+        {isCompleted && technicianReadOnly && (
+          <p className="mt-6 text-center text-sm text-gray-400">
+            Der vollständige Inspektionsbericht ist für diese Rolle nicht zugänglich.
+          </p>
+        )}
       </div>
     )
   }
