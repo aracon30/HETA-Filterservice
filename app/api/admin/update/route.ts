@@ -7,10 +7,17 @@ import path from 'path'
 
 const execAsync = promisify(exec)
 
-// Projektverzeichnis zuverlässig ermitteln: von dieser Datei aus nach oben bis package.json
+// Projektverzeichnis ermitteln: sucht nach package.json mit einem "scripts"-Feld
+// (überspringt die package.json die Next.js in .next ablegt)
 function findProjectRoot(dir: string): string {
   const fs = require('fs')
-  if (fs.existsSync(path.join(dir, 'package.json'))) return dir
+  const pkgPath = path.join(dir, 'package.json')
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+      if (pkg.scripts) return dir
+    } catch {}
+  }
   const parent = path.dirname(dir)
   if (parent === dir) return process.cwd()
   return findProjectRoot(parent)
