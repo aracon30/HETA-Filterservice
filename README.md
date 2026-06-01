@@ -2,14 +2,13 @@
 
 Interne Serviceplattform für einen Maschinenbau-Servicebetrieb (Filtrationssysteme), gebaut mit Next.js 14, TypeScript, PostgreSQL und Prisma ORM.
 
-## Voraussetzungen
+---
 
-- **Node.js** 18 oder höher
-- **PostgreSQL** 14 oder höher
-- **npm** 9+
-- **sudo**-Rechte (für PostgreSQL-Setup)
+## Installation (Linux/Ubuntu)
 
-## Schnellinstallation (Linux/Ubuntu)
+Das Setup-Skript installiert alle benötigten Programme automatisch (Node.js, PostgreSQL, PM2) und startet die App direkt.
+
+**Einzige Voraussetzung:** `sudo`-Rechte und Internetzugang.
 
 ```bash
 git clone https://github.com/aracon30/HETA-Filterservice.git
@@ -18,76 +17,80 @@ chmod +x setup-linux.sh
 ./setup-linux.sh
 ```
 
-Das Skript erledigt automatisch:
-1. PostgreSQL starten
-2. Datenbankbenutzer und Datenbank anlegen
-3. `.env` Datei erstellen
-4. npm-Abhängigkeiten installieren
-5. Datenbankschema einrichten
-6. Testdaten einspielen
+Nach Abschluss öffnet sich der Browser automatisch auf [http://localhost:3000](http://localhost:3000).
+
+Das Skript erledigt vollautomatisch:
+1. Node.js 20 installieren (falls nicht vorhanden)
+2. PostgreSQL installieren und starten
+3. Datenbankbenutzer und Datenbank anlegen
+4. `.env` Datei mit zufälligem Secret erstellen
+5. npm-Abhängigkeiten installieren
+6. Datenbankschema einrichten und Testdaten einspielen
 7. Produktions-Build erstellen
-
-Danach die App starten:
-
-```bash
-npm run start
-```
-
-Die Anwendung ist unter [http://localhost:3000](http://localhost:3000) erreichbar.
+8. App mit PM2 starten (läuft auch nach Systemneustart weiter)
 
 ---
 
-## Manuelle Installation
+## Neuinstallation / Alles zurücksetzen
 
-### 1. Repository klonen & Abhängigkeiten installieren
+Falls die Installation fehlgeschlagen ist oder ein sauberer Neustart gewünscht wird:
 
+**1. App stoppen:**
+```bash
+pm2 stop heta-servicehub 2>/dev/null
+pm2 delete heta-servicehub 2>/dev/null
+fuser -k 3000/tcp 2>/dev/null
+```
+
+**2. Projektordner löschen:**
+```bash
+cd ~
+rm -rf HETA-Filterservice
+```
+
+**3. Datenbank löschen:**
+```bash
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS heta_servicehub;"
+sudo -u postgres psql -c "DROP USER IF EXISTS heta_user;"
+```
+
+**4. Neu installieren:**
 ```bash
 git clone https://github.com/aracon30/HETA-Filterservice.git
 cd HETA-Filterservice
-npm install
+chmod +x setup-linux.sh
+./setup-linux.sh
 ```
 
-### 2. Umgebungsvariablen konfigurieren
+---
+
+## App verwalten
 
 ```bash
-cp .env.example .env
+pm2 status                         # Status anzeigen
+pm2 logs                           # Logs anzeigen
+pm2 restart heta-servicehub        # App neu starten
+pm2 stop heta-servicehub           # App stoppen
 ```
 
-`.env` anpassen:
+---
 
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/heta_servicehub?schema=public"
-NEXTAUTH_SECRET="<zufälliger-langer-string>"
-NEXTAUTH_URL="http://localhost:3000"
-```
+## Server-Update (Admin)
 
-> `NEXTAUTH_SECRET` kann mit `openssl rand -base64 32` generiert werden.
+Neue Updates können direkt über die Weboberfläche eingespielt werden — kein SSH nötig.
 
-### 3. Datenbank einrichten
-
-```bash
-npx prisma db push
-```
-
-### 4. Testdaten laden
-
-```bash
-npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
-```
-
-### 5. App starten
-
-```bash
-npm run build && npm run start   # Produktion
-# oder
-npm run dev                      # Entwicklung
-```
+Als Admin unter `/admin/update` auf **„Update starten"** klicken. Das System führt automatisch aus:
+- `git pull` — neuesten Code holen
+- `npm install` — neue Pakete installieren
+- `prisma db push` — Schemaänderungen übernehmen
+- `npm run build` — App neu bauen
+- `pm2 restart` — Server neu starten
 
 ---
 
 ## Demo-Zugangsdaten
 
-> Diese Zugangsdaten sind nur für lokale Testumgebungen gedacht — nicht in Produktion verwenden.
+> Nur für lokale Testumgebungen — nicht in Produktion verwenden.
 
 | Email | Passwort | Rolle |
 |-------|----------|-------|
@@ -106,7 +109,7 @@ npm run dev                      # Entwicklung
 
 | Rolle | Rechte |
 |-------|--------|
-| **Admin** | Vollzugriff, Benutzerverwaltung, Berechtigungen konfigurieren |
+| **Admin** | Vollzugriff, Benutzerverwaltung, Berechtigungen konfigurieren, Server-Updates |
 | **Service Manager** | Vollzugriff operativ, Berechtigungen anderer Rollen anpassen |
 | **Service Techniker** | Einsätze ansehen/erstellen/bearbeiten, Checklisten pflegen |
 
@@ -135,6 +138,7 @@ Berechtigungen sind dynamisch und können im Admin-Bereich unter `/admin/permiss
 | **Vertrieb** | `/opportunities` | Kanban-Board + Tabellenansicht |
 | **Benutzerverwaltung** | `/admin/users` | Benutzer anlegen/bearbeiten (Admin) |
 | **Berechtigungen** | `/admin/permissions` | Berechtigungsmatrix konfigurieren (Admin/Manager) |
+| **Server-Update** | `/admin/update` | Updates von Git einspielen (Admin) |
 
 ---
 
@@ -156,6 +160,7 @@ Alle Endpunkte erfordern eine aktive Session. Berechtigungen werden serverseitig
 | `GET/POST` | `/api/users` | Benutzerliste / Benutzer anlegen |
 | `PUT/DELETE` | `/api/users/[id]` | Benutzer bearbeiten / löschen |
 | `GET/PUT` | `/api/permissions` | Berechtigungen lesen / aktualisieren |
+| `POST` | `/api/admin/update` | Server-Update ausführen (Admin) |
 
 ---
 
@@ -163,34 +168,13 @@ Alle Endpunkte erfordern eine aktive Session. Berechtigungen werden serverseitig
 
 ```
 Customer ─── Plant ──── ServiceJob ─── ChecklistItem
-    │                       │
-    └─── Opportunity    User (intern: kein customerId)
-                            │
-                        User (extern: customerId → Customer)
+    │
+    └─── Opportunity
+
+User (intern: ohne customerId)
+User (extern: customerId → Customer)
 
 RolePermission (pro Rolle × Ressource)
-```
-
----
-
-## Hilfreiche Befehle
-
-```bash
-# Entwicklungsserver
-npm run dev
-
-# Prisma Studio (Datenbankansicht im Browser)
-npm run db:studio
-
-# Schema-Änderungen übernehmen
-npx prisma db push
-
-# Prisma Client neu generieren
-npx prisma generate
-
-# Datenbank zurücksetzen und neu seeden
-npx prisma db push --force-reset
-npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
 ```
 
 ---
@@ -203,6 +187,7 @@ npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
 | Sprache | TypeScript |
 | Styling | Tailwind CSS |
 | Authentifizierung | NextAuth.js |
+| Prozessmanager | PM2 |
 | Datenbank | PostgreSQL |
 | ORM | Prisma |
 | Passwort-Hashing | bcryptjs |
