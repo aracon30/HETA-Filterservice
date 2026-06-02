@@ -303,7 +303,8 @@ export default function JobInspectionPage() {
   const [confirmReload, setConfirmReload] = useState(false)
 
   const canReloadChecklist =
-    ['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') && job?.status === 'PLANNED'
+    ['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') &&
+    ['PLANNED', 'IN_PROGRESS'].includes(job?.status ?? '')
 
   const handleReloadChecklist = async () => {
     setReloadingChecklist(true)
@@ -366,13 +367,15 @@ export default function JobInspectionPage() {
 
   const handleFinish = async () => {
     setSaving(true)
-    // Set to IN_PROGRESS first when starting
-    if (job?.status === 'PLANNED') {
+    // Only change status for technicians — Admin/Manager navigate without touching status
+    const isManagerOrAdmin = ['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '')
+    if (!isManagerOrAdmin && job?.status === 'PLANNED') {
       await fetch(`/api/jobs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'IN_PROGRESS' }),
       })
+      setJob(prev => prev ? { ...prev, status: 'IN_PROGRESS' } : prev)
     }
     setSaving(false)
     setStep('inspection')

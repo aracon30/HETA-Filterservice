@@ -34,8 +34,8 @@ export async function POST(
   })
 
   if (!job) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
-  if (job.status !== 'PLANNED') {
-    return NextResponse.json({ error: 'Checkliste kann nur bei geplanten Einsätzen aktualisiert werden' }, { status: 409 })
+  if (!['PLANNED', 'IN_PROGRESS'].includes(job.status)) {
+    return NextResponse.json({ error: 'Checkliste kann nur bei geplanten oder laufenden Einsätzen aktualisiert werden' }, { status: 409 })
   }
 
   // Resolve template (same priority as job creation)
