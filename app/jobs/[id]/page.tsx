@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
+import InvoicePanel from '@/components/InvoicePanel'
 
 const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
 
@@ -585,7 +586,19 @@ export default function JobInspectionPage() {
           </div>
         </div>
       </div>
-    )
+
+      {/* Rechnungen — nur für interne Rollen mit Upload-Recht */}
+      {!isExternal && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
+          <InvoicePanel
+            customerId={job.customer.id}
+            canUpload={role === 'ADMIN' || role === 'SERVICE_MANAGER'}
+            preselectedJobId={job.id}
+          />
+        </div>
+      )}
+    </div>
+  )
   }
 
   // ── Wizard (active inspection) ─────────────────────────────────────────────

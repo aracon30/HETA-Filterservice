@@ -76,16 +76,18 @@ model Customer {
 }
 
 model Invoice {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   customerId    String
-  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  jobId         String?
+  job           ServiceJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
   invoiceNumber String?
   description   String?
   amount        Float?
   fileUrl       String
   fileName      String
   uploadedById  String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
 }
 
 model Plant {
@@ -126,6 +128,7 @@ model ServiceJob {
   findings        String?
   recommendations String?
   checklistItems  ChecklistItem[]
+  invoices        Invoice[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }

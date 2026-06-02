@@ -19,11 +19,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const search = searchParams.get('search')
+  const customerIdParam = searchParams.get('customerId')
 
   const perm = await getPermissions(session.user.role, 'jobs')
   const scopeFilter = getScopeFilter(session, 'jobs', perm?.scope ?? null)
 
   const where: Record<string, unknown> = { ...scopeFilter }
+
+  if (customerIdParam) where.customerId = customerIdParam
 
   if (status && status !== 'ALL') {
     where.status = status as JobStatus
