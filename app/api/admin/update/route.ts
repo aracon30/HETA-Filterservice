@@ -3,27 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import path from 'path'
 
 const execAsync = promisify(exec)
 
-// Projektverzeichnis ermitteln: sucht nach package.json mit einem "scripts"-Feld
-// (überspringt die package.json die Next.js in .next ablegt)
-function findProjectRoot(dir: string): string {
-  const fs = require('fs')
-  const pkgPath = path.join(dir, 'package.json')
-  if (fs.existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
-      if (pkg.scripts) return dir
-    } catch {}
-  }
-  const parent = path.dirname(dir)
-  if (parent === dir) return process.cwd()
-  return findProjectRoot(parent)
-}
-
-const APP_DIR = findProjectRoot(__dirname)
+// process.cwd() is always the project root in Next.js
+const APP_DIR = process.cwd()
 
 export async function POST() {
   const session = await getServerSession(authOptions)
@@ -46,50 +30,75 @@ export async function POST() {
     }
   }
 
-  steps.push({ step: 'Verzeichnis', output: APP_DIR })
+  steps.push({ step: 'Projektverzeichnis', output: APP_DIR })
+
+  // 0. Git-Status vor dem Update
+  const { stdout: hashBefore } = await execAsync('git rev-parse --short HEAD', { cwd: APP_DIR }).catch(() => ({ stdout: 'unbekannt' }))
+  steps.push({ step: 'Version vor Update', output: hashBefore.trim() })
 
   // 1. Git: neuesten Stand holen
   await run('Git Fetch', 'git fetch origin main')
-  await run('Git Sparse-Checkout', 'git sparse-checkout disable 2>/dev/null || true', { ignoreFail: true })
-  // skip-worktree / assume-unchanged Flags entfernen — sonst ignoriert git reset diese Dateien!
-  await run('Git Flags reset', "git ls-files -v | grep '^[hS]' | awk '{print $2}' | xargs -r git update-index --no-skip-worktree --no-assume-unchanged", { ignoreFail: true })
+
+  // skip-worktree / assume-unchanged Flags entfernen — sonst ignoriert git reset diese Dateien
+  await run('Git Flags zurücksetzen', "git ls-files -v | grep '^[hS]' | awk '{print $2}' | xargs -r git update-index --no-skip-worktree --no-assume-unchanged", { ignoreFail: true })
+  await run('Git Sparse-Checkout deaktivieren', 'git sparse-checkout disable 2>/dev/null || true', { ignoreFail: true })
+
+  // git reset --hard setzt Arbeitsverzeichnis auf origin/main — git checkout danach ist redundant
   const pulled = await run('Git Reset', 'git reset --hard origin/main')
   if (!pulled) return NextResponse.json({ success: false, steps }, { status: 500 })
-  await run('Git Checkout', 'git checkout origin/main -- .')
-  // Prüfen ob kritische Dateien vorhanden sind
+
+  // 2. Was hat sich geändert?
+  await run('Änderungen (letzte 10 Commits)', 'git log --oneline -10')
+
+  // 3. Kritische Dateien prüfen
   const fs = require('fs')
-  const critical = ['components/StatusBadge.tsx', 'lib/constants.ts', 'components/JobCalendar.tsx', 'lib/plant-types.ts']
+  const critical = [
+    'lib/auth.ts',
+    'lib/prisma.ts',
+    'lib/permissions.ts',
+    'lib/constants.ts',
+    'lib/plant-types.ts',
+    'types/next-auth.d.ts',
+    'components/StatusBadge.tsx',
+    'components/JobCalendar.tsx',
+    'components/Sidebar.tsx',
+    'tailwind.config.ts',
+    'next.config.js',
+  ]
   const missing = critical.filter(f => !fs.existsSync(`${APP_DIR}/${f}`))
   if (missing.length > 0) {
-    // Letzter Versuch: Dateien direkt aus git-Objekten extrahieren
     for (const f of missing) {
-      await run(`Git Extract ${f}`, `git show origin/main:${f} > ${f}`, { ignoreFail: true })
+      await run(`Git Extract: ${f}`, `git show origin/main:"${f}" > "${f}"`, { ignoreFail: true })
     }
   }
   const stillMissing = critical.filter(f => !fs.existsSync(`${APP_DIR}/${f}`))
-  // Dateigrößen ausgeben um leere Dateien zu erkennen
   const fileSizes = critical.map(f => {
     try { return `${f}: ${fs.statSync(`${APP_DIR}/${f}`).size}B` } catch { return `${f}: FEHLT` }
-  }).join(' | ')
+  }).join('\n')
   steps.push({ step: 'Datei-Check', output: fileSizes, error: stillMissing.length > 0 })
 
-  // 2. Alle Build-Caches und node_modules entfernen für saubere Installation
-  // node_modules wird komplett gelöscht um veraltete Modul-Auflösungen zu vermeiden
+  // 4. Caches entfernen (node_modules komplett für saubere Auflösung)
   await run('Cache leeren', 'rm -rf .next node_modules/.cache tsconfig.tsbuildinfo')
   await run('node_modules entfernen', 'rm -rf node_modules')
 
-  // 3. Saubere npm-Installation
-  await run('npm install', 'npm install')
+  // 5. Saubere npm-Installation
+  const installed = await run('npm install', 'npm install')
+  if (!installed) return NextResponse.json({ success: false, steps }, { status: 500 })
 
-  // 4. Prisma: Client generieren + Schema in DB übernehmen (Daten bleiben erhalten)
-  await run('Prisma', 'npx prisma generate && npx prisma db push --accept-data-loss')
+  // 6. Prisma: Client generieren + Schema in DB übernehmen (Daten bleiben erhalten)
+  await run('Prisma generate', 'npx prisma generate')
+  await run('Prisma db push', 'npx prisma db push --accept-data-loss')
 
-  // 5. Build
+  // 7. Build
   const built = await run('Build', 'npm run build')
   if (!built) return NextResponse.json({ success: false, steps }, { status: 500 })
 
-  // 6. Server neu starten
-  await run('Neustart', 'pm2 restart heta-servicehub 2>/dev/null || true', { ignoreFail: true })
+  // 8. Version nach Update
+  const { stdout: hashAfter } = await execAsync('git rev-parse --short HEAD', { cwd: APP_DIR }).catch(() => ({ stdout: 'unbekannt' }))
+  steps.push({ step: 'Version nach Update', output: hashAfter.trim() })
+
+  // 9. Server neu starten
+  await run('Neustart', 'pm2 restart heta-servicehub 2>/dev/null || pm2 restart all 2>/dev/null || true', { ignoreFail: true })
 
   return NextResponse.json({ success: true, steps })
 }

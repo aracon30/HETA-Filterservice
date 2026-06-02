@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useParams, useRouter } from 'next/navigation'
 import { PLANT_TYPES } from '@/lib/plant-types'
 import Link from 'next/link'
+import InvoicePanel from '@/components/InvoicePanel'
 
 interface Plant {
   id: string
@@ -99,6 +100,7 @@ export default function CustomerDetailPage() {
   const role = session?.user?.role ?? ''
   const canEditDelete = ['ADMIN', 'SERVICE_MANAGER'].includes(role)
   const canManagePlants = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role)
+  const canManageInvoices = ['ADMIN', 'SERVICE_MANAGER'].includes(role)
 
   const fetchCustomer = async () => {
     setLoading(true)
@@ -679,6 +681,13 @@ export default function CustomerDetailPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Rechnungen — nur für Admin und Service Manager */}
+      {canManageInvoices && customer && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
+          <InvoicePanel customerId={customer.id} canUpload={canManageInvoices} />
         </div>
       )}
     </div>

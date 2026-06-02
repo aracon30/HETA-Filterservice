@@ -72,6 +72,20 @@ model Customer {
   jobs          ServiceJob[]
   opportunities Opportunity[]
   users         User[]
+  invoices      Invoice[]
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoiceNumber String?
+  description   String?
+  amount        Float?
+  fileUrl       String
+  fileName      String
+  uploadedById  String
+  createdAt     DateTime @default(now())
 }
 
 model Plant {
