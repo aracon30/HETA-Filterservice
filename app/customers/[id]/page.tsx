@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useParams, useRouter } from 'next/navigation'
-import { PLANT_TYPES } from '@/lib/plant-types'
 import Link from 'next/link'
 import InvoicePanel from '@/components/InvoicePanel'
 
@@ -32,6 +31,20 @@ interface Customer {
   address: string | null
   plants: Plant[]
   _count: { jobs: number }
+}
+
+interface PlantType {
+  id: string
+  value: string
+  label: string
+  items: { section: string; label: string; order: number }[]
+}
+
+interface ChecklistOverrideItem {
+  id?: string
+  section: string
+  label: string
+  order: number
 }
 
 interface PlantForm {
@@ -97,6 +110,16 @@ export default function CustomerDetailPage() {
   const [deletingPlant, setDeletingPlant] = useState(false)
   const [deletePlantError, setDeletePlantError] = useState<string | null>(null)
 
+  // Plant types from DB
+  const [plantTypes, setPlantTypes] = useState<PlantType[]>([])
+
+  // Per-plant checklist override editor
+  const [checklistPlant, setChecklistPlant] = useState<Plant | null>(null)
+  const [overrideItems, setOverrideItems] = useState<ChecklistOverrideItem[]>([])
+  const [loadingOverride, setLoadingOverride] = useState(false)
+  const [savingOverride, setSavingOverride] = useState(false)
+  const [overrideHasData, setOverrideHasData] = useState(false)
+
   const role = session?.user?.role ?? ''
   const canEditDelete = ['ADMIN', 'SERVICE_MANAGER'].includes(role)
   const canManagePlants = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role)
@@ -116,7 +139,69 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     if (id) fetchCustomer()
+    fetch('/api/plant-types').then(r => r.json()).then(setPlantTypes).catch(() => {})
   }, [id])
+
+  async function openChecklistEditor(plant: Plant) {
+    setChecklistPlant(plant)
+    setLoadingOverride(true)
+    const res = await fetch(`/api/plants/${plant.id}/checklist`)
+    if (res.ok) {
+      const data: ChecklistOverrideItem[] = await res.json()
+      if (data.length > 0) {
+        setOverrideItems(data.map((item, idx) => ({ ...item, order: idx })))
+        setOverrideHasData(true)
+      } else {
+        // Load type default as starting point
+        const pt = plantTypes.find(p => p.value === plant.type)
+        const defaults = pt?.items ?? []
+        setOverrideItems(defaults.map((item, idx) => ({ section: item.section, label: item.label, order: idx })))
+        setOverrideHasData(false)
+      }
+    }
+    setLoadingOverride(false)
+  }
+
+  async function saveOverride() {
+    if (!checklistPlant) return
+    setSavingOverride(true)
+    await fetch(`/api/plants/${checklistPlant.id}/checklist`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: overrideItems }),
+    })
+    setOverrideHasData(overrideItems.length > 0)
+    setSavingOverride(false)
+  }
+
+  async function resetOverride() {
+    if (!checklistPlant) return
+    if (!confirm('Angepasste Checkliste löschen und Typ-Standard wiederherstellen?')) return
+    await fetch(`/api/plants/${checklistPlant.id}/checklist`, { method: 'DELETE' })
+    const pt = plantTypes.find(p => p.value === checklistPlant.type)
+    setOverrideItems((pt?.items ?? []).map((item, idx) => ({ section: item.section, label: item.label, order: idx })))
+    setOverrideHasData(false)
+  }
+
+  function addOverrideItem() {
+    setOverrideItems(items => [...items, { section: '', label: '', order: items.length }])
+  }
+
+  function updateOverrideItem(idx: number, field: 'section' | 'label', value: string) {
+    setOverrideItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item))
+  }
+
+  function removeOverrideItem(idx: number) {
+    setOverrideItems(items => items.filter((_, i) => i !== idx).map((item, i) => ({ ...item, order: i })))
+  }
+
+  function moveOverrideItem(idx: number, dir: -1 | 1) {
+    const newItems = [...overrideItems]
+    const target = idx + dir
+    if (target < 0 || target >= newItems.length) return
+    ;[newItems[idx], newItems[target]] = [newItems[target], newItems[idx]]
+    setOverrideItems(newItems.map((item, i) => ({ ...item, order: i })))
+  }
 
   const startEdit = () => {
     if (!customer) return
@@ -405,6 +490,17 @@ export default function CustomerDetailPage() {
                     </span>
                   </div>
                   <div className="flex gap-1.5">
+                    {canEditDelete && (
+                      <button
+                        onClick={() => openChecklistEditor(plant)}
+                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                        title="Checkliste anpassen"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 8h.01M9 16h.01M15 12h-6" />
+                        </svg>
+                      </button>
+                    )}
                     {canManagePlants && (
                       <button
                         onClick={() => openEditPlant(plant)}
@@ -570,13 +666,13 @@ export default function CustomerDetailPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Anlagentyp auswählen...</option>
-                    {PLANT_TYPES.map(pt => (
+                    {plantTypes.map(pt => (
                       <option key={pt.value} value={pt.value}>{pt.label}</option>
                     ))}
                   </select>
-                  {plantForm.type && PLANT_TYPES.find(p => p.value === plantForm.type)?.checklist.length ? (
+                  {plantForm.type && (plantTypes.find(p => p.value === plantForm.type)?.items.length ?? 0) > 0 ? (
                     <p className="mt-1 text-xs text-green-600">
-                      ✓ Typspezifische Checkliste ({PLANT_TYPES.find(p => p.value === plantForm.type)!.checklist.length} Punkte) wird bei Einsätzen verwendet
+                      ✓ Typspezifische Checkliste ({plantTypes.find(p => p.value === plantForm.type)!.items.length} Punkte) verfügbar
                     </p>
                   ) : plantForm.type ? (
                     <p className="mt-1 text-xs text-gray-400">Standard-Checkliste wird verwendet</p>
@@ -680,6 +776,102 @@ export default function CustomerDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Per-plant checklist override modal */}
+      {checklistPlant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setChecklistPlant(null)} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Checkliste anpassen</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {checklistPlant.name} · {checklistPlant.type}
+                  {overrideHasData && <span className="ml-2 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">Angepasst</span>}
+                </p>
+              </div>
+              <button onClick={() => setChecklistPlant(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+              Diese Checkliste ersetzt die Typ-Standardcheckliste für alle neuen Einsätze dieser Anlage.
+              {overrideHasData && (
+                <button onClick={resetOverride} className="ml-3 underline hover:no-underline">Auf Typ-Standard zurücksetzen</button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loadingOverride ? (
+                <div className="p-8 text-center text-sm text-gray-400">Laden...</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {overrideItems.length === 0 && (
+                    <div className="p-8 text-center text-sm text-gray-400">
+                      Noch keine Prüfpunkte. Klicke auf &quot;Prüfpunkt hinzufügen&quot;.
+                    </div>
+                  )}
+                  {overrideItems.map((item, idx) => (
+                    <div key={idx} className="px-5 py-3 flex items-center gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <button onClick={() => moveOverrideItem(idx, -1)} disabled={idx === 0} className="text-gray-300 hover:text-gray-500 disabled:opacity-20">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                        </button>
+                        <button onClick={() => moveOverrideItem(idx, 1)} disabled={idx === overrideItems.length - 1} className="text-gray-300 hover:text-gray-500 disabled:opacity-20">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                      </div>
+                      <span className="text-xs text-gray-400 w-6 text-center">{idx + 1}</span>
+                      <input
+                        type="text"
+                        value={item.section}
+                        onChange={e => updateOverrideItem(idx, 'section', e.target.value)}
+                        placeholder="Abschnitt"
+                        className="w-36 border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                      />
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={e => updateOverrideItem(idx, 'label', e.target.value)}
+                        placeholder="Prüfpunkt-Beschreibung"
+                        className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                      />
+                      <button onClick={() => removeOverrideItem(idx)} className="text-red-400 hover:text-red-600">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={addOverrideItem}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-white"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Prüfpunkt hinzufügen
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setChecklistPlant(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                  Schließen
+                </button>
+                <button
+                  onClick={saveOverride}
+                  disabled={savingOverride}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingOverride ? 'Speichert...' : 'Speichern'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

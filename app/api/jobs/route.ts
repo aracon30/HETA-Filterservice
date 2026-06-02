@@ -67,14 +67,30 @@ export async function POST(request: NextRequest) {
   const count = await prisma.serviceJob.count()
   const jobNumber = `SJ-${String(count + 1001).padStart(4, '0')}`
 
-  // Determine checklist based on plant type
+  // Determine checklist: plant override → plant-type template → default
   let checklistItems: { label: string; section?: string }[] = []
   if (plantId) {
-    const plant = await prisma.plant.findUnique({ where: { id: plantId }, select: { type: true } })
+    const plant = await prisma.plant.findUnique({
+      where: { id: plantId },
+      select: {
+        type: true,
+        checklistOverrides: { orderBy: { order: 'asc' } },
+      },
+    })
     if (plant) {
-      const typed = getChecklistForPlantType(plant.type)
-      if (typed.length > 0) {
-        checklistItems = typed
+      if (plant.checklistOverrides.length > 0) {
+        checklistItems = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
+      } else {
+        const plantType = await prisma.plantType.findUnique({
+          where: { value: plant.type },
+          include: { items: { orderBy: { order: 'asc' } } },
+        })
+        if (plantType && plantType.items.length > 0) {
+          checklistItems = plantType.items.map(i => ({ label: i.label, section: i.section }))
+        } else {
+          const legacy = getChecklistForPlantType(plant.type)
+          if (legacy.length > 0) checklistItems = legacy
+        }
       }
     }
   }
