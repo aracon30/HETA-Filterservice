@@ -363,29 +363,29 @@ async function main() {
     { role: UserRole.SERVICE_TECHNICIAN, resource: 'opportunities', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     { role: UserRole.SERVICE_TECHNICIAN, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
 
-    // MAINTENANCE_MANAGER
-    { role: UserRole.MAINTENANCE_MANAGER, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.MAINTENANCE_MANAGER, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.MAINTENANCE_MANAGER, resource: 'jobs', canView: true, canCreate: true, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.MAINTENANCE_MANAGER, resource: 'checklist', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
-    { role: UserRole.MAINTENANCE_MANAGER, resource: 'opportunities', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.MAINTENANCE_MANAGER, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    // MAINTENANCE_MANAGER – externe Rolle: nur Lesen, kein Vertrieb/Benutzer
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'customers',     canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'plants',        canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'jobs',          canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'checklist',     canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'opportunities', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.MAINTENANCE_MANAGER, resource: 'users',         canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
 
-    // MAINTENANCE_TECHNICIAN
-    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
-    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'jobs', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
-    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'checklist', canView: true, canCreate: false, canEdit: true, canDelete: false, scope: 'own_plant' },
+    // MAINTENANCE_TECHNICIAN – externe Rolle: nur Lesen, kein Vertrieb/Benutzer
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'customers',     canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'plants',        canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'jobs',          canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'checklist',     canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
     { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'opportunities', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
-    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.MAINTENANCE_TECHNICIAN, resource: 'users',         canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
 
-    // BUYER
-    { role: UserRole.BUYER, resource: 'customers', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.BUYER, resource: 'plants', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.BUYER, resource: 'jobs', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.BUYER, resource: 'checklist', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
-    { role: UserRole.BUYER, resource: 'opportunities', canView: true, canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    { role: UserRole.BUYER, resource: 'users', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    // BUYER – externe Rolle: nur Lesen, kein Vertrieb/Benutzer
+    { role: UserRole.BUYER, resource: 'customers',     canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'plants',        canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'jobs',          canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    { role: UserRole.BUYER, resource: 'checklist',     canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.BUYER, resource: 'opportunities', canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    { role: UserRole.BUYER, resource: 'users',         canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
   ]
 
   for (const perm of permissions) {
