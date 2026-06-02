@@ -95,15 +95,19 @@ const INTERNAL_GROUP_LABELS: Record<string, string> = {
   SERVICE_TECHNICIAN: 'Service Techniker',
 }
 
+const EXTERNAL_ONLY_RESOURCES = ['opportunities', 'users']
+
 // ─── Permission Matrix Component ─────────────────────────────────────────────
 
 function PermissionMatrix({
   userId,
   rolePerms,
+  isExternal,
   onClose,
 }: {
   userId: string
   rolePerms: RolePerm[]
+  isExternal: boolean
   onClose: () => void
 }) {
   const [perms, setPerms] = useState<PermRow[]>([])
@@ -172,19 +176,21 @@ function PermissionMatrix({
 
   async function save() {
     setSaving(true)
-    const payload = perms.map(row => {
-      if (!row.hasOverride) {
-        return { resource: row.resource, remove: true, canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' }
-      }
-      return {
-        resource: row.resource,
-        canView: row.canView ?? false,
-        canCreate: row.canCreate ?? false,
-        canEdit: row.canEdit ?? false,
-        canDelete: row.canDelete ?? false,
-        scope: row.scope ?? 'all',
-      }
-    })
+    const payload = perms
+      .filter(row => !isExternal || !EXTERNAL_ONLY_RESOURCES.includes(row.resource))
+      .map(row => {
+        if (!row.hasOverride) {
+          return { resource: row.resource, remove: true, canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' }
+        }
+        return {
+          resource: row.resource,
+          canView: row.canView ?? false,
+          canCreate: isExternal ? false : (row.canCreate ?? false),
+          canEdit: isExternal ? false : (row.canEdit ?? false),
+          canDelete: isExternal ? false : (row.canDelete ?? false),
+          scope: row.scope ?? 'all',
+        }
+      })
     await fetch(`/api/users/${userId}/permissions`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -207,20 +213,27 @@ function PermissionMatrix({
         </p>
       </div>
       <div className="overflow-x-auto">
+        {isExternal && (
+          <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+            Externe Benutzer haben nur Leserechte. Schreibrechte und die Bereiche Vertrieb & Benutzer sind nicht verfügbar.
+          </div>
+        )}
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-200">
               <th className="text-left py-2 pr-3 text-gray-500 font-medium w-28">Bereich</th>
               <th className="text-center px-2 py-2 text-gray-500 font-medium">Sehen</th>
-              <th className="text-center px-2 py-2 text-gray-500 font-medium">Erstellen</th>
-              <th className="text-center px-2 py-2 text-gray-500 font-medium">Bearbeiten</th>
-              <th className="text-center px-2 py-2 text-gray-500 font-medium">Löschen</th>
+              {!isExternal && <>
+                <th className="text-center px-2 py-2 text-gray-500 font-medium">Erstellen</th>
+                <th className="text-center px-2 py-2 text-gray-500 font-medium">Bearbeiten</th>
+                <th className="text-center px-2 py-2 text-gray-500 font-medium">Löschen</th>
+              </>}
               <th className="text-center px-2 py-2 text-gray-500 font-medium">Umfang</th>
               <th className="px-2 py-2 w-16"></th>
             </tr>
           </thead>
           <tbody>
-            {perms.map(row => {
+            {perms.filter(row => !isExternal || !EXTERNAL_ONLY_RESOURCES.includes(row.resource)).map(row => {
               const isOverride = row.hasOverride
               return (
                 <tr key={row.resource} className={`border-b border-gray-50 ${isOverride ? 'bg-blue-50/40' : ''}`}>
@@ -228,7 +241,15 @@ function PermissionMatrix({
                     <span className="font-medium text-gray-700">{RESOURCE_LABELS[row.resource]}</span>
                     {isOverride && <span className="ml-1 text-blue-500">✎</span>}
                   </td>
-                  {(['canView', 'canCreate', 'canEdit', 'canDelete'] as const).map(field => (
+                  <td className="px-2 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={effective(row, 'canView') as boolean}
+                      onChange={() => toggle(row.resource, 'canView')}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                  {!isExternal && (['canCreate', 'canEdit', 'canDelete'] as const).map(field => (
                     <td key={field} className="px-2 py-2 text-center">
                       <input
                         type="checkbox"
@@ -304,6 +325,7 @@ function UserCard({
   onToggle: (u: User) => void
   onDelete: (u: User) => void
 }) {
+  const isExternal = EXTERNAL_ROLES.includes(user.role)
   const [showPerms, setShowPerms] = useState(false)
 
   return (
@@ -378,6 +400,7 @@ function UserCard({
           <PermissionMatrix
             userId={user.id}
             rolePerms={rolePerms}
+            isExternal={isExternal}
             onClose={() => setShowPerms(false)}
           />
         </div>
