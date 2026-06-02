@@ -299,6 +299,23 @@ export default function JobInspectionPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const [reloadingChecklist, setReloadingChecklist] = useState(false)
+  const [confirmReload, setConfirmReload] = useState(false)
+
+  const canReloadChecklist =
+    ['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') && job?.status === 'PLANNED'
+
+  const handleReloadChecklist = async () => {
+    setReloadingChecklist(true)
+    setConfirmReload(false)
+    const res = await fetch(`/api/jobs/${id}/reload-checklist`, { method: 'POST' })
+    if (res.ok) {
+      const updated: Job = await res.json()
+      setChecklist(updated.checklistItems.map(i => ({ ...i, status: (i.status as 'open' | 'io' | 'nio') || 'open' })))
+    }
+    setReloadingChecklist(false)
+  }
+
   const loadJob = useCallback(async () => {
     const data: Job = await fetch(`/api/jobs/${id}`).then(r => r.json())
     setJob(data)
@@ -774,8 +791,36 @@ export default function JobInspectionPage() {
               <h2 className="text-base font-semibold text-blue-900">Schritt 2: Inspektionsbericht</h2>
               <p className="text-sm text-blue-700">{doneItems}/{totalItems} geprüft · {nioItems > 0 ? `${nioItems} n.i.O.` : 'alle i.O.'}</p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-blue-700">{totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0}%</div>
+            <div className="flex items-center gap-3">
+              {canReloadChecklist && (
+                confirmReload ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-700">Checkliste ersetzen?</span>
+                    <button
+                      onClick={handleReloadChecklist}
+                      disabled={reloadingChecklist}
+                      className="px-2 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {reloadingChecklist ? '...' : 'Ja'}
+                    </button>
+                    <button onClick={() => setConfirmReload(false)} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg">Nein</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmReload(true)}
+                    title="Checkliste auf aktuellen Standard aktualisieren"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Aktualisieren
+                  </button>
+                )
+              )}
+              <div className="text-right">
+                <div className="text-2xl font-bold text-blue-700">{totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0}%</div>
+              </div>
             </div>
           </div>
 
