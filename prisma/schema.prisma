@@ -90,21 +90,49 @@ model Invoice {
   createdAt     DateTime    @default(now())
 }
 
+model PlantType {
+  id         String                   @id @default(cuid())
+  value      String                   @unique
+  label      String
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  items      PlantTypeChecklistItem[]
+}
+
+model PlantTypeChecklistItem {
+  id          String    @id @default(cuid())
+  plantTypeId String
+  plantType   PlantType @relation(fields: [plantTypeId], references: [id], onDelete: Cascade)
+  section     String
+  label       String
+  order       Int       @default(0)
+}
+
+model PlantChecklistOverride {
+  id      String  @id @default(cuid())
+  plantId String
+  plant   Plant   @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  section String
+  label   String
+  order   Int     @default(0)
+}
+
 model Plant {
-  id            String       @id @default(cuid())
-  name          String
-  type          String
-  serialNumber  String?
-  location      String?
-  installedAt   DateTime?
-  buildYear     Int?
-  description   String?
-  contactPerson String?
-  manufacturer  String?
-  model         String?
-  customer      Customer     @relation(fields: [customerId], references: [id])
-  customerId    String
-  jobs          ServiceJob[]
+  id                String                   @id @default(cuid())
+  name              String
+  type              String
+  serialNumber      String?
+  location          String?
+  installedAt       DateTime?
+  buildYear         Int?
+  description       String?
+  contactPerson     String?
+  manufacturer      String?
+  model             String?
+  customer          Customer                 @relation(fields: [customerId], references: [id])
+  customerId        String
+  jobs              ServiceJob[]
+  checklistOverrides PlantChecklistOverride[]
 }
 
 model ServiceJob {
