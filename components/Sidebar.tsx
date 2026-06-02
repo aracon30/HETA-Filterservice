@@ -75,7 +75,7 @@ export default function Sidebar() {
   const role = session?.user?.role as string | undefined
   const isInternal = role ? INTERNAL_ROLES.includes(role) : false
   const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
-  const customerName = (session?.user as any)?.customerName as string | null | undefined
+  const customerName = session?.user?.customerName
 
   const visibleNavItems = navItems.filter(item =>
     item.roles === null || (role && item.roles.includes(role))

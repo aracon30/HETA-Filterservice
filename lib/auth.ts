@@ -54,7 +54,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.role = user.role
         token.customerId = user.customerId
-        token.customerName = (user as any).customerName ?? null
+        token.customerName = user.customerName ?? null
       }
       return token
     },
