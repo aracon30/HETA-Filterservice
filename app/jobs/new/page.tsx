@@ -13,9 +13,11 @@ interface ConflictJob {
   orderNumber: string
   scheduledAt: string
   duration: number
-  technicianName: string | null
-  vehicle: string | null
+  technicians: { userId: string; userName: string }[]
+  vehicles: string[]
   customer: { name: string }
+  conflictingTechnicianName?: string
+  conflictingVehicles?: string[]
 }
 
 const VEHICLES = [
@@ -72,15 +74,15 @@ function NewJobPage() {
     : ''
 
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([])
+  const [selectedTechnicianIds, setSelectedTechnicianIds] = useState<string[]>([])
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([])
 
   const [form, setForm] = useState({
     orderNumber: '',
     customerId: '',
     scheduledAt: defaultScheduledAt,
-    technicianId: '',
     description: '',
     duration: 480,
-    vehicle: '',
   })
 
   useEffect(() => {
@@ -97,14 +99,14 @@ function NewJobPage() {
   }, [form.customerId])
 
   const checkAvailability = useCallback(async (
-    date: string, duration: number, technicianId: string, vehicle: string
+    date: string, duration: number, technicianIds: string[], vehicles: string[]
   ) => {
     if (!date) { setTechConflicts([]); setVehicleConflicts([]); return }
     setCheckingAvailability(true)
     try {
       const params = new URLSearchParams({ date, duration: String(duration) })
-      if (technicianId) params.set('technicianId', technicianId)
-      if (vehicle) params.set('vehicle', vehicle)
+      if (technicianIds.length > 0) params.set('technicianIds', technicianIds.join(','))
+      if (vehicles.length > 0) params.set('vehicles', vehicles.join(','))
       const res = await fetch(`/api/availability?${params}`)
       if (res.ok) {
         const { technicianConflicts, vehicleConflicts } = await res.json()
@@ -118,8 +120,8 @@ function NewJobPage() {
 
   // Re-check whenever relevant fields change
   useEffect(() => {
-    checkAvailability(form.scheduledAt, form.duration, form.technicianId, form.vehicle)
-  }, [form.scheduledAt, form.duration, form.technicianId, form.vehicle, checkAvailability])
+    checkAvailability(form.scheduledAt, form.duration, selectedTechnicianIds, selectedVehicles)
+  }, [form.scheduledAt, form.duration, selectedTechnicianIds, selectedVehicles, checkAvailability])
 
   const setField = (field: string, value: string | number) =>
     setForm(f => ({ ...f, [field]: value }))
@@ -131,7 +133,6 @@ function NewJobPage() {
       setError('Bitte Auftragsnummer, Kunde und Datum angeben.')
       return
     }
-    const selectedTech = technicians.find(t => t.id === form.technicianId)
     setSubmitting(true)
     const res = await fetch('/api/jobs', {
       method: 'POST',
@@ -139,7 +140,8 @@ function NewJobPage() {
       body: JSON.stringify({
         ...form,
         plantIds: selectedPlantIds,
-        technicianName: selectedTech?.name ?? '',
+        technicianIds: selectedTechnicianIds,
+        vehicles: selectedVehicles,
       }),
     })
     if (!res.ok) { setError('Fehler beim Erstellen des Einsatzes.'); setSubmitting(false); return }
@@ -292,16 +294,31 @@ function NewJobPage() {
           {/* Techniker */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Techniker</label>
-            <select
-              value={form.technicianId}
-              onChange={e => setField('technicianId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Techniker auswählen (optional)</option>
-              {technicians.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+            {technicians.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2">Keine Techniker verfügbar.</p>
+            ) : (
+              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                {technicians.map(t => {
+                  const checked = selectedTechnicianIds.includes(t.id)
+                  return (
+                    <label key={t.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedTechnicianIds(prev =>
+                          checked ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                        )}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="flex-1 text-sm text-gray-800">{t.name}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+            {selectedTechnicianIds.length > 0 && (
+              <p className="mt-1 text-xs text-blue-600">{selectedTechnicianIds.length} Techniker ausgewählt</p>
+            )}
             {techConflicts.length > 0 && (
               <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-center gap-1.5 text-amber-700 text-sm font-medium mb-1.5">
@@ -312,32 +329,45 @@ function NewJobPage() {
                 </div>
                 {techConflicts.map(j => (
                   <div key={j.id} className="text-xs text-amber-700">
-                    {j.orderNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
+                    {j.conflictingTechnicianName} – {j.orderNumber} · {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
                   </div>
                 ))}
               </div>
             )}
-            {form.technicianId && techConflicts.length === 0 && form.scheduledAt && !checkingAvailability && (
+            {selectedTechnicianIds.length > 0 && techConflicts.length === 0 && form.scheduledAt && !checkingAvailability && (
               <div className="mt-1.5 flex items-center gap-1 text-xs text-green-600">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Techniker verfügbar
+                Alle Techniker verfügbar
               </div>
             )}
           </div>
 
           {/* Fahrzeug */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Fahrzeug</label>
-            <select
-              value={form.vehicle}
-              onChange={e => setField('vehicle', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Fahrzeug auswählen (optional)</option>
-              {VEHICLES.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Fahrzeuge</label>
+            <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {VEHICLES.map(v => {
+                const checked = selectedVehicles.includes(v)
+                return (
+                  <label key={v} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setSelectedVehicles(prev =>
+                        checked ? prev.filter(x => x !== v) : [...prev, v]
+                      )}
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-800">{v}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {selectedVehicles.length > 0 && (
+              <p className="mt-1 text-xs text-blue-600">{selectedVehicles.length} Fahrzeug{selectedVehicles.length > 1 ? 'e' : ''} ausgewählt</p>
+            )}
             {vehicleConflicts.length > 0 && (
               <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-center gap-1.5 text-amber-700 text-sm font-medium mb-1.5">
@@ -348,17 +378,17 @@ function NewJobPage() {
                 </div>
                 {vehicleConflicts.map(j => (
                   <div key={j.id} className="text-xs text-amber-700">
-                    {j.orderNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
+                    {j.conflictingVehicles?.join(', ')} – {j.orderNumber} · {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
                   </div>
                 ))}
               </div>
             )}
-            {form.vehicle && vehicleConflicts.length === 0 && form.scheduledAt && !checkingAvailability && (
+            {selectedVehicles.length > 0 && vehicleConflicts.length === 0 && form.scheduledAt && !checkingAvailability && (
               <div className="mt-1.5 flex items-center gap-1 text-xs text-green-600">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Fahrzeug verfügbar
+                Alle Fahrzeuge verfügbar
               </div>
             )}
           </div>

@@ -18,6 +18,7 @@ export async function GET(
     include: {
       customer: true,
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
+      technicians: { orderBy: { order: 'asc' } },
       checklistItems: { orderBy: { id: 'asc' } },
     },
   })
@@ -37,7 +38,7 @@ export async function PUT(
   const body = await request.json()
   const {
     status, findings, recommendations, checklistItems,
-    duration, vehicle, scheduledAt, technicianName,
+    duration, vehicles, scheduledAt, technicianIds,
     technicianSignature, customerSignature, complete, workTimeEntries,
   } = body
 
@@ -47,9 +48,8 @@ export async function PUT(
   if (findings !== undefined) updateData.findings = findings
   if (recommendations !== undefined) updateData.recommendations = recommendations
   if (duration !== undefined) updateData.duration = Number(duration)
-  if (vehicle !== undefined) updateData.vehicle = vehicle || null
+  if (vehicles !== undefined) updateData.vehicles = Array.isArray(vehicles) ? vehicles.filter(Boolean) : []
   if (scheduledAt !== undefined) updateData.scheduledAt = new Date(scheduledAt)
-  if (technicianName !== undefined) updateData.technicianName = technicianName
   if (technicianSignature !== undefined) updateData.technicianSignature = technicianSignature
   if (customerSignature !== undefined) updateData.customerSignature = customerSignature
   if (workTimeEntries !== undefined) updateData.workTimeEntries = workTimeEntries
@@ -65,6 +65,17 @@ export async function PUT(
 
   const job = await prisma.$transaction(async (tx) => {
     await tx.serviceJob.update({ where: { id: params.id }, data: updateData })
+
+    // Update technician assignments if provided
+    if (technicianIds !== undefined && Array.isArray(technicianIds)) {
+      await tx.serviceJobTechnician.deleteMany({ where: { jobId: params.id } })
+      if (technicianIds.length > 0) {
+        const techUsers = await tx.user.findMany({ where: { id: { in: technicianIds } }, select: { id: true, name: true } })
+        await tx.serviceJobTechnician.createMany({
+          data: techUsers.map((t, idx) => ({ jobId: params.id, userId: t.id, userName: t.name, order: idx })),
+        })
+      }
+    }
 
     if (checklistItems && Array.isArray(checklistItems)) {
       for (const item of checklistItems) {

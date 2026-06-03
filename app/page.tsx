@@ -53,6 +53,7 @@ export default async function DashboardPage() {
       include: {
         customer: { select: { name: true } },
         plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } },
+        technicians: { orderBy: { order: 'asc' } },
       },
       orderBy: { scheduledAt: 'asc' },
       take: 5,
@@ -176,7 +177,7 @@ export default async function DashboardPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{(job as { plants: { plant: { name: string } }[] }).plants.length === 0 ? '—' : (job as { plants: { plant: { name: string } }[] }).plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{job.technicianName ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{(job as unknown as { technicians: { userName: string }[] }).technicians.length === 0 ? '—' : (job as unknown as { technicians: { userName: string }[] }).technicians.map(t => t.userName).join(', ')}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={job.status} />
                     </td>

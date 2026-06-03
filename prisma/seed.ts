@@ -184,13 +184,13 @@ async function main() {
     plantIds: string[],
     status: JobStatus,
     scheduledAt: Date,
-    technicianName: string,
+    _technicianName: string,
     description: string,
     findings?: string,
     recommendations?: string,
     completedAt?: Date,
     duration: number = 60,
-    vehicle?: string
+    _vehicle?: string
   ) => {
     jobCounter++
     return prisma.serviceJob.create({
@@ -203,12 +203,11 @@ async function main() {
         plants: plantIds.length > 0
           ? { create: plantIds.map((pid, idx) => ({ plantId: pid, order: idx })) }
           : undefined,
-        technicianName,
+        vehicles: [],
         description,
         findings,
         recommendations,
         duration,
-        vehicle: vehicle ?? null,
         checklistItems: {
           create: DEFAULT_CHECKLIST.map((label, i) => ({
             label,

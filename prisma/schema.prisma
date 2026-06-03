@@ -27,7 +27,7 @@ model User {
   active          Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  assignedJobs    ServiceJob[]     @relation("TechnicianJobs")
+  technicianAssignments ServiceJobTechnician[] @relation("TechnicianAssignments")
   userPermissions UserPermission[]
 }
 
@@ -136,6 +136,18 @@ model Plant {
   checklistItems    ChecklistItem[]
 }
 
+model ServiceJobTechnician {
+  id       String     @id @default(cuid())
+  job      ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId    String
+  user     User       @relation("TechnicianAssignments", fields: [userId], references: [id])
+  userId   String
+  userName String
+  order    Int        @default(0)
+
+  @@unique([jobId, userId])
+}
+
 model ServiceJobPlant {
   id      String     @id @default(cuid())
   job     ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -156,11 +168,9 @@ model ServiceJob {
   customer        Customer          @relation(fields: [customerId], references: [id])
   customerId      String
   plants          ServiceJobPlant[]
-  technicianName       String?
-  technicianId         String?
-  technician           User?             @relation("TechnicianJobs", fields: [technicianId], references: [id])
-  duration             Int               @default(480)
-  vehicle              String?
+  technicians     ServiceJobTechnician[]
+  vehicles        String[]
+  duration        Int               @default(480)
   technicianSignature  String?
   customerSignature    String?
   description     String?
