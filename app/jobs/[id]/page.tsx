@@ -8,7 +8,6 @@ import StatusBadge from '@/components/StatusBadge'
 import InvoicePanel from '@/components/InvoicePanel'
 
 const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
-const PARTS_EDIT_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,17 +33,6 @@ interface PlantInfo {
   buildYear: number | null
 }
 
-interface JobPart {
-  id: string
-  label: string
-  partNumber: string | null
-  quantity: number
-  status: string
-  deliveryDate: string | null
-  notes: string | null
-  order: number
-}
-
 interface Job {
   id: string
   orderNumber: string
@@ -63,17 +51,15 @@ interface Job {
   technicians: { userId: string; userName: string }[]
   vehicles: string[]
   checklistItems: ChecklistItem[]
-  parts: JobPart[]
 }
 
-type Step = 'verify' | 'inspection' | 'findings' | 'parts' | 'summary'
+type Step = 'verify' | 'inspection' | 'findings' | 'summary'
 
 const STEPS: { key: Step; label: string; short: string }[] = [
   { key: 'verify',     label: 'Anlagenprüfung',    short: '1' },
   { key: 'inspection', label: 'Inspektionsbericht', short: '2' },
   { key: 'findings',   label: 'Befunde',            short: '3' },
-  { key: 'parts',      label: 'Materialien',         short: '4' },
-  { key: 'summary',    label: 'Abschluss',           short: '5' },
+  { key: 'summary',    label: 'Abschluss',           short: '4' },
 ]
 
 function fmt(date: string) {
@@ -326,7 +312,6 @@ export default function JobInspectionPage() {
   const { data: session } = useSession()
   const role = session?.user?.role as string | undefined
   const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
-  const canEditParts = role ? PARTS_EDIT_ROLES.includes(role) : false
 
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
@@ -341,8 +326,7 @@ export default function JobInspectionPage() {
   const [customerSignature, setCustomerSignature] = useState('')
 
   // Parts state
-  const [jobParts, setJobParts] = useState<JobPart[]>([])
-  const [savingParts, setSavingParts] = useState(false)
+
 
   type WorkTimeEntry = { date: string; startTime: string; endTime: string }
   const [workTimeEntries, setWorkTimeEntries] = useState<WorkTimeEntry[]>([
@@ -377,11 +361,9 @@ export default function JobInspectionPage() {
       ...data,
       technicians: data.technicians ?? [],
       vehicles: data.vehicles ?? [],
-      parts: data.parts ?? [],
     }
     setJob(typedJob)
     setChecklist(typedJob.checklistItems.map(i => ({ ...i, status: (i.status as 'open' | 'io' | 'nio') || (i.checked ? 'io' : 'open') })))
-    setJobParts(typedJob.parts)
     setFindings(typedJob.findings ?? '')
     setRecommendations(typedJob.recommendations ?? '')
     setTechSignature(typedJob.technicianSignature ?? '')
@@ -409,20 +391,6 @@ export default function JobInspectionPage() {
     setSaving(false)
   }
 
-  const saveParts = async () => {
-    setSavingParts(true)
-    const res = await fetch(`/api/jobs/${id}/parts`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parts: jobParts }),
-    })
-    if (res.ok) {
-      const updated: JobPart[] = await res.json()
-      setJobParts(updated)
-    }
-    setSavingParts(false)
-  }
-
   const handlePhotoUpload = async (itemId: string, file: File) => {
     setUploadingItem(itemId)
     const fd = new FormData()
@@ -437,27 +405,6 @@ export default function JobInspectionPage() {
 
   const updateItem = (itemId: string, update: Partial<ChecklistItem>) => {
     setChecklist(prev => prev.map(i => i.id === itemId ? { ...i, ...update } : i))
-  }
-
-  const updatePart = (idx: number, update: Partial<JobPart>) => {
-    setJobParts(prev => prev.map((p, i) => i === idx ? { ...p, ...update } : p))
-  }
-
-  const addPart = () => {
-    setJobParts(prev => [...prev, {
-      id: `new-${Date.now()}`,
-      label: '',
-      partNumber: null,
-      quantity: 1,
-      status: 'TO_ORDER',
-      deliveryDate: null,
-      notes: null,
-      order: prev.length,
-    }])
-  }
-
-  const removePart = (idx: number) => {
-    setJobParts(prev => prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, order: i })))
   }
 
   const handleFinish = async () => {
@@ -707,27 +654,6 @@ export default function JobInspectionPage() {
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{recommendations}</p>
               </div>
             )}
-          </div>
-        )}
-
-        {jobParts.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Materialien ({jobParts.length})</h3>
-            <div className="space-y-1">
-              {jobParts.map(part => (
-                <div key={part.id} className="flex items-center gap-3 text-sm py-1.5 border-b border-gray-100 last:border-0">
-                  <PartStatusBadge status={part.status} />
-                  <div className="flex-1">
-                    <span className="font-medium text-gray-800">{part.label}</span>
-                    {part.partNumber && <span className="text-xs text-gray-400 ml-2">#{part.partNumber}</span>}
-                  </div>
-                  <span className="text-xs text-gray-500">× {part.quantity}</span>
-                  {part.deliveryDate && part.status === 'ORDERED' && (
-                    <span className="text-xs text-blue-600">Lieferung: {fmtDate(part.deliveryDate)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -1088,7 +1014,7 @@ export default function JobInspectionPage() {
               ← Zurück
             </button>
             <button
-              onClick={async () => { await save(); setStep('parts') }}
+              onClick={async () => { await save(); setStep('summary') }}
               disabled={saving}
               className="flex-2 px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
             >
@@ -1098,165 +1024,11 @@ export default function JobInspectionPage() {
         </div>
       )}
 
-      {/* Step 4: Materialien */}
-      {step === 'parts' && (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h2 className="text-base font-semibold text-blue-900">Schritt 4: Materialien</h2>
-            <p className="text-sm text-blue-700">Benötigte Teile erfassen und deren Beschaffungsstatus pflegen.</p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-700">{jobParts.length} {jobParts.length === 1 ? 'Teil' : 'Teile'}</p>
-              {canEditParts && (
-                <button
-                  onClick={addPart}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Material hinzufügen
-                </button>
-              )}
-            </div>
-
-            {jobParts.length === 0 && (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">
-                Keine Materialien erfasst.
-                {canEditParts && ' Klicke auf "Material hinzufügen" um zu beginnen.'}
-              </div>
-            )}
-
-            <div className="divide-y divide-gray-100">
-              {jobParts.map((part, idx) => (
-                <div key={part.id} className="p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 space-y-2">
-                      {canEditParts ? (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={part.label}
-                            onChange={e => updatePart(idx, { label: e.target.value })}
-                            placeholder="Bezeichnung"
-                            className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <input
-                            type="text"
-                            value={part.partNumber ?? ''}
-                            onChange={e => updatePart(idx, { partNumber: e.target.value || null })}
-                            placeholder="Art.-Nr."
-                            className="w-28 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <input
-                            type="number"
-                            min={1}
-                            value={part.quantity}
-                            onChange={e => updatePart(idx, { quantity: parseInt(e.target.value) || 1 })}
-                            className="w-16 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-800">{part.label}</span>
-                          {part.partNumber && <span className="text-xs text-gray-400">#{part.partNumber}</span>}
-                          <span className="text-xs text-gray-500">× {part.quantity}</span>
-                        </div>
-                      )}
-
-                      {canEditParts ? (
-                        <div className="flex gap-1.5 flex-wrap">
-                          {(['TO_ORDER', 'ORDERED', 'IN_STOCK', 'NOT_NEEDED'] as const).map(s => (
-                            <button
-                              key={s}
-                              onClick={() => updatePart(idx, { status: s })}
-                              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
-                                part.status === s
-                                  ? s === 'TO_ORDER' ? 'bg-orange-500 text-white border-orange-500'
-                                    : s === 'ORDERED' ? 'bg-blue-500 text-white border-blue-500'
-                                    : s === 'IN_STOCK' ? 'bg-green-500 text-white border-green-500'
-                                    : 'bg-gray-400 text-white border-gray-400'
-                                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
-                              {s === 'TO_ORDER' ? 'Zu bestellen'
-                                : s === 'ORDERED' ? 'Bestellt'
-                                : s === 'IN_STOCK' ? 'Im Lager'
-                                : 'Nicht benötigt'}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <PartStatusBadge status={part.status} />
-                      )}
-
-                      {part.status === 'ORDERED' && canEditParts && (
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs text-gray-500">Lieferdatum:</label>
-                          <input
-                            type="date"
-                            value={part.deliveryDate ? part.deliveryDate.slice(0, 10) : ''}
-                            onChange={e => updatePart(idx, { deliveryDate: e.target.value || null })}
-                            className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      )}
-                      {part.status === 'ORDERED' && !canEditParts && part.deliveryDate && (
-                        <p className="text-xs text-blue-600">Lieferung: {fmtDate(part.deliveryDate)}</p>
-                      )}
-
-                      {canEditParts && (
-                        <input
-                          type="text"
-                          value={part.notes ?? ''}
-                          onChange={e => updatePart(idx, { notes: e.target.value || null })}
-                          placeholder="Notiz (optional)"
-                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600"
-                        />
-                      )}
-                      {!canEditParts && part.notes && (
-                        <p className="text-xs text-gray-500 italic">{part.notes}</p>
-                      )}
-                    </div>
-
-                    {canEditParts && (
-                      <button
-                        onClick={() => removePart(idx)}
-                        className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 mt-1"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={() => setStep('findings')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
-              ← Zurück
-            </button>
-            <button
-              onClick={async () => { if (canEditParts) await saveParts(); setStep('summary') }}
-              disabled={savingParts}
-              className="flex-2 px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
-            >
-              {savingParts ? 'Speichern...' : 'Weiter →'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 5: Abschluss */}
+      {/* Step 4: Abschluss */}
       {step === 'summary' && !isCompleted && (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h2 className="text-base font-semibold text-blue-900">Schritt 5: Zusammenfassung & Abschluss</h2>
+            <h2 className="text-base font-semibold text-blue-900">Schritt 4: Zusammenfassung & Abschluss</h2>
             <p className="text-sm text-blue-700">Bitte überprüfen Sie die Angaben und unterschreiben Sie.</p>
           </div>
 
@@ -1370,7 +1142,7 @@ export default function JobInspectionPage() {
           )}
 
           <div className="flex gap-3">
-            <button onClick={() => setStep('parts')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
+            <button onClick={() => setStep('findings')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
               ← Zurück
             </button>
             <button
