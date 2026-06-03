@@ -52,7 +52,7 @@ export default async function DashboardPage() {
       where: { ...jobFilter, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
       include: {
         customer: { select: { name: true } },
-        plant: { select: { name: true } },
+        plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } },
       },
       orderBy: { scheduledAt: 'asc' },
       take: 5,
@@ -175,7 +175,7 @@ export default async function DashboardPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{job.plant?.name ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{(job as { plants: { plant: { name: string } }[] }).plants.length === 0 ? '—' : (job as { plants: { plant: { name: string } }[] }).plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{job.technicianName ?? '—'}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={job.status} />

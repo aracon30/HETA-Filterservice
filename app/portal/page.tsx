@@ -59,7 +59,7 @@ export default async function PortalPage() {
   const plannedJobs = (canViewJobs && role !== 'BUYER')
     ? await prisma.serviceJob.findMany({
         where: { customerId, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
-        include: { plant: { select: { name: true } } },
+        include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } } },
         orderBy: { scheduledAt: 'asc' },
       })
     : []
@@ -67,7 +67,7 @@ export default async function PortalPage() {
   const completedJobs = canViewJobs
     ? await prisma.serviceJob.findMany({
         where: { customerId, status: 'COMPLETED' },
-        include: { plant: { select: { name: true } } },
+        include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } } },
         orderBy: { completedAt: 'desc' },
         take: 50,
       })
@@ -234,7 +234,7 @@ export default async function PortalPage() {
                     <tr key={job.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-900">{fmtDateTime(job.scheduledAt)}</td>
                       <td className="px-4 py-3 font-medium text-gray-700">{job.orderNumber}</td>
-                      <td className="px-4 py-3 text-gray-600">{job.plant?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{job.plants.length === 0 ? '—' : job.plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
                       <td className="px-4 py-3 text-gray-600">{job.technicianName ?? '—'}</td>
                       <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
                     </tr>
@@ -282,7 +282,7 @@ export default async function PortalPage() {
                         {job.completedAt ? fmtDate(job.completedAt) : fmtDate(job.scheduledAt)}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-700">{job.orderNumber}</td>
-                      <td className="px-4 py-3 text-gray-600">{job.plant?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{job.plants.length === 0 ? '—' : job.plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
                       <td className="px-4 py-3 text-gray-600">{job.technicianName ?? '—'}</td>
                       {showReportLink && (
                         <td className="px-4 py-3 text-right">

@@ -23,12 +23,18 @@ export async function POST(
     where: { id: params.id },
     select: {
       status: true,
-      plantId: true,
-      plant: {
-        select: {
-          type: true,
-          checklistOverrides: { orderBy: { order: 'asc' } },
+      plants: {
+        include: {
+          plant: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              checklistOverrides: { orderBy: { order: 'asc' } },
+            },
+          },
         },
+        orderBy: { order: 'asc' },
       },
     },
   })
@@ -38,46 +44,64 @@ export async function POST(
     return NextResponse.json({ error: 'Checkliste kann nur bei geplanten oder laufenden Einsätzen aktualisiert werden' }, { status: 409 })
   }
 
-  // Resolve template (same priority as job creation)
-  let newItems: { label: string; section?: string }[] = []
+  type ChecklistEntry = { jobId: string; label: string; section: string | null; plantId: string | null; status: string; checked: boolean }
+  let newItems: ChecklistEntry[] = []
 
-  if (job.plant) {
-    if (job.plant.checklistOverrides.length > 0) {
-      newItems = job.plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
-    } else {
-      const plantType = await prisma.plantType.findUnique({
-        where: { value: job.plant.type },
-        include: { items: { orderBy: { order: 'asc' } } },
-      })
-      if (plantType && plantType.items.length > 0) {
-        newItems = plantType.items.map(i => ({ label: i.label, section: i.section }))
+  if (job.plants.length > 0) {
+    for (const jp of job.plants) {
+      const plant = jp.plant
+      let items: { label: string; section?: string }[] = []
+
+      if (plant.checklistOverrides.length > 0) {
+        items = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
       } else {
-        const legacy = getChecklistForPlantType(job.plant.type)
-        if (legacy.length > 0) newItems = legacy
+        const plantType = await prisma.plantType.findUnique({
+          where: { value: plant.type },
+          include: { items: { orderBy: { order: 'asc' } } },
+        })
+        if (plantType && plantType.items.length > 0) {
+          items = plantType.items.map(i => ({ label: i.label, section: i.section }))
+        } else {
+          const legacy = getChecklistForPlantType(plant.type)
+          if (legacy.length > 0) items = legacy
+        }
       }
+      if (items.length === 0) items = DEFAULT_CHECKLIST_ITEMS.map(l => ({ label: l }))
+
+      newItems = newItems.concat(items.map(i => ({
+        jobId: params.id,
+        label: i.label,
+        section: i.section ?? null,
+        plantId: plant.id,
+        status: 'open',
+        checked: false,
+      })))
     }
   }
 
   if (newItems.length === 0) {
-    newItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
+    newItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({
+      jobId: params.id,
+      label,
+      section: null,
+      plantId: null,
+      status: 'open',
+      checked: false,
+    }))
   }
 
   await prisma.$transaction([
     prisma.checklistItem.deleteMany({ where: { jobId: params.id } }),
-    prisma.checklistItem.createMany({
-      data: newItems.map(item => ({
-        jobId: params.id,
-        label: item.label,
-        section: item.section ?? null,
-        status: 'open',
-        checked: false,
-      })),
-    }),
+    prisma.checklistItem.createMany({ data: newItems }),
   ])
 
   const updated = await prisma.serviceJob.findUnique({
     where: { id: params.id },
-    include: { customer: true, plant: true, checklistItems: { orderBy: { id: 'asc' } } },
+    include: {
+      customer: true,
+      plants: { include: { plant: true }, orderBy: { order: 'asc' } },
+      checklistItems: { orderBy: { id: 'asc' } },
+    },
   })
 
   return NextResponse.json(updated)

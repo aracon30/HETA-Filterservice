@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       customer: { select: { id: true, name: true } },
-      plant: { select: { id: true, name: true } },
+      plants: { include: { plant: { select: { id: true, name: true, type: true } } }, orderBy: { order: 'asc' } },
     },
     orderBy: { scheduledAt: 'desc' },
   })
@@ -61,61 +61,69 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { customerId, plantId, scheduledAt, technicianName, technicianId, description, duration, vehicle, orderNumber } = body
+  const { customerId, plantIds, scheduledAt, technicianName, technicianId, description, duration, vehicle, orderNumber } = body
 
   if (!orderNumber) {
     return NextResponse.json({ error: 'Auftragsnummer ist erforderlich' }, { status: 400 })
   }
 
-  // Determine checklist: plant override → plant-type template → default
-  let checklistItems: { label: string; section?: string }[] = []
-  if (plantId) {
-    const plant = await prisma.plant.findUnique({
-      where: { id: plantId },
-      select: {
-        type: true,
-        checklistOverrides: { orderBy: { order: 'asc' } },
-      },
-    })
-    if (plant) {
+  const selectedPlantIds: string[] = Array.isArray(plantIds) ? plantIds : []
+
+  // Build checklist items per plant (override → type template → default)
+  type ChecklistEntry = { label: string; section?: string; plantId?: string }
+  let allChecklistItems: ChecklistEntry[] = []
+
+  if (selectedPlantIds.length > 0) {
+    for (const pid of selectedPlantIds) {
+      const plant = await prisma.plant.findUnique({
+        where: { id: pid },
+        select: { id: true, name: true, type: true, checklistOverrides: { orderBy: { order: 'asc' } } },
+      })
+      if (!plant) continue
+
+      let items: { label: string; section?: string }[] = []
       if (plant.checklistOverrides.length > 0) {
-        checklistItems = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
+        items = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
       } else {
         const plantType = await prisma.plantType.findUnique({
           where: { value: plant.type },
           include: { items: { orderBy: { order: 'asc' } } },
         })
         if (plantType && plantType.items.length > 0) {
-          checklistItems = plantType.items.map(i => ({ label: i.label, section: i.section }))
+          items = plantType.items.map(i => ({ label: i.label, section: i.section }))
         } else {
           const legacy = getChecklistForPlantType(plant.type)
-          if (legacy.length > 0) checklistItems = legacy
+          if (legacy.length > 0) items = legacy
         }
       }
+      if (items.length === 0) items = DEFAULT_CHECKLIST_ITEMS.map(l => ({ label: l }))
+
+      allChecklistItems = allChecklistItems.concat(items.map(i => ({ ...i, plantId: plant.id })))
     }
   }
-  if (checklistItems.length === 0) {
-    checklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
+
+  if (allChecklistItems.length === 0) {
+    allChecklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
   }
 
   const job = await prisma.serviceJob.create({
     data: {
       orderNumber,
       customerId,
-      plantId: plantId || null,
       scheduledAt: new Date(scheduledAt),
       technicianName,
       technicianId: technicianId || null,
       description,
       duration: duration ? Number(duration) : 480,
       vehicle: vehicle || null,
-      checklistItems: {
-        create: checklistItems,
-      },
+      plants: selectedPlantIds.length > 0
+        ? { create: selectedPlantIds.map((pid, idx) => ({ plantId: pid, order: idx })) }
+        : undefined,
+      checklistItems: { create: allChecklistItems },
     },
     include: {
       customer: true,
-      plant: true,
+      plants: { include: { plant: true }, orderBy: { order: 'asc' } },
       checklistItems: true,
     },
   })
