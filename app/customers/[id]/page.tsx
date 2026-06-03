@@ -19,7 +19,7 @@ interface Plant {
   manufacturer: string | null
   model: string | null
   customerId: string
-  _count?: { jobs: number }
+  _count?: { jobPlants: number }
 }
 
 interface Customer {
@@ -554,7 +554,7 @@ export default function CustomerDetailPage() {
                     href={`/jobs?customer=${customer.id}`}
                     className="text-xs text-blue-600 hover:underline"
                   >
-                    {plant._count?.jobs ?? 0} offene Einsätze
+                    {plant._count?.jobPlants ?? 0} Einsätze
                   </Link>
                 </div>
               </div>
