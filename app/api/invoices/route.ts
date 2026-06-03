@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const jobId = searchParams.get('jobId')
 
   const include = {
-    job: { select: { id: true, jobNumber: true, scheduledAt: true } },
+    job: { select: { id: true, orderNumber: true, scheduledAt: true } },
   }
 
   if (role === 'BUYER') {
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       fileName: file.name,
       uploadedById: session.user.id,
     },
-    include: { job: { select: { id: true, jobNumber: true, scheduledAt: true } } },
+    include: { job: { select: { id: true, orderNumber: true, scheduledAt: true } } },
   })
 
   return NextResponse.json(invoice, { status: 201 })

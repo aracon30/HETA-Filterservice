@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     where: baseWhere,
     select: {
       id: true,
-      jobNumber: true,
+      orderNumber: true,
       scheduledAt: true,
       duration: true,
       technicianName: true,

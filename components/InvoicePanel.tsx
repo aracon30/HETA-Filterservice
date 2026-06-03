@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 interface JobOption {
   id: string
-  jobNumber: string
+  orderNumber: string
   scheduledAt: string
   status: string
 }
@@ -19,7 +19,7 @@ interface Invoice {
   fileName: string
   createdAt: string
   jobId: string | null
-  job: { id: string; jobNumber: string; scheduledAt: string } | null
+  job: { id: string; orderNumber: string; scheduledAt: string } | null
 }
 
 function formatCurrency(v: number) {
@@ -208,7 +208,7 @@ export default function InvoicePanel({
                 <option value="">— Keinen Einsatz verknüpfen —</option>
                 {jobs.map(j => (
                   <option key={j.id} value={j.id}>
-                    {j.jobNumber} · {formatDate(j.scheduledAt)} · {j.status}
+                    {j.orderNumber} · {formatDate(j.scheduledAt)} · {j.status}
                   </option>
                 ))}
               </select>
@@ -284,7 +284,7 @@ export default function InvoicePanel({
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        {inv.job.jobNumber}
+                        {inv.job.orderNumber}
                       </Link>
                     ) : (
                       <span className="text-xs text-gray-400">—</span>

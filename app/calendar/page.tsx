@@ -27,7 +27,7 @@ const localizer = dateFnsLocalizer({
 
 interface CalendarEvent {
   id: string
-  jobNumber: string
+  orderNumber: string
   title: string
   start: Date
   end: Date
@@ -494,7 +494,7 @@ function CalendarPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <span className="text-lg font-bold text-gray-900">{selectedEvent.jobNumber}</span>
+                    <span className="text-lg font-bold text-gray-900">{selectedEvent.orderNumber}</span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_BADGE[selectedEvent.status] ?? 'bg-gray-100 text-gray-600'}`}>
                       {STATUS_LABELS[selectedEvent.status] ?? selectedEvent.status}
                     </span>

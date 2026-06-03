@@ -23,7 +23,7 @@ interface ChecklistItem {
 
 interface Job {
   id: string
-  jobNumber: string
+  orderNumber: string
   status: string
   scheduledAt: string
   completedAt: string | null
@@ -438,7 +438,7 @@ export default function JobInspectionPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-xl font-bold text-gray-900">{job.jobNumber}</h1>
+          <h1 className="text-xl font-bold text-gray-900">{job.orderNumber}</h1>
           <StatusBadge status={job.status} />
         </div>
 
@@ -505,7 +505,7 @@ export default function JobInspectionPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-xl font-bold text-gray-900">{job.jobNumber} — Inspektionsbericht</h1>
+          <h1 className="text-xl font-bold text-gray-900">{job.orderNumber} — Inspektionsbericht</h1>
           <StatusBadge status={job.status} />
         </div>
 
@@ -632,7 +632,7 @@ export default function JobInspectionPage() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900">{job.jobNumber}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{job.orderNumber}</h1>
             <StatusBadge status={job.status} />
           </div>
           <p className="text-sm text-gray-500">{fmt(job.scheduledAt)}</p>

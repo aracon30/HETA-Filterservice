@@ -223,7 +223,7 @@ export default async function PortalPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Jobnummer</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Auftragsnummer</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Anlage</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Techniker</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
@@ -233,7 +233,7 @@ export default async function PortalPage() {
                   {plannedJobs.map(job => (
                     <tr key={job.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-900">{fmtDateTime(job.scheduledAt)}</td>
-                      <td className="px-4 py-3 font-medium text-gray-700">{job.jobNumber}</td>
+                      <td className="px-4 py-3 font-medium text-gray-700">{job.orderNumber}</td>
                       <td className="px-4 py-3 text-gray-600">{job.plant?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{job.technicianName ?? '—'}</td>
                       <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
@@ -267,7 +267,7 @@ export default async function PortalPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Abgeschlossen</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Jobnummer</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Auftragsnummer</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Anlage</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Techniker</th>
                     {showReportLink && (
@@ -281,7 +281,7 @@ export default async function PortalPage() {
                       <td className="px-4 py-3 text-gray-900">
                         {job.completedAt ? fmtDate(job.completedAt) : fmtDate(job.scheduledAt)}
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-700">{job.jobNumber}</td>
+                      <td className="px-4 py-3 font-medium text-gray-700">{job.orderNumber}</td>
                       <td className="px-4 py-3 text-gray-600">{job.plant?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{job.technicianName ?? '—'}</td>
                       {showReportLink && (

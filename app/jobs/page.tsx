@@ -16,7 +16,7 @@ const JobCalendar = dynamic(() => import('@/components/JobCalendar'), { ssr: fal
 
 interface Job {
   id: string
-  jobNumber: string
+  orderNumber: string
   status: string
   scheduledAt: string
   technicianName: string | null
@@ -150,7 +150,7 @@ function JobsPageInner() {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Kunde oder Jobnummer suchen..."
+                placeholder="Kunde oder Auftragsnummer suchen..."
                 className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
               />
               <button type="submit" className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
@@ -168,7 +168,7 @@ function JobsPageInner() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Jobnummer</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Auftragsnummer</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Kunde</th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Anlage</th>
@@ -187,7 +187,7 @@ function JobsPageInner() {
                     <tr key={job.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <Link href={`/jobs/${job.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                          {job.jobNumber}
+                          {job.orderNumber}
                         </Link>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">{formatDate(job.scheduledAt)}</td>

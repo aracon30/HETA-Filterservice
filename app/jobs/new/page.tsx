@@ -10,7 +10,7 @@ interface Technician { id: string; name: string; role: string }
 
 interface ConflictJob {
   id: string
-  jobNumber: string
+  orderNumber: string
   scheduledAt: string
   duration: number
   technicianName: string | null
@@ -72,6 +72,7 @@ function NewJobPage() {
     : ''
 
   const [form, setForm] = useState({
+    orderNumber: '',
     customerId: '',
     plantId: '',
     scheduledAt: defaultScheduledAt,
@@ -125,8 +126,8 @@ function NewJobPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!form.customerId || !form.scheduledAt) {
-      setError('Bitte Kunde und Datum angeben.')
+    if (!form.orderNumber || !form.customerId || !form.scheduledAt) {
+      setError('Bitte Auftragsnummer, Kunde und Datum angeben.')
       return
     }
     const selectedTech = technicians.find(t => t.id === form.technicianId)
@@ -166,6 +167,22 @@ function NewJobPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Auftragsnummer */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Auftragsnummer <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.orderNumber}
+              onChange={e => setField('orderNumber', e.target.value)}
+              required
+              placeholder="K-12345.26-KUNDE"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            />
+            <p className="mt-1 text-xs text-gray-400">Format: K-XXXXX.JJ-Kundenname (z.B. K-12345.26-MUS)</p>
+          </div>
+
           {/* Kunde */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -272,7 +289,7 @@ function NewJobPage() {
                 </div>
                 {techConflicts.map(j => (
                   <div key={j.id} className="text-xs text-amber-700">
-                    {j.jobNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
+                    {j.orderNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
                   </div>
                 ))}
               </div>
@@ -308,7 +325,7 @@ function NewJobPage() {
                 </div>
                 {vehicleConflicts.map(j => (
                   <div key={j.id} className="text-xs text-amber-700">
-                    {j.jobNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
+                    {j.orderNumber} – {j.customer.name} · {formatConflictTime(j.scheduledAt, j.duration)}
                   </div>
                 ))}
               </div>
