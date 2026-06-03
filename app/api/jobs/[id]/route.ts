@@ -20,7 +20,6 @@ export async function GET(
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
       checklistItems: { orderBy: { id: 'asc' } },
-      parts: { orderBy: { order: 'asc' } },
     },
   })
 

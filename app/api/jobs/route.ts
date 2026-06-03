@@ -110,28 +110,6 @@ export async function POST(request: NextRequest) {
     allChecklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
   }
 
-  // Build part items per plant type template
-  type PartEntry = { label: string; partNumber?: string; quantity: number }
-  let allPartItems: PartEntry[] = []
-
-  if (selectedPlantIds.length > 0) {
-    for (const pid of selectedPlantIds) {
-      const plant = await prisma.plant.findUnique({ where: { id: pid }, select: { type: true } })
-      if (!plant) continue
-      const plantType = await prisma.plantType.findUnique({
-        where: { value: plant.type },
-        include: { partItems: { orderBy: { order: 'asc' } } },
-      })
-      if (plantType && plantType.partItems.length > 0) {
-        allPartItems = allPartItems.concat(plantType.partItems.map(i => ({
-          label: i.label,
-          partNumber: i.partNumber ?? undefined,
-          quantity: i.quantity,
-        })))
-      }
-    }
-  }
-
   // Resolve technician names for denormalization
   const technicianRecords = selectedTechnicianIds.length > 0
     ? await prisma.user.findMany({ where: { id: { in: selectedTechnicianIds } }, select: { id: true, name: true } })
@@ -152,16 +130,12 @@ export async function POST(request: NextRequest) {
         ? { create: technicianRecords.map((t, idx) => ({ userId: t.id, userName: t.name, order: idx })) }
         : undefined,
       checklistItems: { create: allChecklistItems },
-      parts: allPartItems.length > 0
-        ? { create: allPartItems.map((p, idx) => ({ ...p, order: idx, status: 'TO_ORDER' })) }
-        : undefined,
     },
     include: {
       customer: true,
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
       checklistItems: true,
-      parts: true,
     },
   })
 
