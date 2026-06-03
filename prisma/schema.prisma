@@ -166,6 +166,7 @@ model ServiceJob {
   description     String?
   findings        String?
   recommendations String?
+  workTimeEntries Json?
   checklistItems  ChecklistItem[]
   invoices        Invoice[]
   createdAt       DateTime          @default(now())

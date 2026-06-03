@@ -38,7 +38,7 @@ export async function PUT(
   const {
     status, findings, recommendations, checklistItems,
     duration, vehicle, scheduledAt, technicianName,
-    technicianSignature, customerSignature, complete,
+    technicianSignature, customerSignature, complete, workTimeEntries,
   } = body
 
   const updateData: Record<string, unknown> = {}
@@ -52,6 +52,7 @@ export async function PUT(
   if (technicianName !== undefined) updateData.technicianName = technicianName
   if (technicianSignature !== undefined) updateData.technicianSignature = technicianSignature
   if (customerSignature !== undefined) updateData.customerSignature = customerSignature
+  if (workTimeEntries !== undefined) updateData.workTimeEntries = workTimeEntries
 
   if (complete) {
     updateData.status = 'COMPLETED'

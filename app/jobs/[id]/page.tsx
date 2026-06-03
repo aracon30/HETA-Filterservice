@@ -47,6 +47,7 @@ interface Job {
   description: string | null
   findings: string | null
   recommendations: string | null
+  workTimeEntries: { date: string; startTime: string; endTime: string }[] | null
   customer: { id: string; name: string; address: string | null; contactName: string | null }
   plants: { plant: PlantInfo }[]
   checklistItems: ChecklistItem[]
@@ -308,6 +309,11 @@ export default function JobInspectionPage() {
   const [techSignature, setTechSignature] = useState('')
   const [customerSignature, setCustomerSignature] = useState('')
 
+  type WorkTimeEntry = { date: string; startTime: string; endTime: string }
+  const [workTimeEntries, setWorkTimeEntries] = useState<WorkTimeEntry[]>([
+    { date: new Date().toISOString().slice(0, 10), startTime: '', endTime: '' },
+  ])
+
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -394,7 +400,7 @@ export default function JobInspectionPage() {
   }
 
   const handleComplete = async () => {
-    await save({ complete: true })
+    await save({ complete: true, workTimeEntries: workTimeEntries.filter(e => e.date && e.startTime && e.endTime) })
     await loadJob()
   }
 
@@ -630,6 +636,31 @@ export default function JobInspectionPage() {
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{recommendations}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Work time entries */}
+        {job.workTimeEntries && (job.workTimeEntries as { date: string; startTime: string; endTime: string }[]).length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Geleistete Arbeitszeit</h3>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400 border-b border-gray-100">
+                  <th className="text-left pb-2 font-medium">Datum</th>
+                  <th className="text-left pb-2 font-medium">Beginn</th>
+                  <th className="text-left pb-2 font-medium">Ende</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(job.workTimeEntries as { date: string; startTime: string; endTime: string }[]).map((e, i) => (
+                  <tr key={i} className="border-b border-gray-50 last:border-0">
+                    <td className="py-1.5 text-gray-800">{new Date(e.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                    <td className="py-1.5 text-gray-800">{e.startTime}</td>
+                    <td className="py-1.5 text-gray-800">{e.endTime}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -994,7 +1025,7 @@ export default function JobInspectionPage() {
             <p className="text-sm text-blue-700">Bitte überprüfen Sie die Angaben und unterschreiben Sie.</p>
           </div>
 
-          {/* Summary */}
+          {/* Summary stats */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Übersicht</h3>
             <div className="grid grid-cols-3 gap-4 text-center">
@@ -1011,10 +1042,69 @@ export default function JobInspectionPage() {
                 <p className={`text-xs ${nioItems > 0 ? 'text-red-600' : 'text-gray-400'}`}>n.i.O.</p>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500 mb-1">Zeitstempel Abschluss</p>
-              <p className="font-medium text-gray-900">{fmtShort(new Date().toISOString())}</p>
-            </div>
+          </div>
+
+          {/* Arbeitszeit */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Geleistete Arbeitszeit</h3>
+            {workTimeEntries.map((entry, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-2">
+                  <div>
+                    {idx === 0 && <p className="text-xs text-gray-400 mb-1">Datum</p>}
+                    <input
+                      type="date"
+                      value={entry.date}
+                      onChange={e => setWorkTimeEntries(prev => prev.map((r, i) => i === idx ? { ...r, date: e.target.value } : r))}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    {idx === 0 && <p className="text-xs text-gray-400 mb-1">Beginn</p>}
+                    <input
+                      type="time"
+                      value={entry.startTime}
+                      onChange={e => setWorkTimeEntries(prev => prev.map((r, i) => i === idx ? { ...r, startTime: e.target.value } : r))}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    {idx === 0 && <p className="text-xs text-gray-400 mb-1">Ende</p>}
+                    <input
+                      type="time"
+                      value={entry.endTime}
+                      onChange={e => setWorkTimeEntries(prev => prev.map((r, i) => i === idx ? { ...r, endTime: e.target.value } : r))}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                {workTimeEntries.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setWorkTimeEntries(prev => prev.filter((_, i) => i !== idx))}
+                    className="mt-4 p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+                    title="Eintrag entfernen"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setWorkTimeEntries(prev => [
+                ...prev,
+                { date: new Date().toISOString().slice(0, 10), startTime: '', endTime: '' },
+              ])}
+              className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Weiteren Tag hinzufügen
+            </button>
           </div>
 
           {/* Signatures */}
@@ -1032,21 +1122,33 @@ export default function JobInspectionPage() {
             />
           </div>
 
+          {(!techSignature || !customerSignature) && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-center gap-2">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <span>
+                {!techSignature && !customerSignature
+                  ? 'Beide Unterschriften (Techniker und Kunde) sind erforderlich.'
+                  : !techSignature
+                  ? 'Unterschrift des Technikers fehlt.'
+                  : 'Unterschrift des Kunden fehlt.'}
+              </span>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button onClick={() => setStep('findings')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
               ← Zurück
             </button>
             <button
               onClick={handleComplete}
-              disabled={saving || (!techSignature && !customerSignature)}
-              className="flex-2 px-8 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50"
+              disabled={saving || !techSignature || !customerSignature}
+              className="flex-2 px-8 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Wird abgeschlossen...' : '✓ Abschließen & Speichern'}
             </button>
           </div>
-          {!techSignature && !customerSignature && (
-            <p className="text-xs text-center text-gray-400">Mindestens eine Unterschrift erforderlich</p>
-          )}
         </div>
       )}
     </div>
