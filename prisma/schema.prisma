@@ -97,6 +97,17 @@ model PlantType {
   createdAt  DateTime                 @default(now())
   updatedAt  DateTime                 @updatedAt
   items      PlantTypeChecklistItem[]
+  partItems  PartTypeItem[]
+}
+
+model PartTypeItem {
+  id          String    @id @default(cuid())
+  plantTypeId String
+  plantType   PlantType @relation(fields: [plantTypeId], references: [id], onDelete: Cascade)
+  label       String
+  partNumber  String?
+  quantity    Int       @default(1)
+  order       Int       @default(0)
 }
 
 model PlantTypeChecklistItem {
@@ -178,9 +189,23 @@ model ServiceJob {
   recommendations String?
   workTimeEntries Json?
   checklistItems  ChecklistItem[]
+  parts           JobPart[]
   invoices        Invoice[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+}
+
+model JobPart {
+  id           String     @id @default(cuid())
+  jobId        String
+  job          ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  label        String
+  partNumber   String?
+  quantity     Int        @default(1)
+  status       String     @default("TO_ORDER")
+  deliveryDate DateTime?
+  notes        String?
+  order        Int        @default(0)
 }
 
 model ChecklistItem {
