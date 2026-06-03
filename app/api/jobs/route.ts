@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     where.OR = [
       { orderNumber: { contains: search, mode: 'insensitive' } },
       { customer: { name: { contains: search, mode: 'insensitive' } } },
+      { technicians: { some: { userName: { contains: search, mode: 'insensitive' } } } },
     ]
   }
 
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
     include: {
       customer: { select: { id: true, name: true } },
       plants: { include: { plant: { select: { id: true, name: true, type: true } } }, orderBy: { order: 'asc' } },
+      technicians: { orderBy: { order: 'asc' } },
     },
     orderBy: { scheduledAt: 'desc' },
   })
@@ -61,13 +63,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { customerId, plantIds, scheduledAt, technicianName, technicianId, description, duration, vehicle, orderNumber } = body
+  const { customerId, plantIds, technicianIds, vehicles, scheduledAt, description, duration, orderNumber } = body
 
   if (!orderNumber) {
     return NextResponse.json({ error: 'Auftragsnummer ist erforderlich' }, { status: 400 })
   }
 
   const selectedPlantIds: string[] = Array.isArray(plantIds) ? plantIds : []
+  const selectedTechnicianIds: string[] = Array.isArray(technicianIds) ? technicianIds : []
+  const selectedVehicles: string[] = Array.isArray(vehicles) ? vehicles.filter(Boolean) : []
 
   // Build checklist items per plant (override → type template → default)
   type ChecklistEntry = { label: string; section?: string; plantId?: string }
@@ -106,24 +110,31 @@ export async function POST(request: NextRequest) {
     allChecklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
   }
 
+  // Resolve technician names for denormalization
+  const technicianRecords = selectedTechnicianIds.length > 0
+    ? await prisma.user.findMany({ where: { id: { in: selectedTechnicianIds } }, select: { id: true, name: true } })
+    : []
+
   const job = await prisma.serviceJob.create({
     data: {
       orderNumber,
       customerId,
       scheduledAt: new Date(scheduledAt),
-      technicianName,
-      technicianId: technicianId || null,
       description,
       duration: duration ? Number(duration) : 480,
-      vehicle: vehicle || null,
+      vehicles: selectedVehicles,
       plants: selectedPlantIds.length > 0
         ? { create: selectedPlantIds.map((pid, idx) => ({ plantId: pid, order: idx })) }
+        : undefined,
+      technicians: technicianRecords.length > 0
+        ? { create: technicianRecords.map((t, idx) => ({ userId: t.id, userName: t.name, order: idx })) }
         : undefined,
       checklistItems: { create: allChecklistItems },
     },
     include: {
       customer: true,
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
+      technicians: { orderBy: { order: 'asc' } },
       checklistItems: true,
     },
   })

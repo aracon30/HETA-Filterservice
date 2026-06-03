@@ -59,7 +59,7 @@ export default async function PortalPage() {
   const plannedJobs = (canViewJobs && role !== 'BUYER')
     ? await prisma.serviceJob.findMany({
         where: { customerId, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
-        include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } } },
+        include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } }, technicians: { orderBy: { order: 'asc' } } },
         orderBy: { scheduledAt: 'asc' },
       })
     : []
@@ -67,7 +67,7 @@ export default async function PortalPage() {
   const completedJobs = canViewJobs
     ? await prisma.serviceJob.findMany({
         where: { customerId, status: 'COMPLETED' },
-        include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } } },
+        include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } }, technicians: { orderBy: { order: 'asc' } } },
         orderBy: { completedAt: 'desc' },
         take: 50,
       })
@@ -235,7 +235,7 @@ export default async function PortalPage() {
                       <td className="px-4 py-3 text-gray-900">{fmtDateTime(job.scheduledAt)}</td>
                       <td className="px-4 py-3 font-medium text-gray-700">{job.orderNumber}</td>
                       <td className="px-4 py-3 text-gray-600">{job.plants.length === 0 ? '—' : job.plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
-                      <td className="px-4 py-3 text-gray-600">{job.technicianName ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{(job as unknown as { technicians: { userName: string }[] }).technicians.length === 0 ? '—' : (job as unknown as { technicians: { userName: string }[] }).technicians.map(t => t.userName).join(', ')}</td>
                       <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
                     </tr>
                   ))}
@@ -283,7 +283,7 @@ export default async function PortalPage() {
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-700">{job.orderNumber}</td>
                       <td className="px-4 py-3 text-gray-600">{job.plants.length === 0 ? '—' : job.plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
-                      <td className="px-4 py-3 text-gray-600">{job.technicianName ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{(job as unknown as { technicians: { userName: string }[] }).technicians.length === 0 ? '—' : (job as unknown as { technicians: { userName: string }[] }).technicians.map(t => t.userName).join(', ')}</td>
                       {showReportLink && (
                         <td className="px-4 py-3 text-right">
                           <Link

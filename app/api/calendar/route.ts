@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (technician) {
-    where.technicianName = technician
+    where.technicians = { some: { userName: technician } }
   }
 
   if (status && status !== 'ALL') {
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     include: {
       customer: { select: { id: true, name: true, address: true } },
       plants: { include: { plant: { select: { id: true, name: true, location: true } } }, orderBy: { order: 'asc' } },
+      technicians: { orderBy: { order: 'asc' } },
     },
     orderBy: { scheduledAt: 'asc' },
   })
@@ -56,8 +57,8 @@ export async function GET(request: NextRequest) {
     start: job.scheduledAt,
     end: addMinutes(job.scheduledAt, job.duration),
     status: job.status,
-    technicianName: job.technicianName,
-    vehicle: job.vehicle,
+    technicians: job.technicians.map(t => ({ userId: t.userId, userName: t.userName })),
+    vehicles: job.vehicles,
     duration: job.duration,
     description: job.description,
     customer: {
@@ -96,6 +97,7 @@ export async function PUT(request: NextRequest) {
     include: {
       customer: { select: { id: true, name: true, address: true } },
       plants: { include: { plant: { select: { id: true, name: true, location: true } } }, orderBy: { order: 'asc' } },
+      technicians: { orderBy: { order: 'asc' } },
     },
   })
 
@@ -106,8 +108,8 @@ export async function PUT(request: NextRequest) {
     start: job.scheduledAt,
     end: addMinutes(job.scheduledAt, job.duration),
     status: job.status,
-    technicianName: job.technicianName,
-    vehicle: job.vehicle,
+    technicians: job.technicians.map(t => ({ userId: t.userId, userName: t.userName })),
+    vehicles: job.vehicles,
     duration: job.duration,
     customer: { name: job.customer.name, address: job.customer.address },
     plants: job.plants.map(jp => ({ name: jp.plant.name, location: jp.plant.location })),

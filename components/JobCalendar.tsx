@@ -32,8 +32,8 @@ interface CalendarEvent {
   start: Date
   end: Date
   status: string
-  technicianName: string | null
-  vehicle: string | null
+  technicians: { userId: string; userName: string }[]
+  vehicles: string[]
   duration: number
   description: string | null
   customer: { name: string; address: string | null }
@@ -198,9 +198,7 @@ export default function JobCalendar() {
 
   // Collect unique technician names for filter dropdown
   const technicianOptions = useMemo(() => {
-    const names = events
-      .map((e) => e.technicianName)
-      .filter((n): n is string => !!n)
+    const names = events.flatMap(e => e.technicians.map(t => t.userName))
     return Array.from(new Set(names)).sort()
   }, [events])
 
@@ -226,7 +224,7 @@ export default function JobCalendar() {
         },
       }
     }
-    const color = hashTechColor(event.technicianName)
+    const color = hashTechColor(event.technicians[0]?.userName ?? null)
     return {
       style: {
         backgroundColor: color.bg,
@@ -240,11 +238,11 @@ export default function JobCalendar() {
   const EventComponent = useCallback(({ event }: { event: CalendarEvent }) => (
     <div className="text-xs leading-tight px-0.5 overflow-hidden h-full">
       <div className="font-semibold truncate">{event.customer.name}</div>
-      {event.technicianName && (
-        <div className="opacity-90 truncate">{event.technicianName}</div>
+      {event.technicians.length > 0 && (
+        <div className="opacity-90 truncate">{event.technicians.map(t => t.userName).join(', ')}</div>
       )}
-      {event.vehicle && (
-        <div className="opacity-80 truncate">{event.vehicle}</div>
+      {event.vehicles.length > 0 && (
+        <div className="opacity-80 truncate">{event.vehicles.join(', ')}</div>
       )}
     </div>
   ), [])
@@ -530,18 +528,18 @@ export default function JobCalendar() {
                 ) : <div />}
 
                 {/* Technician */}
-                {selectedEvent.technicianName && (
+                {selectedEvent.technicians.length > 0 && (
                   <div>
                     <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Techniker</p>
-                    <p className="text-gray-900 font-medium">{selectedEvent.technicianName}</p>
+                    <p className="text-gray-900 font-medium">{selectedEvent.technicians.map(t => t.userName).join(', ')}</p>
                   </div>
                 )}
 
                 {/* Vehicle */}
-                {selectedEvent.vehicle && (
+                {selectedEvent.vehicles.length > 0 && (
                   <div>
-                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Fahrzeug</p>
-                    <p className="text-gray-900 font-medium">{selectedEvent.vehicle}</p>
+                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Fahrzeuge</p>
+                    <p className="text-gray-900 font-medium">{selectedEvent.vehicles.join(', ')}</p>
                   </div>
                 )}
 
