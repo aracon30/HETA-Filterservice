@@ -51,8 +51,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
-  const activeJobs = await prisma.serviceJob.count({
-    where: { plantId: params.id, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+  const activeJobs = await prisma.serviceJobPlant.count({
+    where: { plantId: params.id, job: { status: { in: ['PLANNED', 'IN_PROGRESS'] } } },
   })
   if (activeJobs > 0) {
     return NextResponse.json(

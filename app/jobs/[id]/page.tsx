@@ -15,10 +15,22 @@ interface ChecklistItem {
   id: string
   label: string
   section: string | null
+  plantId: string | null
   status: 'open' | 'io' | 'nio'
   checked: boolean
   comment: string | null
   photoUrl: string | null
+}
+
+interface PlantInfo {
+  id: string
+  name: string
+  type: string
+  serialNumber: string | null
+  location: string | null
+  manufacturer: string | null
+  model: string | null
+  buildYear: number | null
 }
 
 interface Job {
@@ -36,7 +48,7 @@ interface Job {
   findings: string | null
   recommendations: string | null
   customer: { id: string; name: string; address: string | null; contactName: string | null }
-  plant: { id: string; name: string; type: string; serialNumber: string | null; location: string | null; manufacturer: string | null; model: string | null; buildYear: number | null } | null
+  plants: { plant: PlantInfo }[]
   checklistItems: ChecklistItem[]
 }
 
@@ -413,7 +425,35 @@ export default function JobInspectionPage() {
   const isCompleted = job.status === 'COMPLETED'
   const stepIdx = STEPS.findIndex(s => s.key === step)
 
-  // Group checklist by section
+  // Group checklist by plant, then by section
+  const plantMap = new Map(job.plants.map(jp => [jp.plant.id, jp.plant.name]))
+
+  // Group: plantId (or null) → section → items
+  const byPlant: { plantId: string | null; plantName: string; sections: Record<string, ChecklistItem[]> }[] = []
+  const plantOrder: string[] = []
+  const plantSections: Record<string, Record<string, ChecklistItem[]>> = {}
+
+  checklist.forEach(item => {
+    const pid = (item as ChecklistItem & { plantId?: string | null }).plantId ?? null
+    const key = pid ?? '__none__'
+    if (!plantSections[key]) {
+      plantSections[key] = {}
+      plantOrder.push(key)
+    }
+    const sec = item.section ?? 'Allgemein'
+    if (!plantSections[key][sec]) plantSections[key][sec] = []
+    plantSections[key][sec].push(item)
+  })
+
+  for (const key of plantOrder) {
+    byPlant.push({
+      plantId: key === '__none__' ? null : key,
+      plantName: key === '__none__' ? '' : (plantMap.get(key) ?? 'Anlage'),
+      sections: plantSections[key],
+    })
+  }
+
+  // Flat sections for backward-compat display (summary view)
   const sections: Record<string, ChecklistItem[]> = {}
   checklist.forEach(item => {
     const sec = item.section ?? 'Allgemein'
@@ -456,20 +496,21 @@ export default function JobInspectionPage() {
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Kunde</p>
               <p className="font-medium text-gray-900">{job.customer.name}</p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Anlage</p>
-              <p className="font-medium text-gray-900">{job.plant?.name ?? '—'}</p>
+            <div className="col-span-2">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Anlagen</p>
+              {job.plants.length === 0
+                ? <p className="font-medium text-gray-900">—</p>
+                : job.plants.map(jp => (
+                    <p key={jp.plant.id} className="font-medium text-gray-900">{jp.plant.name} <span className="text-xs text-gray-400">({jp.plant.type})</span></p>
+                  ))
+              }
             </div>
-            {job.plant && (
+            {job.plants.some(jp => jp.plant.location) && (
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Anlagentyp</p>
-                <p className="font-medium text-gray-900">{job.plant.type}</p>
-              </div>
-            )}
-            {job.plant?.location && (
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Standort</p>
-                <p className="font-medium text-gray-900">{job.plant.location}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Standorte</p>
+                {job.plants.filter(jp => jp.plant.location).map(jp => (
+                  <p key={jp.plant.id} className="font-medium text-gray-900">{jp.plant.location}</p>
+                ))}
               </div>
             )}
           </div>
@@ -527,11 +568,15 @@ export default function JobInspectionPage() {
             <p className="font-medium">{job.customer.name}</p>
             {job.customer.address && <p className="text-gray-500 text-xs">{job.customer.address}</p>}
           </div>
-          {job.plant && (
+          {job.plants.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Anlage</p>
-              <p className="font-medium">{job.plant.name}</p>
-              <p className="text-xs text-gray-500">{job.plant.type}{job.plant.serialNumber ? ` · SN: ${job.plant.serialNumber}` : ''}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Anlagen</p>
+              {job.plants.map(jp => (
+                <div key={jp.plant.id} className="mb-0.5">
+                  <p className="font-medium">{jp.plant.name}</p>
+                  <p className="text-xs text-gray-500">{jp.plant.type}{jp.plant.serialNumber ? ` · SN: ${jp.plant.serialNumber}` : ''}</p>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -702,48 +747,47 @@ export default function JobInspectionPage() {
             </div>
           </div>
 
-          {/* Plant */}
-          {job.plant ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Anlage</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-gray-500">Name</p>
-                  <p className="font-semibold text-gray-900">{job.plant.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Typ</p>
-                  <p className="font-medium text-gray-800">{job.plant.type}</p>
-                </div>
-                {job.plant.manufacturer && (
-                  <div>
-                    <p className="text-xs text-gray-500">Hersteller</p>
-                    <p className="text-gray-800">{job.plant.manufacturer}{job.plant.model ? ` · ${job.plant.model}` : ''}</p>
-                  </div>
-                )}
-                {job.plant.buildYear && (
-                  <div>
-                    <p className="text-xs text-gray-500">Baujahr</p>
-                    <p className="text-gray-800">{job.plant.buildYear}</p>
-                  </div>
-                )}
-                {job.plant.serialNumber && (
-                  <div>
-                    <p className="text-xs text-gray-500">Seriennummer</p>
-                    <p className="text-gray-800 font-mono">{job.plant.serialNumber}</p>
-                  </div>
-                )}
-                {job.plant.location && (
-                  <div>
-                    <p className="text-xs text-gray-500">Standort</p>
-                    <p className="text-gray-800">{job.plant.location}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
+          {/* Plants */}
+          {job.plants.length === 0 ? (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
               Keine Anlage zugewiesen.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Anlagen ({job.plants.length})
+              </h3>
+              {job.plants.map(({ plant }) => (
+                <div key={plant.id} className="bg-white border border-gray-200 rounded-xl p-5">
+                  <p className="font-semibold text-gray-900 text-sm mb-2">{plant.name} <span className="text-xs font-normal text-gray-400">({plant.type})</span></p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {plant.manufacturer && (
+                      <div>
+                        <p className="text-xs text-gray-500">Hersteller</p>
+                        <p className="text-gray-800">{plant.manufacturer}{plant.model ? ` · ${plant.model}` : ''}</p>
+                      </div>
+                    )}
+                    {plant.buildYear && (
+                      <div>
+                        <p className="text-xs text-gray-500">Baujahr</p>
+                        <p className="text-gray-800">{plant.buildYear}</p>
+                      </div>
+                    )}
+                    {plant.serialNumber && (
+                      <div>
+                        <p className="text-xs text-gray-500">Seriennummer</p>
+                        <p className="text-gray-800 font-mono">{plant.serialNumber}</p>
+                      </div>
+                    )}
+                    {plant.location && (
+                      <div>
+                        <p className="text-xs text-gray-500">Standort</p>
+                        <p className="text-gray-800">{plant.location}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -832,35 +876,45 @@ export default function JobInspectionPage() {
             <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${totalItems > 0 ? (doneItems / totalItems) * 100 : 0}%` }} />
           </div>
 
-          {Object.entries(sections).map(([sec, items]) => {
-            const secDone = items.filter(i => i.status !== 'open').length
-            const secNio = items.filter(i => i.status === 'nio').length
-            return (
-              <div key={sec} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-800">{sec}</h3>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    secNio > 0 ? 'bg-red-100 text-red-700' :
-                    secDone === items.length ? 'bg-green-100 text-green-700' :
-                    'bg-gray-100 text-gray-500'
-                  }`}>
-                    {secDone}/{items.length}
-                  </span>
+          {byPlant.map(group => (
+            <div key={group.plantId ?? '__none__'}>
+              {group.plantName && (
+                <div className="flex items-center gap-2 mb-2 mt-4 first:mt-0">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                  <h3 className="text-sm font-bold text-blue-900">{group.plantName}</h3>
                 </div>
-                <div className="p-3 space-y-2">
-                  {items.map(item => (
-                    <InspectionItemRow
-                      key={item.id}
-                      item={item}
-                      onChange={update => updateItem(item.id, update)}
-                      onPhotoUpload={handlePhotoUpload}
-                      uploading={uploadingItem}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+              )}
+              {Object.entries(group.sections).map(([sec, items]) => {
+                const secDone = items.filter(i => i.status !== 'open').length
+                const secNio = items.filter(i => i.status === 'nio').length
+                return (
+                  <div key={sec} className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-3">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-gray-800">{sec}</h4>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        secNio > 0 ? 'bg-red-100 text-red-700' :
+                        secDone === items.length ? 'bg-green-100 text-green-700' :
+                        'bg-gray-100 text-gray-500'
+                      }`}>
+                        {secDone}/{items.length}
+                      </span>
+                    </div>
+                    <div className="p-3 space-y-2">
+                      {items.map(item => (
+                        <InspectionItemRow
+                          key={item.id}
+                          item={item}
+                          onChange={update => updateItem(item.id, update)}
+                          onPhotoUpload={handlePhotoUpload}
+                          uploading={uploadingItem}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
 
           <div className="flex gap-3">
             <button onClick={() => setStep('verify')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">

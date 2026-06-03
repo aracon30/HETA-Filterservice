@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       customer: { select: { id: true, name: true, address: true } },
-      plant: { select: { id: true, name: true, location: true } },
+      plants: { include: { plant: { select: { id: true, name: true, location: true } } }, orderBy: { order: 'asc' } },
     },
     orderBy: { scheduledAt: 'asc' },
   })
@@ -64,9 +64,7 @@ export async function GET(request: NextRequest) {
       name: job.customer.name,
       address: job.customer.address,
     },
-    plant: job.plant
-      ? { name: job.plant.name, location: job.plant.location }
-      : null,
+    plants: job.plants.map(jp => ({ name: jp.plant.name, location: jp.plant.location })),
   }))
 
   return NextResponse.json(events)
@@ -97,7 +95,7 @@ export async function PUT(request: NextRequest) {
     data: updateData,
     include: {
       customer: { select: { id: true, name: true, address: true } },
-      plant: { select: { id: true, name: true, location: true } },
+      plants: { include: { plant: { select: { id: true, name: true, location: true } } }, orderBy: { order: 'asc' } },
     },
   })
 
@@ -112,6 +110,6 @@ export async function PUT(request: NextRequest) {
     vehicle: job.vehicle,
     duration: job.duration,
     customer: { name: job.customer.name, address: job.customer.address },
-    plant: job.plant ? { name: job.plant.name, location: job.plant.location } : null,
+    plants: job.plants.map(jp => ({ name: jp.plant.name, location: jp.plant.location })),
   })
 }

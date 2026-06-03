@@ -21,7 +21,7 @@ interface Job {
   scheduledAt: string
   technicianName: string | null
   customer: { name: string }
-  plant: { name: string } | null
+  plants: { plant: { id: string; name: string } }[]
 }
 
 const STATUS_OPTIONS = [
@@ -192,7 +192,7 @@ function JobsPageInner() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">{formatDate(job.scheduledAt)}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{job.plant?.name ?? '—'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{job.plants.length === 0 ? '—' : job.plants.map(jp => jp.plant.name).join(', ')}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{job.technicianName ?? '—'}</td>
                       <td className="px-6 py-4"><StatusBadge status={job.status} /></td>
                       {!isExternal && (

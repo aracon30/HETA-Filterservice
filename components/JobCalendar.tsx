@@ -37,7 +37,7 @@ interface CalendarEvent {
   duration: number
   description: string | null
   customer: { name: string; address: string | null }
-  plant: { name: string; location: string | null } | null
+  plants: { name: string; location: string | null }[]
 }
 
 // ─── Drag & Drop Calendar ────────────────────────────────────────────────────
@@ -516,14 +516,16 @@ export default function JobCalendar() {
                   )}
                 </div>
 
-                {/* Plant */}
-                {selectedEvent.plant ? (
+                {/* Plants */}
+                {selectedEvent.plants.length > 0 ? (
                   <div>
-                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Anlage</p>
-                    <p className="text-gray-900 font-medium">{selectedEvent.plant.name}</p>
-                    {selectedEvent.plant.location && (
-                      <p className="text-gray-500 text-xs mt-0.5">{selectedEvent.plant.location}</p>
-                    )}
+                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Anlagen</p>
+                    {selectedEvent.plants.map((p, i) => (
+                      <div key={i}>
+                        <p className="text-gray-900 font-medium">{p.name}</p>
+                        {p.location && <p className="text-gray-500 text-xs mt-0.5">{p.location}</p>}
+                      </div>
+                    ))}
                   </div>
                 ) : <div />}
 

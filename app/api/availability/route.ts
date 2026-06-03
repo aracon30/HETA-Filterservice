@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       orderNumber: true,
+      plants: { include: { plant: { select: { id: true, name: true } } }, orderBy: { order: 'asc' } },
       scheduledAt: true,
       duration: true,
       technicianName: true,

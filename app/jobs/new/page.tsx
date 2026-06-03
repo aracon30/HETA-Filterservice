@@ -71,10 +71,11 @@ function NewJobPage() {
     ? new Date(prefillDate).toISOString().slice(0, 16)
     : ''
 
+  const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([])
+
   const [form, setForm] = useState({
     orderNumber: '',
     customerId: '',
-    plantId: '',
     scheduledAt: defaultScheduledAt,
     technicianId: '',
     description: '',
@@ -90,9 +91,9 @@ function NewJobPage() {
   }, [])
 
   useEffect(() => {
-    if (!form.customerId) { setPlants([]); setForm(f => ({ ...f, plantId: '' })); return }
+    if (!form.customerId) { setPlants([]); setSelectedPlantIds([]); return }
     fetch(`/api/plants?customerId=${form.customerId}`).then(r => r.json()).then(setPlants)
-    setForm(f => ({ ...f, plantId: '' }))
+    setSelectedPlantIds([])
   }, [form.customerId])
 
   const checkAvailability = useCallback(async (
@@ -137,6 +138,7 @@ function NewJobPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
+        plantIds: selectedPlantIds,
         technicianName: selectedTech?.name ?? '',
       }),
     })
@@ -199,18 +201,39 @@ function NewJobPage() {
             </select>
           </div>
 
-          {/* Anlage */}
+          {/* Anlagen — Mehrfachauswahl */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Anlage</label>
-            <select
-              value={form.plantId}
-              onChange={e => setField('plantId', e.target.value)}
-              disabled={!form.customerId}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-            >
-              <option value="">{form.customerId ? 'Anlage auswählen (optional)' : 'Zuerst Kunde wählen'}</option>
-              {plants.map(p => <option key={p.id} value={p.id}>{p.name} ({p.type})</option>)}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Anlagen <span className="text-xs text-gray-400 font-normal">(Mehrfachauswahl möglich)</span>
+            </label>
+            {!form.customerId ? (
+              <p className="text-sm text-gray-400 py-2">Zuerst Kunde auswählen.</p>
+            ) : plants.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2">Keine Anlagen für diesen Kunden vorhanden.</p>
+            ) : (
+              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                {plants.map(p => {
+                  const checked = selectedPlantIds.includes(p.id)
+                  return (
+                    <label key={p.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedPlantIds(prev =>
+                          checked ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                        )}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="flex-1 text-sm text-gray-800">{p.name}</span>
+                      <span className="text-xs text-gray-400">{p.type}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+            {selectedPlantIds.length > 0 && (
+              <p className="mt-1 text-xs text-blue-600">{selectedPlantIds.length} Anlage{selectedPlantIds.length > 1 ? 'n' : ''} ausgewählt</p>
+            )}
           </div>
 
           {/* Datum & Uhrzeit */}

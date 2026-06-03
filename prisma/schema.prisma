@@ -131,24 +131,35 @@ model Plant {
   model             String?
   customer          Customer                 @relation(fields: [customerId], references: [id])
   customerId        String
-  jobs              ServiceJob[]
+  jobPlants         ServiceJobPlant[]
   checklistOverrides PlantChecklistOverride[]
+  checklistItems    ChecklistItem[]
+}
+
+model ServiceJobPlant {
+  id      String     @id @default(cuid())
+  job     ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId   String
+  plant   Plant      @relation(fields: [plantId], references: [id])
+  plantId String
+  order   Int        @default(0)
+
+  @@unique([jobId, plantId])
 }
 
 model ServiceJob {
-  id              String          @id @default(cuid())
-  orderNumber     String          @unique
-  status          JobStatus       @default(PLANNED)
+  id              String            @id @default(cuid())
+  orderNumber     String            @unique
+  status          JobStatus         @default(PLANNED)
   scheduledAt     DateTime
   completedAt     DateTime?
-  customer        Customer        @relation(fields: [customerId], references: [id])
+  customer        Customer          @relation(fields: [customerId], references: [id])
   customerId      String
-  plant           Plant?          @relation(fields: [plantId], references: [id])
-  plantId         String?
+  plants          ServiceJobPlant[]
   technicianName       String?
   technicianId         String?
-  technician           User?           @relation("TechnicianJobs", fields: [technicianId], references: [id])
-  duration             Int             @default(480)
+  technician           User?             @relation("TechnicianJobs", fields: [technicianId], references: [id])
+  duration             Int               @default(480)
   vehicle              String?
   technicianSignature  String?
   customerSignature    String?
@@ -157,8 +168,8 @@ model ServiceJob {
   recommendations String?
   checklistItems  ChecklistItem[]
   invoices        Invoice[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model ChecklistItem {
@@ -171,6 +182,8 @@ model ChecklistItem {
   photoUrl String?
   job      ServiceJob @relation(fields: [jobId], references: [id])
   jobId    String
+  plantId  String?
+  plant    Plant?     @relation(fields: [plantId], references: [id])
 }
 
 model Opportunity {

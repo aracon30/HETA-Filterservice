@@ -181,7 +181,7 @@ async function main() {
 
   const createJob = async (
     customerId: string,
-    plantId: string | null,
+    plantIds: string[],
     status: JobStatus,
     scheduledAt: Date,
     technicianName: string,
@@ -200,7 +200,9 @@ async function main() {
         scheduledAt,
         completedAt,
         customerId,
-        plantId,
+        plants: plantIds.length > 0
+          ? { create: plantIds.map((pid, idx) => ({ plantId: pid, order: idx })) }
+          : undefined,
         technicianName,
         description,
         findings,
@@ -219,7 +221,7 @@ async function main() {
 
   // Jobs for Customer 1
   await createJob(
-    customer1.id, plant1a.id, JobStatus.COMPLETED,
+    customer1.id, [plant1a.id], JobStatus.COMPLETED,
     new Date('2024-01-15'), 'Klaus Meier',
     'Halbjährliche Wartung Druckfilter Produktionslinie 1',
     'Filterelemente stark verschmutzt, Dichtung am Einlassflansch leicht undicht',
@@ -228,7 +230,7 @@ async function main() {
   )
 
   await createJob(
-    customer1.id, plant1b.id, JobStatus.IN_PROGRESS,
+    customer1.id, [plant1b.id], JobStatus.IN_PROGRESS,
     new Date('2024-03-18'), 'Anna Schulz',
     'Inspektion Bandfilter Kühlwasserkreislauf – Routinecheck',
     'Bandverschleiß im normalen Bereich',
@@ -237,15 +239,15 @@ async function main() {
   )
 
   await createJob(
-    customer1.id, plant1a.id, JobStatus.PLANNED,
+    customer1.id, [plant1a.id, plant1b.id], JobStatus.PLANNED,
     new Date('2024-04-10'), 'Klaus Meier',
-    'Halbjährliche Wartung Druckfilter – Frühjahrsservice',
-    undefined, undefined, undefined, 240, 'HH-HE 123'
+    'Halbjährliche Wartung – Frühjahrsservice (beide Anlagen)',
+    undefined, undefined, undefined, 480, 'HH-HE 123'
   )
 
   // Jobs for Customer 2
   await createJob(
-    customer2.id, plant2a.id, JobStatus.COMPLETED,
+    customer2.id, [plant2a.id], JobStatus.COMPLETED,
     new Date('2024-02-20'), 'Peter Baum',
     'Reinigung und Inspektion Magnetfilter',
     'Starke Metallpartikel-Ansammlung. System arbeitete nahe Kapazitätsgrenze.',
@@ -254,14 +256,14 @@ async function main() {
   )
 
   await createJob(
-    customer2.id, plant2b.id, JobStatus.PLANNED,
+    customer2.id, [plant2a.id, plant2b.id], JobStatus.PLANNED,
     new Date('2024-03-25'), 'Anna Schulz',
-    'Jahresinspektion Mehrschichtfilter Prozesswasseraufbereitung',
-    undefined, undefined, undefined, 60, 'HH-ST 456'
+    'Jahresinspektion – Magnetfilter und Mehrschichtfilter',
+    undefined, undefined, undefined, 480, 'HH-ST 456'
   )
 
   await createJob(
-    customer2.id, plant2a.id, JobStatus.PLANNED,
+    customer2.id, [plant2a.id], JobStatus.PLANNED,
     new Date('2024-04-20'), 'Peter Baum',
     'Routinereinigung Magnetfilter (2-Monats-Intervall)',
     undefined, undefined, undefined, 60, 'HH-PB 789'
@@ -269,7 +271,7 @@ async function main() {
 
   // Jobs for Customer 3
   await createJob(
-    customer3.id, plant3a.id, JobStatus.COMPLETED,
+    customer3.id, [plant3a.id], JobStatus.COMPLETED,
     new Date('2024-01-30'), 'Klaus Meier',
     'Quartalsservice RO-Anlage – Membranprüfung',
     'Membranen in gutem Zustand. Leitfähigkeit Permeat: 2,1 µS/cm (Grenzwert: 5 µS/cm).',
@@ -278,10 +280,10 @@ async function main() {
   )
 
   await createJob(
-    customer3.id, plant3b.id, JobStatus.PLANNED,
+    customer3.id, [plant3a.id, plant3b.id], JobStatus.PLANNED,
     new Date('2024-03-22'), 'Anna Schulz',
-    'Jährlicher Filterwechsel HEPA-Anlage Lager B',
-    undefined, undefined, undefined, 120, 'HH-ST 456'
+    'Jährlicher Filterwechsel – RO-Anlage und HEPA-Anlage Lager B',
+    undefined, undefined, undefined, 480, 'HH-ST 456'
   )
 
   // Opportunities
