@@ -24,6 +24,14 @@ export async function GET(
   })
 
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // External roles may only access jobs belonging to their own customer
+  const role = session.user.role as string
+  const externalRoles = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
+  if (externalRoles.includes(role) && job.customerId !== session.user.customerId) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
   return NextResponse.json(job)
 }
 

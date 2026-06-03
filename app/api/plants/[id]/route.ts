@@ -10,6 +10,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const plant = await prisma.plant.findUnique({ where: { id: params.id } })
   if (!plant) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
 
+  // External roles may only access plants belonging to their own customer
+  const role = session.user.role as string
+  const externalRoles = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
+  if (externalRoles.includes(role) && plant.customerId !== session.user.customerId) {
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+  }
+
   return NextResponse.json(plant)
 }
 

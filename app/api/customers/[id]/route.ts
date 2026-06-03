@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkPermission } from '@/lib/permissions'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -20,13 +21,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   if (!customer) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
 
-  // External users may only see their own customer
-  const role = session.user.role as string
-  if (['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER'].includes(role)) {
-    if (customer.id !== (session.user as any).customerId) {
-      return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
-    }
-  }
+  if (!(await checkPermission(session, 'customers', 'view')))
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+
+  // Scope check: external users may only see their own customer
+  if (session.user.customerId && customer.id !== session.user.customerId)
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   return NextResponse.json(customer)
 }

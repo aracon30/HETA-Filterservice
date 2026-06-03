@@ -78,8 +78,12 @@ export function getScopeFilter(
   const role = session.user.role as UserRole
   const customerId = session.user.customerId
 
-  // Internal roles — no filter needed
-  if (role === 'ADMIN' || role === 'SERVICE_MANAGER' || role === 'SERVICE_TECHNICIAN') {
+  // Internal roles without a customer binding — no filter needed
+  if (role === 'ADMIN' || role === 'SERVICE_MANAGER') {
+    return {}
+  }
+  // SERVICE_TECHNICIAN is internal only if no customerId is set
+  if (role === 'SERVICE_TECHNICIAN' && !customerId) {
     return {}
   }
 
