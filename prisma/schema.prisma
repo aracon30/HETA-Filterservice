@@ -146,6 +146,7 @@ model Plant {
   checklistOverrides PlantChecklistOverride[]
   checklistItems    ChecklistItem[]
   materials         PlantMaterial[]
+  opportunities     Opportunity[]
 }
 
 model ServiceJobTechnician {
@@ -191,6 +192,7 @@ model ServiceJob {
   workTimeEntries Json?
   checklistItems  ChecklistItem[]
   invoices        Invoice[]
+  opportunities   Opportunity[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
@@ -223,15 +225,23 @@ model ChecklistItem {
 }
 
 model Opportunity {
-  id         String           @id @default(cuid())
-  title      String
-  value      Float?
-  stage      OpportunityStage @default(IDENTIFIED)
-  customer   Customer         @relation(fields: [customerId], references: [id])
-  customerId String
-  notes      String?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  id               String            @id @default(cuid())
+  title            String
+  value            Float?
+  stage            OpportunityStage  @default(IDENTIFIED)
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  customerId       String
+  notes            String?
+  probability      Int?
+  expectedCloseAt  DateTime?
+  contactPerson    String?
+  source           OpportunitySource @default(MANUAL)
+  sourceJobId      String?
+  sourceJob        ServiceJob?       @relation(fields: [sourceJobId], references: [id])
+  plantId          String?
+  plant            Plant?            @relation(fields: [plantId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 enum JobStatus {
@@ -247,4 +257,10 @@ enum OpportunityStage {
   PROPOSAL
   WON
   LOST
+}
+
+enum OpportunitySource {
+  MANUAL
+  SERVICE_REPORT
+  CHECKLIST_NOK
 }
