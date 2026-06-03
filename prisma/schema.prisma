@@ -193,6 +193,7 @@ model ServiceJob {
   checklistItems  ChecklistItem[]
   invoices        Invoice[]
   opportunities   Opportunity[]
+  jobMaterials    JobMaterial[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
@@ -208,6 +209,21 @@ model PlantMaterial {
   deliveryDate DateTime?
   notes        String?
   order        Int      @default(0)
+}
+
+model JobMaterial {
+  id           String     @id @default(cuid())
+  jobId        String
+  job          ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  plantId      String
+  plantName    String
+  label        String
+  partNumber   String?
+  quantity     Int        @default(1)
+  status       String     @default("TO_ORDER")
+  deliveryDate DateTime?
+  notes        String?
+  order        Int        @default(0)
 }
 
 model ChecklistItem {
