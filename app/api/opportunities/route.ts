@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { OpportunityStage } from '@prisma/client'
+import { OpportunityStage, OpportunitySource } from '@prisma/client'
 import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
 
 export async function GET() {
@@ -21,6 +21,8 @@ export async function GET() {
     where: scopeFilter,
     include: {
       customer: { select: { id: true, name: true } },
+      plant: { select: { id: true, name: true, serialNumber: true, type: true } },
+      sourceJob: { select: { orderNumber: true, id: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -38,7 +40,10 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, value, stage, customerId, notes } = body
+  const {
+    title, value, stage, customerId, notes,
+    probability, expectedCloseAt, contactPerson, plantId, source, sourceJobId,
+  } = body
 
   const opportunity = await prisma.opportunity.create({
     data: {
@@ -46,10 +51,18 @@ export async function POST(request: NextRequest) {
       value: value ? parseFloat(value) : null,
       stage: (stage as OpportunityStage) || 'IDENTIFIED',
       customerId,
-      notes,
+      notes: notes || null,
+      probability: probability ? parseInt(probability) : null,
+      expectedCloseAt: expectedCloseAt ? new Date(expectedCloseAt) : null,
+      contactPerson: contactPerson || null,
+      plantId: plantId || null,
+      source: (source as OpportunitySource) || 'MANUAL',
+      sourceJobId: sourceJobId || null,
     },
     include: {
       customer: { select: { id: true, name: true } },
+      plant: { select: { id: true, name: true, serialNumber: true, type: true } },
+      sourceJob: { select: { orderNumber: true, id: true } },
     },
   })
 
