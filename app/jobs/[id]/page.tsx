@@ -33,6 +33,19 @@ interface PlantInfo {
   buildYear: number | null
 }
 
+interface JobMaterial {
+  id: string
+  plantId: string
+  plantName: string
+  label: string
+  partNumber: string | null
+  quantity: number
+  status: string
+  deliveryDate: string | null
+  notes: string | null
+  order: number
+}
+
 interface Job {
   id: string
   orderNumber: string
@@ -51,6 +64,7 @@ interface Job {
   technicians: { userId: string; userName: string }[]
   vehicles: string[]
   checklistItems: ChecklistItem[]
+  jobMaterials: JobMaterial[]
 }
 
 type Step = 'verify' | 'inspection' | 'findings' | 'summary'
@@ -325,8 +339,9 @@ export default function JobInspectionPage() {
   const [techSignature, setTechSignature] = useState('')
   const [customerSignature, setCustomerSignature] = useState('')
 
-  // Parts state
-
+  const [activeView, setActiveView] = useState<'wizard' | 'materials'>('wizard')
+  const [jobMaterials, setJobMaterials] = useState<JobMaterial[]>([])
+  const [savingMaterials, setSavingMaterials] = useState(false)
 
   type WorkTimeEntry = { date: string; startTime: string; endTime: string }
   const [workTimeEntries, setWorkTimeEntries] = useState<WorkTimeEntry[]>([
@@ -361,8 +376,10 @@ export default function JobInspectionPage() {
       ...data,
       technicians: data.technicians ?? [],
       vehicles: data.vehicles ?? [],
+      jobMaterials: data.jobMaterials ?? [],
     }
     setJob(typedJob)
+    setJobMaterials(typedJob.jobMaterials)
     setChecklist(typedJob.checklistItems.map(i => ({ ...i, status: (i.status as 'open' | 'io' | 'nio') || (i.checked ? 'io' : 'open') })))
     setFindings(typedJob.findings ?? '')
     setRecommendations(typedJob.recommendations ?? '')
@@ -711,6 +728,22 @@ export default function JobInspectionPage() {
     )
   }
 
+  const showMaterialsTab = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role ?? '')
+  const toOrderCount = jobMaterials.filter(m => m.status === 'TO_ORDER').length
+  const inStockCount = jobMaterials.filter(m => m.status === 'IN_STOCK').length
+  const totalMats = jobMaterials.filter(m => m.status !== 'NOT_NEEDED').length
+  const allMatsReady = totalMats === 0 || inStockCount === totalMats
+
+  const handleSaveMaterials = async () => {
+    setSavingMaterials(true)
+    await fetch(`/api/jobs/${id}/materials`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ materials: jobMaterials }),
+    })
+    setSavingMaterials(false)
+  }
+
   // ── Wizard ────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-3xl mx-auto pb-12">
@@ -744,7 +777,151 @@ export default function JobInspectionPage() {
         ))}
       </div>
 
-      {/* Step indicator */}
+      {/* View toggle */}
+      {showMaterialsTab && (
+        <div className="flex gap-2 mb-6 border-b border-gray-200">
+          <button
+            onClick={() => setActiveView('wizard')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeView === 'wizard'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Einsatz
+          </button>
+          <button
+            onClick={() => setActiveView('materials')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeView === 'materials'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Materialien
+            {jobMaterials.length > 0 && (
+              <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold rounded-full ${
+                toOrderCount > 0
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'bg-green-100 text-green-700'
+              }`}>
+                {toOrderCount > 0 ? toOrderCount : jobMaterials.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Materials panel */}
+      {activeView === 'materials' && showMaterialsTab && (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Materialbedarf für diesen Einsatz</h2>
+            <p className="text-sm text-gray-500 mb-4">Bitte vor Einsatzbeginn sicherstellen, dass alle Teile verfügbar sind.</p>
+
+            {/* Status summary */}
+            {jobMaterials.length > 0 && (
+              <div className={`flex items-center gap-3 p-3 rounded-lg mb-4 ${allMatsReady ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'}`}>
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${allMatsReady ? 'bg-green-500' : 'bg-orange-500'}`} />
+                <p className={`text-sm font-medium ${allMatsReady ? 'text-green-800' : 'text-orange-800'}`}>
+                  {inStockCount} von {totalMats} Material{totalMats !== 1 ? 'ien' : ''} im Lager
+                  {toOrderCount > 0 && ` · ${toOrderCount} noch zu bestellen`}
+                </p>
+              </div>
+            )}
+
+            {jobMaterials.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 text-sm">
+                <p>Keine Materialien hinterlegt.</p>
+                <p className="text-xs mt-1">Ggf. erst Materialliste in den Anlageninformationen pflegen.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Group by plant */}
+                {Array.from(new Map(jobMaterials.map(m => [m.plantId, m.plantName]))).map(([plantId, plantName]) => (
+                  <div key={plantId}>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                      {plantName}
+                    </h3>
+                    <div className="space-y-3">
+                      {jobMaterials.filter(m => m.plantId === plantId).map((mat, idx) => {
+                        const globalIdx = jobMaterials.indexOf(mat)
+                        return (
+                          <div key={mat.id ?? `${plantId}-${idx}`} className={`p-4 rounded-lg border ${
+                            mat.status === 'IN_STOCK' ? 'bg-green-50 border-green-200' :
+                            mat.status === 'TO_ORDER' ? 'bg-orange-50 border-orange-200' :
+                            mat.status === 'ORDERED' ? 'bg-blue-50 border-blue-200' :
+                            'bg-gray-50 border-gray-200'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900">{mat.label}</p>
+                                {mat.partNumber && <p className="text-xs text-gray-500 font-mono mt-0.5">{mat.partNumber}</p>}
+                                <p className="text-xs text-gray-500 mt-0.5">Menge: {mat.quantity}</p>
+                              </div>
+                              <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                                {(['TO_ORDER', 'ORDERED', 'IN_STOCK', 'NOT_NEEDED'] as const).map(s => (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, status: s } : m))}
+                                    className={`px-2 py-1 text-xs font-medium rounded-md border transition-colors ${
+                                      mat.status === s
+                                        ? s === 'TO_ORDER' ? 'bg-orange-500 text-white border-orange-500'
+                                          : s === 'ORDERED' ? 'bg-blue-500 text-white border-blue-500'
+                                          : s === 'IN_STOCK' ? 'bg-green-600 text-white border-green-600'
+                                          : 'bg-gray-500 text-white border-gray-500'
+                                        : 'bg-white text-gray-500 border-gray-300 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    {s === 'TO_ORDER' ? 'Bestellen' : s === 'ORDERED' ? 'Bestellt' : s === 'IN_STOCK' ? 'Im Lager' : 'Nicht nötig'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {mat.status === 'ORDERED' && (
+                              <div className="mt-3 flex items-center gap-2">
+                                <label className="text-xs text-gray-500 flex-shrink-0">Liefertermin:</label>
+                                <input
+                                  type="date"
+                                  value={mat.deliveryDate ? mat.deliveryDate.slice(0, 10) : ''}
+                                  onChange={e => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, deliveryDate: e.target.value || null } : m))}
+                                  className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            )}
+                            <input
+                              type="text"
+                              value={mat.notes ?? ''}
+                              onChange={e => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, notes: e.target.value || null } : m))}
+                              placeholder="Notiz..."
+                              className="mt-2 w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {jobMaterials.length > 0 && (
+            <button
+              onClick={handleSaveMaterials}
+              disabled={savingMaterials}
+              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {savingMaterials ? 'Speichern...' : 'Materialstatus speichern'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Step indicator + wizard steps */}
+      {activeView === 'wizard' && <>
       <div className="flex items-center mb-8">
         {STEPS.map((s, i) => (
           <div key={s.key} className="flex items-center flex-1 last:flex-none">
@@ -1155,6 +1332,7 @@ export default function JobInspectionPage() {
           </div>
         </div>
       )}
+      </>}
     </div>
   )
 }

@@ -110,6 +110,29 @@ export async function POST(request: NextRequest) {
     allChecklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
   }
 
+  // Build job materials snapshot from plant materials
+  type JobMatEntry = { plantId: string; plantName: string; label: string; partNumber?: string | null; quantity: number; status: string; order: number }
+  const allJobMaterials: JobMatEntry[] = []
+
+  for (const pid of selectedPlantIds) {
+    const plant = await prisma.plant.findUnique({
+      where: { id: pid },
+      select: { id: true, name: true, materials: { orderBy: { order: 'asc' } } },
+    })
+    if (!plant) continue
+    plant.materials.forEach(m => {
+      allJobMaterials.push({
+        plantId: plant.id,
+        plantName: plant.name,
+        label: m.label,
+        partNumber: m.partNumber,
+        quantity: m.quantity,
+        status: m.status,
+        order: allJobMaterials.length,
+      })
+    })
+  }
+
   // Resolve technician names for denormalization
   const technicianRecords = selectedTechnicianIds.length > 0
     ? await prisma.user.findMany({ where: { id: { in: selectedTechnicianIds } }, select: { id: true, name: true } })
@@ -130,12 +153,16 @@ export async function POST(request: NextRequest) {
         ? { create: technicianRecords.map((t, idx) => ({ userId: t.id, userName: t.name, order: idx })) }
         : undefined,
       checklistItems: { create: allChecklistItems },
+      jobMaterials: allJobMaterials.length > 0
+        ? { create: allJobMaterials }
+        : undefined,
     },
     include: {
       customer: true,
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
       checklistItems: true,
+      jobMaterials: { orderBy: { order: 'asc' } },
     },
   })
 
