@@ -42,3 +42,4 @@ backups/
 # Hochgeladene Fotos (serverseitig gespeichert)
 public/uploads/*
 !public/uploads/.gitkeep
+.claude/worktrees/
