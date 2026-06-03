@@ -137,7 +137,7 @@ model Plant {
 
 model ServiceJob {
   id              String          @id @default(cuid())
-  jobNumber       String          @unique
+  orderNumber     String          @unique
   status          JobStatus       @default(PLANNED)
   scheduledAt     DateTime
   completedAt     DateTime?

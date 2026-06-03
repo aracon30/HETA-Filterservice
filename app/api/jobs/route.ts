@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
   if (search) {
     where.OR = [
-      { jobNumber: { contains: search, mode: 'insensitive' } },
+      { orderNumber: { contains: search, mode: 'insensitive' } },
       { customer: { name: { contains: search, mode: 'insensitive' } } },
     ]
   }
@@ -61,11 +61,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { customerId, plantId, scheduledAt, technicianName, technicianId, description, duration, vehicle } = body
+  const { customerId, plantId, scheduledAt, technicianName, technicianId, description, duration, vehicle, orderNumber } = body
 
-  // Generate job number
-  const count = await prisma.serviceJob.count()
-  const jobNumber = `SJ-${String(count + 1001).padStart(4, '0')}`
+  if (!orderNumber) {
+    return NextResponse.json({ error: 'Auftragsnummer ist erforderlich' }, { status: 400 })
+  }
 
   // Determine checklist: plant override → plant-type template → default
   let checklistItems: { label: string; section?: string }[] = []
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
   const job = await prisma.serviceJob.create({
     data: {
-      jobNumber,
+      orderNumber,
       customerId,
       plantId: plantId || null,
       scheduledAt: new Date(scheduledAt),

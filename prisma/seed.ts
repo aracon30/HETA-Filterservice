@@ -195,7 +195,7 @@ async function main() {
     jobCounter++
     return prisma.serviceJob.create({
       data: {
-        jobNumber: `SJ-${jobCounter}`,
+        orderNumber: `K-${String(jobCounter).padStart(5, '0')}.25-DEMO`,
         status,
         scheduledAt,
         completedAt,

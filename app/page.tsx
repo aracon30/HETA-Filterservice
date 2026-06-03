@@ -151,7 +151,7 @@ export default async function DashboardPage() {
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Jobnummer</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Auftragsnummer</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Kunde</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Anlage</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Techniker</th>
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
                     <td className="px-6 py-4 text-sm text-gray-900">{formatDate(job.scheduledAt)}</td>
                     <td className="px-6 py-4">
                       <Link href={`/jobs/${job.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                        {job.jobNumber}
+                        {job.orderNumber}
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>

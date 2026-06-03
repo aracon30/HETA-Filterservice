@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   const events = jobs.map((job) => ({
     id: job.id,
-    jobNumber: job.jobNumber,
+    orderNumber: job.orderNumber,
     title: job.customer.name,
     start: job.scheduledAt,
     end: addMinutes(job.scheduledAt, job.duration),
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest) {
 
   return NextResponse.json({
     id: job.id,
-    jobNumber: job.jobNumber,
+    orderNumber: job.orderNumber,
     title: job.customer.name,
     start: job.scheduledAt,
     end: addMinutes(job.scheduledAt, job.duration),
