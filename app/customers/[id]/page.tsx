@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import InvoicePanel from '@/components/InvoicePanel'
+import PlantDocuments from '@/components/PlantDocuments'
 
 interface Plant {
   id: string
@@ -549,7 +550,7 @@ export default function CustomerDetailPage() {
                   )}
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4">
                   <Link
                     href={`/jobs?customer=${customer.id}`}
                     className="text-xs text-blue-600 hover:underline"
@@ -557,6 +558,12 @@ export default function CustomerDetailPage() {
                     {plant._count?.jobPlants ?? 0} Einsätze
                   </Link>
                 </div>
+
+                <PlantDocuments
+                  plantId={plant.id}
+                  customerId={customer.id}
+                  role={role ?? ''}
+                />
               </div>
             ))}
           </div>
