@@ -3,8 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkPermission } from '@/lib/permissions'
-import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
-import { createElement, type ReactElement, type JSXElementConstructor } from 'react'
+import { createElement } from 'react'
 import { ServiceReportPDF } from '@/lib/pdf/ServiceReportPDF'
 
 export async function GET(
@@ -27,7 +26,6 @@ export async function GET(
 
   if (!job) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
 
-  // External roles may only access their own customer's jobs
   const role = session.user.role as string
   const externalRoles = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
   if (externalRoles.includes(role) && job.customerId !== session.user.customerId) {
@@ -72,19 +70,25 @@ export async function GET(
     customerSignature: job.customerSignature ?? null,
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = createElement(ServiceReportPDF, { data }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>
-  const buffer = await renderToBuffer(element)
-  const uint8 = new Uint8Array(buffer)
+  try {
+    // Dynamic import handles ESM-only @react-pdf/renderer correctly at runtime
+    const { renderToBuffer } = await import('@react-pdf/renderer')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buffer = await renderToBuffer(createElement(ServiceReportPDF, { data }) as any)
+    const uint8 = new Uint8Array(buffer)
 
-  const fileName = `Servicebericht_${job.orderNumber.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`
+    const fileName = `Servicebericht_${job.orderNumber.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`
 
-  return new NextResponse(uint8, {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      'Content-Length': uint8.length.toString(),
-    },
-  })
+    return new NextResponse(uint8, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': uint8.length.toString(),
+      },
+    })
+  } catch (err) {
+    console.error('[report] PDF generation failed:', err)
+    return NextResponse.json({ error: 'PDF-Erstellung fehlgeschlagen' }, { status: 500 })
+  }
 }
