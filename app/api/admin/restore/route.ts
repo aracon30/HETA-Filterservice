@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
 import fs from 'fs'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 const APP_DIR = path.resolve(process.cwd())
 const BACKUP_DIR = path.join(APP_DIR, 'backups')
 
@@ -55,21 +55,26 @@ export async function POST(req: Request) {
 
   try {
     // Verbindungen trennen, Schema leeren, Backup einspielen
-    await execAsync(
-      `psql -h ${host} -p ${port} -U ${user} -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();"`,
+    await execFileAsync(
+      'psql',
+      ['-h', host, '-p', port, '-U', user, '-d', 'postgres', '-c',
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();`],
       { env, timeout: 10000 }
     )
-    await execAsync(
-      `psql -h ${host} -p ${port} -U ${user} -d ${db} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`,
+    await execFileAsync(
+      'psql',
+      ['-h', host, '-p', port, '-U', user, '-d', db, '-c', 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'],
       { env, timeout: 10000 }
     )
-    await execAsync(
-      `psql -h ${host} -p ${port} -U ${user} -d ${db} -f "${filepath}"`,
+    await execFileAsync(
+      'psql',
+      ['-h', host, '-p', port, '-U', user, '-d', db, '-f', filepath],
       { env, timeout: 120000 }
     )
     return NextResponse.json({ success: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   } finally {
     if (tempFile && fs.existsSync(filepath)) fs.unlinkSync(filepath)
   }

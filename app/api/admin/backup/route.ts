@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
 import fs from 'fs'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 const APP_DIR = path.resolve(process.cwd())
 const BACKUP_DIR = path.join(APP_DIR, 'backups')
 
@@ -55,14 +55,16 @@ export async function POST() {
   const filepath = path.join(BACKUP_DIR, filename)
 
   try {
-    await execAsync(
-      `pg_dump -h ${host} -p ${port} -U ${user} -d ${db} -F p -f "${filepath}"`,
+    await execFileAsync(
+      'pg_dump',
+      ['-h', host, '-p', port, '-U', user, '-d', db, '-F', 'p', '-f', filepath],
       { env: { ...process.env, PGPASSWORD: password }, timeout: 60000 }
     )
     const stat = fs.statSync(filepath)
     return NextResponse.json({ success: true, name: filename, size: stat.size })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 

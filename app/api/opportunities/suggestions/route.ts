@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { checkPermission } from '@/lib/permissions'
+import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { OpportunitySource } from '@prisma/client'
 
@@ -28,9 +28,13 @@ export async function GET() {
   if (!(await checkPermission(session, 'opportunities', 'view')))
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
+  const perm = await getPermissions(session.user.role, 'jobs')
+  const scopeFilter = getScopeFilter(session, 'jobs', perm?.scope ?? null)
+
   // Jobs with NOK checklist items
   const jobsWithNok = await prisma.serviceJob.findMany({
     where: {
+      ...scopeFilter,
       checklistItems: { some: { status: 'NOK' } },
     },
     include: {
@@ -53,6 +57,7 @@ export async function GET() {
   // Completed jobs with findings/recommendations
   const jobsWithFindings = await prisma.serviceJob.findMany({
     where: {
+      ...scopeFilter,
       status: 'COMPLETED',
       OR: [
         { findings: { not: null } },

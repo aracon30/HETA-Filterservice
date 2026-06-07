@@ -77,60 +77,66 @@ export async function POST(request: NextRequest) {
   type ChecklistEntry = { label: string; section?: string; plantId?: string }
   let allChecklistItems: ChecklistEntry[] = []
 
+  // Build job materials snapshot from plant materials
+  type JobMatEntry = { plantId: string; plantName: string; label: string; partNumber?: string | null; quantity: number; status: string; order: number }
+  const allJobMaterials: JobMatEntry[] = []
+
   if (selectedPlantIds.length > 0) {
+    // Single query for all plants with both checklist overrides and materials
+    const plants = await prisma.plant.findMany({
+      where: { id: { in: selectedPlantIds } },
+      select: {
+        id: true, name: true, type: true,
+        checklistOverrides: { orderBy: { order: 'asc' } },
+        materials: { orderBy: { order: 'asc' } },
+      },
+    })
+
+    const typesNeeded = [...new Set(plants.filter(p => p.checklistOverrides.length === 0).map(p => p.type))]
+    const plantTypesMap: Record<string, { items: { label: string; section: string | null }[] }> = typesNeeded.length > 0
+      ? Object.fromEntries(
+          (await prisma.plantType.findMany({
+            where: { value: { in: typesNeeded } },
+            include: { items: { orderBy: { order: 'asc' } } },
+          })).map(pt => [pt.value, pt])
+        )
+      : {}
+
     for (const pid of selectedPlantIds) {
-      const plant = await prisma.plant.findUnique({
-        where: { id: pid },
-        select: { id: true, name: true, type: true, checklistOverrides: { orderBy: { order: 'asc' } } },
-      })
+      const plant = plants.find(p => p.id === pid)
       if (!plant) continue
 
       let items: { label: string; section?: string }[] = []
       if (plant.checklistOverrides.length > 0) {
-        items = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
+        items = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section ?? undefined }))
       } else {
-        const plantType = await prisma.plantType.findUnique({
-          where: { value: plant.type },
-          include: { items: { orderBy: { order: 'asc' } } },
-        })
+        const plantType = plantTypesMap[plant.type]
         if (plantType && plantType.items.length > 0) {
-          items = plantType.items.map(i => ({ label: i.label, section: i.section }))
+          items = plantType.items.map(i => ({ label: i.label, section: i.section ?? undefined }))
         } else {
           const legacy = getChecklistForPlantType(plant.type)
           if (legacy.length > 0) items = legacy
         }
       }
       if (items.length === 0) items = DEFAULT_CHECKLIST_ITEMS.map(l => ({ label: l }))
-
       allChecklistItems = allChecklistItems.concat(items.map(i => ({ ...i, plantId: plant.id })))
+
+      plant.materials.forEach(m => {
+        allJobMaterials.push({
+          plantId: plant.id,
+          plantName: plant.name,
+          label: m.label,
+          partNumber: m.partNumber,
+          quantity: m.quantity,
+          status: m.status,
+          order: allJobMaterials.length,
+        })
+      })
     }
   }
 
   if (allChecklistItems.length === 0) {
     allChecklistItems = DEFAULT_CHECKLIST_ITEMS.map(label => ({ label }))
-  }
-
-  // Build job materials snapshot from plant materials
-  type JobMatEntry = { plantId: string; plantName: string; label: string; partNumber?: string | null; quantity: number; status: string; order: number }
-  const allJobMaterials: JobMatEntry[] = []
-
-  for (const pid of selectedPlantIds) {
-    const plant = await prisma.plant.findUnique({
-      where: { id: pid },
-      select: { id: true, name: true, materials: { orderBy: { order: 'asc' } } },
-    })
-    if (!plant) continue
-    plant.materials.forEach(m => {
-      allJobMaterials.push({
-        plantId: plant.id,
-        plantName: plant.name,
-        label: m.label,
-        partNumber: m.partNumber,
-        quantity: m.quantity,
-        status: m.status,
-        order: allJobMaterials.length,
-      })
-    })
   }
 
   // Resolve technician names for denormalization
