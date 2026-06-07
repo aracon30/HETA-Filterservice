@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const typesNeeded = [...new Set(plants.filter(p => p.checklistOverrides.length === 0).map(p => p.type))]
+    const typesNeeded = Array.from(new Set(plants.filter(p => p.checklistOverrides.length === 0).map(p => p.type)))
     const plantTypesMap: Record<string, { items: { label: string; section: string | null }[] }> = typesNeeded.length > 0
       ? Object.fromEntries(
           (await prisma.plantType.findMany({
