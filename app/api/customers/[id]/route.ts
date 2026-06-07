@@ -8,6 +8,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 
+  if (!(await checkPermission(session, 'customers', 'view')))
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+
+  // Scope check: external users may only see their own customer
+  if (session.user.customerId && params.id !== session.user.customerId)
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+
   const customer = await prisma.customer.findUnique({
     where: { id: params.id },
     include: {
@@ -20,13 +27,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   })
 
   if (!customer) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
-
-  if (!(await checkPermission(session, 'customers', 'view')))
-    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
-
-  // Scope check: external users may only see their own customer
-  if (session.user.customerId && customer.id !== session.user.customerId)
-    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   return NextResponse.json(customer)
 }

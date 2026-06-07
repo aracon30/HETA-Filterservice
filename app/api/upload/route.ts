@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { writeFile } from 'fs/promises'
+import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
+import crypto from 'crypto'
+
+const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'])
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -12,12 +15,16 @@ export async function POST(req: NextRequest) {
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'Keine Datei' }, { status: 400 })
 
+  const ext = (file.name.split('.').pop() ?? '').toLowerCase()
+  if (!ALLOWED_EXTENSIONS.has(ext))
+    return NextResponse.json({ error: 'Dateityp nicht erlaubt' }, { status: 400 })
+
   const bytes = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)
 
-  const ext = file.name.split('.').pop() ?? 'jpg'
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const fileName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${ext}`
   const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+  await mkdir(uploadDir, { recursive: true })
   await writeFile(path.join(uploadDir, fileName), buffer)
 
   return NextResponse.json({ url: `/uploads/${fileName}` })
