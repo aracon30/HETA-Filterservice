@@ -109,9 +109,11 @@ Als Admin unter `/admin/update` auf **„Update starten"** klicken. Das System f
 
 | Rolle | Rechte |
 |-------|--------|
-| **Admin** | Vollzugriff, Benutzerverwaltung, Berechtigungen konfigurieren, Server-Updates |
+| **Admin** | Vollzugriff, Benutzerverwaltung, Berechtigungen konfigurieren, Server-Updates, Backup/Restore |
 | **Service Manager** | Vollzugriff operativ, Berechtigungen anderer Rollen anpassen |
-| **Service Techniker** | Einsätze ansehen/erstellen/bearbeiten, Checklisten pflegen |
+| **Service Techniker** | Einsätze ansehen/erstellen/bearbeiten, Checklisten pflegen, Materialien erfassen |
+| **Maintenance Manager** | Anlagen und Einsätze der eigenen Firma vollständig verwalten |
+| **Maintenance Technician** | Einsätze und Checklisten der eigenen Firma bearbeiten |
 
 ### Externe Rollen (nur Zugriff auf die eigene Firma/Anlage)
 
@@ -130,15 +132,22 @@ Berechtigungen sind dynamisch und können im Admin-Bereich unter `/admin/permiss
 | Seite | URL | Beschreibung |
 |-------|-----|--------------|
 | **Login** | `/login` | Anmeldung mit Email und Passwort |
-| **Dashboard** | `/` | KPI-Kacheln, nächste 5 Einsätze |
+| **Dashboard** | `/` | KPI-Kacheln, nächste Einsätze |
+| **Kalender** | `/calendar` | Kalenderansicht aller geplanten Einsätze |
 | **Einsatzliste** | `/jobs` | Alle Serviceeinsätze, filterbar nach Status |
-| **Neuer Einsatz** | `/jobs/new` | Einsatz mit Kunde, Anlage, Datum, Techniker anlegen |
-| **Einsatzdetail** | `/jobs/[id]` | Befunde, Empfehlungen, 10-Punkte-Checkliste |
+| **Neuer Einsatz** | `/jobs/new` | Einsatz mit Kunde, Anlage(n), Datum, Techniker anlegen |
+| **Einsatzdetail** | `/jobs/[id]` | Befunde, Empfehlungen, Checkliste, Materialien, Signaturen, PDF-Bericht |
 | **Kunden** | `/customers` | Kundenliste, Neukunde anlegen |
+| **Kundendetail** | `/customers/[id]` | Anlagen, Einsätze, Dokumente, Opportunities pro Kunde |
 | **Vertrieb** | `/opportunities` | Kanban-Board + Tabellenansicht |
+| **Materialien** | `/materialien` | Übersicht aller offenen Materialbestellungen |
+| **Anlagentypen** | `/admin/plant-types` | Anlagentypen und Checklisten-Vorlagen verwalten (Admin) |
 | **Benutzerverwaltung** | `/admin/users` | Benutzer anlegen/bearbeiten (Admin) |
 | **Berechtigungen** | `/admin/permissions` | Berechtigungsmatrix konfigurieren (Admin/Manager) |
+| **Backup** | `/admin/backup` | Datenbank sichern und wiederherstellen (Admin) |
 | **Server-Update** | `/admin/update` | Updates von Git einspielen (Admin) |
+| **Kundenportal** | `/portal` | Eingeschränkte Ansicht für externe Kunden |
+| **Anlage (Portal)** | `/portal/plants/[id]` | Anlagendetails im Kundenportal |
 
 ---
 
@@ -148,18 +157,39 @@ Alle Endpunkte erfordern eine aktive Session. Berechtigungen werden serverseitig
 
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|--------------|
-| `GET` | `/api/jobs` | Einsätze (gefiltert nach Rolle/Scope) |
-| `POST` | `/api/jobs` | Neuen Einsatz erstellen |
-| `GET` | `/api/jobs/[id]` | Einsatz mit Checkliste |
-| `PUT` | `/api/jobs/[id]` | Einsatz aktualisieren |
-| `GET` | `/api/customers` | Kunden (gefiltert nach Rolle/Scope) |
-| `POST` | `/api/customers` | Neuen Kunden anlegen |
-| `GET` | `/api/plants` | Anlagen (Filter: `customerId`) |
-| `GET` | `/api/opportunities` | Vertriebschancen (gefiltert nach Rolle/Scope) |
-| `POST` | `/api/opportunities` | Neue Vertriebschance anlegen |
+| `GET/POST` | `/api/jobs` | Einsätze (gefiltert nach Rolle/Scope) / Neuen Einsatz erstellen |
+| `GET/PUT/DELETE` | `/api/jobs/[id]` | Einsatz lesen, aktualisieren, löschen |
+| `GET` | `/api/jobs/[id]/report` | PDF-Servicebericht generieren |
+| `GET/POST` | `/api/jobs/[id]/materials` | Materialien eines Einsatzes |
+| `POST` | `/api/jobs/[id]/reload-checklist` | Checkliste neu laden |
+| `GET/POST` | `/api/customers` | Kunden / Neukunde anlegen |
+| `GET/PUT/DELETE` | `/api/customers/[id]` | Kunde lesen, aktualisieren, löschen |
+| `GET/POST` | `/api/plants` | Anlagen (Filter: `customerId`) / Neue Anlage |
+| `GET/PUT/DELETE` | `/api/plants/[id]` | Anlage lesen, aktualisieren, löschen |
+| `GET/PUT` | `/api/plants/[id]/checklist` | Anlagen-Checklisten-Overrides |
+| `GET/POST` | `/api/plants/[id]/materials` | Materialien einer Anlage |
+| `GET/POST` | `/api/plants/[id]/documents` | Dokumente einer Anlage |
+| `DELETE` | `/api/plants/[id]/documents/[docId]` | Dokument löschen |
+| `GET/POST` | `/api/plant-types` | Anlagentypen / Neuen Typ anlegen |
+| `GET/PUT/DELETE` | `/api/plant-types/[id]` | Anlagentyp verwalten |
+| `GET/PUT` | `/api/plant-types/[id]/checklist` | Checklisten-Vorlage eines Typs |
+| `GET/PUT` | `/api/plant-types/[id]/parts` | Ersatzteil-Vorlagen eines Typs |
+| `GET/POST` | `/api/opportunities` | Vertriebschancen / Neue Chance anlegen |
+| `GET/PUT/DELETE` | `/api/opportunities/[id]` | Chance lesen, aktualisieren, löschen |
+| `GET` | `/api/opportunities/suggestions` | Automatische Opportunity-Vorschläge |
+| `GET/POST` | `/api/invoices` | Rechnungen / Neue Rechnung hochladen |
+| `GET/DELETE` | `/api/invoices/[id]` | Rechnung lesen, löschen |
 | `GET/POST` | `/api/users` | Benutzerliste / Benutzer anlegen |
 | `PUT/DELETE` | `/api/users/[id]` | Benutzer bearbeiten / löschen |
-| `GET/PUT` | `/api/permissions` | Berechtigungen lesen / aktualisieren |
+| `GET/PUT` | `/api/users/[id]/permissions` | Benutzer-Berechtigungen |
+| `GET/PUT` | `/api/permissions` | Rollen-Berechtigungen lesen / aktualisieren |
+| `GET` | `/api/technicians` | Techniker-Liste |
+| `GET` | `/api/calendar` | Kalender-Ereignisse |
+| `GET` | `/api/availability` | Techniker-Verfügbarkeit |
+| `POST` | `/api/upload` | Datei-Upload |
+| `POST` | `/api/admin/backup` | Datenbank-Backup erstellen |
+| `GET` | `/api/admin/backup/download` | Backup herunterladen |
+| `POST` | `/api/admin/restore` | Datenbank wiederherstellen |
 | `POST` | `/api/admin/update` | Server-Update ausführen (Admin) |
 
 ---
@@ -167,27 +197,44 @@ Alle Endpunkte erfordern eine aktive Session. Berechtigungen werden serverseitig
 ## Datenbankschema
 
 ```
-Customer ─── Plant ──── ServiceJob ─── ChecklistItem
-    │
-    └─── Opportunity
+Customer ─── Plant ──────── ServiceJob ─── ChecklistItem
+    │           │                │
+    │           ├── PlantMaterial│── JobMaterial
+    │           ├── PlantDocument│── Invoice
+    │           └── PlantChecklist│─ PlantDocument
+    │                 Override
+    ├── Opportunity ◄─── ServiceJob (sourceJob)
+    ├── Invoice
+    └── User[]
+
+PlantType ─── PlantTypeChecklistItem
+          └── PartTypeItem
+
+ServiceJob ─── ServiceJobTechnician (User)
+           └── ServiceJobPlant (Plant)
 
 User (intern: ohne customerId)
 User (extern: customerId → Customer)
 
 RolePermission (pro Rolle × Ressource)
+UserPermission (pro User × Ressource, überschreibt Rolle)
 ```
 
 ---
 
 ## Technologie-Stack
 
-| Bereich | Technologie |
-|---------|-------------|
-| Framework | Next.js 14 (App Router) |
-| Sprache | TypeScript |
-| Styling | Tailwind CSS |
-| Authentifizierung | NextAuth.js |
-| Prozessmanager | PM2 |
-| Datenbank | PostgreSQL |
-| ORM | Prisma |
-| Passwort-Hashing | bcryptjs |
+| Bereich | Technologie | Version |
+|---------|-------------|---------|
+| Framework | Next.js (App Router) | 14.1.0 |
+| Sprache | TypeScript | ^5 |
+| Styling | Tailwind CSS | ^3.3.0 |
+| Icons | lucide-react | ^1.17.0 |
+| Authentifizierung | NextAuth.js (JWT) | ^4.24.14 |
+| Datenbank | PostgreSQL | — |
+| ORM | Prisma | ^5.9.1 |
+| Passwort-Hashing | bcryptjs | ^3.0.3 |
+| Datumsverarbeitung | date-fns (DE-Locale) | ^4.4.0 |
+| Kalender | react-big-calendar | ^1.20.0 |
+| PDF-Generierung | @react-pdf/renderer | ^4.5.1 |
+| Prozessmanager | PM2 | Produktion |
