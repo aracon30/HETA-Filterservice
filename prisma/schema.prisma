@@ -140,6 +140,8 @@ model Plant {
   contactPerson     String?
   manufacturer      String?
   model             String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   customer          Customer                 @relation(fields: [customerId], references: [id])
   customerId        String
   jobPlants         ServiceJobPlant[]
