@@ -1141,7 +1141,7 @@ export default function JobInspectionPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-amber-700">Checkliste ersetzen?</span>
                     <button
-                      onClick={handleReloadChecklist}
+                      onClick={() => handleReloadChecklist()}
                       disabled={reloadingChecklist}
                       className="px-2 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
                     >
