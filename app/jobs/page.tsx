@@ -176,39 +176,39 @@ function JobsPageInner() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <table className="w-full">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+            <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Auftragsnummer</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Kunde</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Anlage</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Techniker</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  {!isExternal && <th className="px-6 py-3"></th>}
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Auftragsnummer</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Kunde</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Anlage</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Techniker</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  {!isExternal && <th className="px-4 py-3 w-12"></th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={isExternal ? 6 : 7} className="px-6 py-12 text-center text-sm text-gray-400">Laden...</td></tr>
+                  <tr><td colSpan={isExternal ? 6 : 7} className="px-4 py-12 text-center text-sm text-gray-400">Laden...</td></tr>
                 ) : jobs.length === 0 ? (
-                  <tr><td colSpan={isExternal ? 6 : 7} className="px-6 py-12 text-center text-sm text-gray-400">Keine Einsätze gefunden</td></tr>
+                  <tr><td colSpan={isExternal ? 6 : 7} className="px-4 py-12 text-center text-sm text-gray-400">Keine Einsätze gefunden</td></tr>
                 ) : (
                   jobs.map((job) => (
                     <tr key={job.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <Link href={`/jobs/${job.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
                           {job.orderNumber}
                         </Link>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{formatDate(job.scheduledAt)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{job.plants.length === 0 ? '—' : job.plants.map(jp => jp.plant.name).join(', ')}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{job.technicians.length === 0 ? '—' : job.technicians.map(t => t.userName).join(', ')}</td>
-                      <td className="px-6 py-4"><StatusBadge status={job.status} /></td>
+                      <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{formatDate(job.scheduledAt)}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900">{job.customer.name}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 hidden lg:table-cell">{job.plants.length === 0 ? '—' : job.plants.map(jp => jp.plant.name).join(', ')}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900 hidden md:table-cell">{job.technicians.length === 0 ? '—' : job.technicians.map(t => t.userName).join(', ')}</td>
+                      <td className="px-4 py-4"><StatusBadge status={job.status} /></td>
                       {!isExternal && (
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-4 text-right">
                           <button onClick={() => { setConfirmDelete(job.id); setDeleteError(null) }}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
