@@ -51,6 +51,8 @@ function JobsPageInner() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const fetchJobs = useCallback(async () => {
     setLoading(true)
@@ -70,9 +72,19 @@ function JobsPageInner() {
     setSearch(searchInput)
   }
 
-  const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' })
-    if (res.ok) { setConfirmDelete(null); fetchJobs() }
+  const handleDelete = async () => {
+    if (!confirmDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    const res = await fetch(`/api/jobs/${confirmDelete}`, { method: 'DELETE' })
+    if (res.ok) {
+      setConfirmDelete(null)
+      fetchJobs()
+    } else {
+      const data = await res.json()
+      setDeleteError(data.error ?? 'Fehler beim Löschen')
+    }
+    setDeleting(false)
   }
 
   const switchView = (v: 'list' | 'calendar') => {
@@ -197,22 +209,12 @@ function JobsPageInner() {
                       <td className="px-6 py-4"><StatusBadge status={job.status} /></td>
                       {!isExternal && (
                         <td className="px-6 py-4 text-right">
-                          {confirmDelete === job.id ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <span className="text-xs text-gray-500">Löschen?</span>
-                              <button onClick={() => handleDelete(job.id)}
-                                className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700">Ja</button>
-                              <button onClick={() => setConfirmDelete(null)}
-                                className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200">Nein</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmDelete(job.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                              </svg>
-                            </button>
-                          )}
+                          <button onClick={() => { setConfirmDelete(job.id); setDeleteError(null) }}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -222,6 +224,37 @@ function JobsPageInner() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Delete job modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmDelete(null)} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Einsatz löschen</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Möchten Sie diesen Serviceeinsatz wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </p>
+            {deleteError && (
+              <div className="mb-4 px-3 py-2 bg-red-50 text-red-700 text-sm rounded-lg">{deleteError}</div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Löschen...' : 'Löschen'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
