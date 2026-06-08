@@ -49,7 +49,19 @@ export async function PUT(
     status, findings, recommendations, checklistItems,
     duration, vehicles, scheduledAt, technicianIds,
     technicianSignature, customerSignature, complete, workTimeEntries,
+    clientUpdatedAt,
   } = body
+
+  if (clientUpdatedAt) {
+    const current = await prisma.serviceJob.findUnique({ where: { id: params.id }, select: { updatedAt: true } })
+    if (!current) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
+    if (new Date(clientUpdatedAt).getTime() !== current.updatedAt.getTime()) {
+      return NextResponse.json(
+        { error: 'Konflikt: Der Einsatz wurde zwischenzeitlich von jemand anderem geändert. Bitte Seite neu laden.' },
+        { status: 409 }
+      )
+    }
+  }
 
   const updateData: Record<string, unknown> = {}
 

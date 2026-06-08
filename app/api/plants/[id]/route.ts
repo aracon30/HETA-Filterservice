@@ -30,6 +30,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 
   const body = await req.json()
+
+  if (body.clientUpdatedAt) {
+    const current = await prisma.plant.findUnique({ where: { id: params.id }, select: { updatedAt: true } })
+    if (!current) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
+    if (new Date(body.clientUpdatedAt).getTime() !== current.updatedAt.getTime()) {
+      return NextResponse.json(
+        { error: 'Konflikt: Die Anlage wurde zwischenzeitlich von jemand anderem geändert. Bitte Seite neu laden.' },
+        { status: 409 }
+      )
+    }
+  }
+
   const plant = await prisma.plant.update({
     where: { id: params.id },
     data: {

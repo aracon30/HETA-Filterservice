@@ -31,15 +31,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Wert und Bezeichnung erforderlich' }, { status: 400 })
   }
 
-  const existing = await prisma.plantType.findUnique({ where: { value } })
-  if (existing) {
-    return NextResponse.json({ error: 'Anlagentyp mit diesem Wert existiert bereits' }, { status: 409 })
+  try {
+    const plantType = await prisma.plantType.create({
+      data: { value, label },
+      include: { items: true },
+    })
+    return NextResponse.json(plantType, { status: 201 })
+  } catch (err) {
+    const e = err as { code?: string }
+    if (e.code === 'P2002') {
+      return NextResponse.json({ error: 'Anlagentyp mit diesem Wert existiert bereits' }, { status: 409 })
+    }
+    throw err
   }
-
-  const plantType = await prisma.plantType.create({
-    data: { value, label },
-    include: { items: true },
-  })
-
-  return NextResponse.json(plantType, { status: 201 })
 }
