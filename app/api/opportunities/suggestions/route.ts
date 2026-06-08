@@ -9,7 +9,7 @@ interface Suggestion {
   id: string
   title: string
   reason: string
-  nokItems: Array<{ label: string; section: string | null }>
+  nokItems: Array<{ label: string; section: string | null; comment: string | null }>
   findings: string | null
   customerId: string
   customerName: string
@@ -46,7 +46,7 @@ export async function GET() {
       },
       checklistItems: {
         where: { status: 'NOK' },
-        select: { label: true, section: true },
+        select: { label: true, section: true, comment: true },
       },
       opportunities: { select: { id: true } },
     },
@@ -72,7 +72,7 @@ export async function GET() {
         orderBy: { order: 'asc' },
         take: 1,
       },
-      checklistItems: { where: { status: 'NOK' }, select: { label: true, section: true } },
+      checklistItems: { where: { status: 'NOK' }, select: { label: true, section: true, comment: true } },
       opportunities: { select: { id: true } },
     },
     orderBy: { scheduledAt: 'desc' },
