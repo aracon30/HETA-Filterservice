@@ -44,6 +44,20 @@ export async function POST(
     return NextResponse.json({ error: 'Checkliste kann nur bei geplanten oder laufenden Einsätzen aktualisiert werden' }, { status: 409 })
   }
 
+  // Block reload if any checklist items have already been filled, unless force=true
+  const body = await _req.json().catch(() => ({})) as { force?: boolean }
+  if (!body.force) {
+    const filledCount = await prisma.checklistItem.count({
+      where: { jobId: params.id, status: { not: 'open' } },
+    })
+    if (filledCount > 0) {
+      return NextResponse.json(
+        { error: `Konflikt: ${filledCount} Checklistenpunkte sind bereits ausgefüllt. Wirklich alle Einträge verwerfen und Checkliste neu laden?`, requiresForce: true },
+        { status: 409 }
+      )
+    }
+  }
+
   type ChecklistEntry = { jobId: string; label: string; section: string | null; plantId: string | null; status: string; checked: boolean }
   let newItems: ChecklistEntry[] = []
 

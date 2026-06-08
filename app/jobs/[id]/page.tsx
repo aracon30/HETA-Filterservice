@@ -52,6 +52,7 @@ interface Job {
   status: string
   scheduledAt: string
   completedAt: string | null
+  updatedAt: string
   technicianSignature: string | null
   customerSignature: string | null
   duration: number
@@ -348,23 +349,42 @@ export default function JobInspectionPage() {
     { date: new Date().toISOString().slice(0, 10), startTime: '', endTime: '' },
   ])
 
+  const [conflictError, setConflictError] = useState<string | null>(null)
+  const jobUpdatedAt = useRef<string>('')
+
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const [reloadingChecklist, setReloadingChecklist] = useState(false)
   const [confirmReload, setConfirmReload] = useState(false)
+  const [forceReload, setForceReload] = useState(false)
 
   const canReloadChecklist =
     ['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') &&
     ['PLANNED', 'IN_PROGRESS'].includes(job?.status ?? '')
 
-  const handleReloadChecklist = async () => {
+  const handleReloadChecklist = async (force = false) => {
     setReloadingChecklist(true)
     setConfirmReload(false)
-    const res = await fetch(`/api/jobs/${id}/reload-checklist`, { method: 'POST' })
+    const res = await fetch(`/api/jobs/${id}/reload-checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force }),
+    })
+    if (res.status === 409) {
+      const data = await res.json()
+      if (data.requiresForce) {
+        setConflictError(data.error)
+        setForceReload(true)
+        setReloadingChecklist(false)
+        return
+      }
+    }
     if (res.ok) {
       const updated: Job = await res.json()
       setChecklist(updated.checklistItems.map(i => ({ ...i, status: (i.status as 'open' | 'io' | 'nio') || 'open' })))
+      setConflictError(null)
+      setForceReload(false)
     }
     setReloadingChecklist(false)
   }
@@ -379,6 +399,7 @@ export default function JobInspectionPage() {
       jobMaterials: data.jobMaterials ?? [],
     }
     setJob(typedJob)
+    jobUpdatedAt.current = typedJob.updatedAt
     setJobMaterials(typedJob.jobMaterials)
     setChecklist(typedJob.checklistItems.map(i => ({ ...i, status: (i.status as 'open' | 'io' | 'nio') || (i.checked ? 'io' : 'open') })))
     setFindings(typedJob.findings ?? '')
@@ -386,6 +407,7 @@ export default function JobInspectionPage() {
     setTechSignature(typedJob.technicianSignature ?? '')
     setCustomerSignature(typedJob.customerSignature ?? '')
     setLoading(false)
+    setConflictError(null)
     if (typedJob.status === 'COMPLETED') setStep('summary')
   }, [id])
 
@@ -393,7 +415,8 @@ export default function JobInspectionPage() {
 
   const save = async (extra?: Record<string, unknown>) => {
     setSaving(true)
-    await fetch(`/api/jobs/${id}`, {
+    setConflictError(null)
+    const res = await fetch(`/api/jobs/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -402,10 +425,22 @@ export default function JobInspectionPage() {
         checklistItems: checklist,
         technicianSignature: techSignature,
         customerSignature,
+        clientUpdatedAt: jobUpdatedAt.current,
         ...extra,
       }),
     })
+    if (res.status === 409) {
+      const data = await res.json()
+      setConflictError(data.error)
+      setSaving(false)
+      return false
+    }
+    if (res.ok) {
+      const updated = await res.json()
+      jobUpdatedAt.current = updated.updatedAt
+    }
     setSaving(false)
+    return true
   }
 
   const handlePhotoUpload = async (itemId: string, file: File) => {
@@ -440,8 +475,8 @@ export default function JobInspectionPage() {
   }
 
   const handleComplete = async () => {
-    await save({ complete: true, workTimeEntries: workTimeEntries.filter(e => e.date && e.startTime && e.endTime) })
-    await loadJob()
+    const ok = await save({ complete: true, workTimeEntries: workTimeEntries.filter(e => e.date && e.startTime && e.endTime) })
+    if (ok) await loadJob()
   }
 
   const handleDelete = async () => {
@@ -787,6 +822,41 @@ export default function JobInspectionPage() {
           </div>
         ))}
       </div>
+
+      {/* Conflict banner */}
+      {conflictError && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3">
+          <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <div className="flex-1 text-sm text-amber-800">
+            <p className="font-medium mb-1">Bearbeitungskonflikt</p>
+            <p>{conflictError}</p>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => loadJob()}
+                className="px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                Neu laden
+              </button>
+              {forceReload && (
+                <button
+                  onClick={() => handleReloadChecklist(true)}
+                  className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Trotzdem neu laden (Daten verwerfen)
+                </button>
+              )}
+              <button
+                onClick={() => { setConflictError(null); setForceReload(false) }}
+                className="px-3 py-1.5 bg-white text-amber-700 text-xs font-medium rounded-lg border border-amber-300 hover:bg-amber-50 transition-colors"
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* View toggle */}
       {showMaterialsTab && (

@@ -64,32 +64,40 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
-  // Block if active jobs exist
-  const activeJobs = await prisma.serviceJob.count({
-    where: { customerId: params.id, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
-  })
-  if (activeJobs > 0) {
-    return NextResponse.json(
-      { error: `Kunde hat ${activeJobs} aktive Einsätze und kann nicht gelöscht werden.` },
-      { status: 409 }
-    )
-  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Count inside the transaction to avoid TOCTOU race
+      const activeJobs = await tx.serviceJob.count({
+        where: { customerId: params.id, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+      })
+      if (activeJobs > 0) {
+        throw Object.assign(new Error('ACTIVE_JOBS'), { count: activeJobs })
+      }
 
-  await prisma.$transaction(async (tx) => {
-    // Erst alle Job-Checklisten löschen
-    const jobs = await tx.serviceJob.findMany({
-      where: { customerId: params.id },
-      select: { id: true },
+      // Erst alle Job-Checklisten löschen
+      const jobs = await tx.serviceJob.findMany({
+        where: { customerId: params.id },
+        select: { id: true },
+      })
+      const jobIds = jobs.map(j => j.id)
+      if (jobIds.length > 0) {
+        await tx.checklistItem.deleteMany({ where: { jobId: { in: jobIds } } })
+      }
+      await tx.serviceJob.deleteMany({ where: { customerId: params.id } })
+      await tx.plant.deleteMany({ where: { customerId: params.id } })
+      await tx.opportunity.deleteMany({ where: { customerId: params.id } })
+      await tx.customer.delete({ where: { id: params.id } })
     })
-    const jobIds = jobs.map(j => j.id)
-    if (jobIds.length > 0) {
-      await tx.checklistItem.deleteMany({ where: { jobId: { in: jobIds } } })
+  } catch (err) {
+    const e = err as Error & { count?: number }
+    if (e.message === 'ACTIVE_JOBS') {
+      return NextResponse.json(
+        { error: `Kunde hat ${e.count} aktive Einsätze und kann nicht gelöscht werden.` },
+        { status: 409 }
+      )
     }
-    await tx.serviceJob.deleteMany({ where: { customerId: params.id } })
-    await tx.plant.deleteMany({ where: { customerId: params.id } })
-    await tx.opportunity.deleteMany({ where: { customerId: params.id } })
-    await tx.customer.delete({ where: { id: params.id } })
-  })
+    throw err
+  }
 
   return NextResponse.json({ success: true })
 }

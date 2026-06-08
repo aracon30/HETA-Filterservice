@@ -48,6 +48,18 @@ export async function PUT(
     return NextResponse.json({ error: 'materials muss ein Array sein' }, { status: 400 })
   }
 
+  const clientUpdatedAt = (body as { clientUpdatedAt?: string }).clientUpdatedAt
+  if (clientUpdatedAt) {
+    const current = await prisma.serviceJob.findUnique({ where: { id: params.id }, select: { updatedAt: true } })
+    if (!current) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
+    if (new Date(clientUpdatedAt).getTime() !== current.updatedAt.getTime()) {
+      return NextResponse.json(
+        { error: 'Konflikt: Der Einsatz wurde zwischenzeitlich von jemand anderem geändert. Bitte Seite neu laden.' },
+        { status: 409 }
+      )
+    }
+  }
+
   const updated = await prisma.$transaction([
     prisma.jobMaterial.deleteMany({ where: { jobId: params.id } }),
     prisma.jobMaterial.createMany({
