@@ -19,8 +19,9 @@ const reactPdfPackages = [
 
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
-  // Tell Next.js NOT to bundle these ESM-only packages — let Node.js load them natively
-  serverExternalPackages: reactPdfPackages,
+  // Tell Next.js NOT to bundle these ESM-only packages — let Node.js load them natively.
+  // react/react-dom must also be external so @react-pdf and our template share one React instance.
+  serverExternalPackages: [...reactPdfPackages, 'react', 'react-dom'],
   webpack: (config) => {
     config.resolve.alias['@'] = path.resolve(__dirname)
     return config
