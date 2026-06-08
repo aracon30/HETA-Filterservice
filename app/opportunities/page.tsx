@@ -35,7 +35,7 @@ interface Suggestion {
   id: string
   title: string
   reason: string
-  nokItems: Array<{ label: string; section: string }>
+  nokItems: Array<{ label: string; section: string; comment: string | null }>
   notes: string | null
   customerId: string
   customerName: string
@@ -43,6 +43,7 @@ interface Suggestion {
   plantName: string | null
   plantType: string | null
   sourceJobId: string
+  sourceJobNumber: string
   source: string
   alreadyConverted: boolean
 }
@@ -227,18 +228,24 @@ function SuggestionCard({ s, onConvert }: { s: Suggestion; onConvert: (s: Sugges
           <p className="text-sm font-medium text-gray-900">{s.title}</p>
           <p className="text-xs text-gray-500 mt-0.5">{s.reason}</p>
           {s.nokItems.length > 0 && (
-            <div className="mt-2 space-y-0.5">
-              {s.nokItems.slice(0, 3).map((item, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-xs text-red-600">
-                  <AlertTriangle size={10} /> {item.section ? `${item.section}: ` : ''}{item.label}
+            <div className="mt-2 space-y-1.5">
+              {s.nokItems.map((item, i) => (
+                <div key={i} className="text-xs">
+                  <div className="flex items-start gap-1.5 text-red-600">
+                    <AlertTriangle size={10} className="mt-0.5 shrink-0" />
+                    <span className="font-medium">{item.section ? `${item.section}: ` : ''}{item.label}</span>
+                  </div>
+                  {item.comment && (
+                    <p className="ml-4 text-gray-600 italic mt-0.5">{item.comment}</p>
+                  )}
                 </div>
               ))}
-              {s.nokItems.length > 3 && <p className="text-xs text-gray-400">+{s.nokItems.length - 3} weitere</p>}
             </div>
           )}
           {s.notes && (
             <p className="mt-2 text-xs text-gray-600 italic line-clamp-2">&quot;{s.notes}&quot;</p>
           )}
+          <p className="mt-2 text-xs text-gray-400">Aus Einsatz: {s.sourceJobNumber}</p>
         </div>
         {!s.alreadyConverted && (
           <button onClick={() => onConvert(s)}
@@ -311,6 +318,17 @@ export default function VertriebPage() {
   }
 
   async function handleConvertSuggestion(s: Suggestion) {
+    const noteParts: string[] = []
+    if (s.nokItems.length > 0) {
+      noteParts.push(`n.i.O.-Punkte aus Einsatz ${s.sourceJobNumber}:`)
+      s.nokItems.forEach(item => {
+        const label = item.section ? `${item.section}: ${item.label}` : item.label
+        noteParts.push(item.comment ? `• ${label} — ${item.comment}` : `• ${label}`)
+      })
+    }
+    if (s.notes) noteParts.push(noteParts.length > 0 ? `\nBefunde: ${s.notes}` : s.notes)
+    const notes = noteParts.join('\n') || null
+
     const res = await fetch('/api/opportunities/suggestions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -320,7 +338,7 @@ export default function VertriebPage() {
         plantId: s.plantId,
         sourceJobId: s.sourceJobId,
         source: s.source,
-        notes: s.notes,
+        notes,
       }),
     })
     if (res.ok) {
