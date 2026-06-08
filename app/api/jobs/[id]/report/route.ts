@@ -88,7 +88,9 @@ export async function GET(
       },
     })
   } catch (err) {
-    console.error('[report] PDF generation failed:', err)
-    return NextResponse.json({ error: 'PDF-Erstellung fehlgeschlagen' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : undefined
+    console.error('[report] PDF generation failed:', msg, stack)
+    return NextResponse.json({ error: 'PDF-Erstellung fehlgeschlagen', detail: msg }, { status: 500 })
   }
 }
