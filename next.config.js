@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const path = require('path')
 
+// Keep @react-pdf packages as server-external so webpack doesn't try to bundle
+// them (they have native Node.js dependencies). react/react-dom must NOT be
+// external — webpack bundles them so the whole app uses one consistent instance.
 const reactPdfPackages = [
   '@react-pdf/renderer',
   '@react-pdf/fns',
@@ -19,13 +22,10 @@ const reactPdfPackages = [
 
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
-  // Tell Next.js NOT to bundle these ESM-only packages — let Node.js load them natively.
-  // react/react-dom must also be external so @react-pdf and our template share one React instance.
-  serverExternalPackages: [...reactPdfPackages, 'react', 'react-dom'],
+  serverExternalPackages: reactPdfPackages,
   webpack: (config) => {
     config.resolve.alias['@'] = path.resolve(__dirname)
     return config
   },
 }
 module.exports = nextConfig
-
