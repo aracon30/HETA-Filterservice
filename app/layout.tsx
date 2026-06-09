@@ -7,8 +7,8 @@ import LayoutShell from '@/components/LayoutShell'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'HETA ServiceHub',
-  description: 'Serviceplattform für Filtrationssysteme',
+  title: 'HETA Verfahrenstechnik GmbH',
+  description: 'Serviceplattform – HETA Verfahrenstechnik GmbH, Gottlieb-Daimler-Str. 7, D-35423 Lich',
 }
 
 export default function RootLayout({

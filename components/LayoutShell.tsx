@@ -45,7 +45,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <span className="font-bold text-sm text-slate-900">HETA ServiceHub</span>
+            <span className="font-bold text-sm text-slate-900">HETA Verfahrenstechnik</span>
           </div>
         </header>
 
