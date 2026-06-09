@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
@@ -9,6 +9,7 @@ type Step = { step: string; output: string; error?: boolean }
 const STEP_ICONS: Record<string, string> = {
   'Projektverzeichnis': '📁',
   'Version vor Update': '🏷️',
+  'Pakete geändert?': '📦',
   'Git Fetch': '📡',
   'Git Flags zurücksetzen': '🔓',
   'Git Sparse-Checkout deaktivieren': '🔓',
@@ -16,8 +17,9 @@ const STEP_ICONS: Record<string, string> = {
   'Änderungen (letzte 10 Commits)': '📋',
   'Datei-Check': '🔍',
   'Cache leeren': '🗑️',
+  'Cache leeren (.next)': '🗑️',
   'node_modules entfernen': '🗑️',
-  'npm install': '📦',
+  'npm ci': '📦',
   'Prisma generate': '🔧',
   'Prisma db push': '🗄️',
   'Build': '🏗️',
@@ -31,20 +33,20 @@ export default function UpdatePage() {
   const [running, setRunning] = useState(false)
   const [steps, setSteps] = useState<Step[]>([])
   const [done, setDone] = useState<boolean | null>(null)
-  const [currentTime, setCurrentTime] = useState('')
   const [elapsed, setElapsed] = useState(0)
+  const logEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setCurrentTime(new Date().toLocaleString('de-DE'))
-  }, [])
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [steps])
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>
     if (running) {
       const start = Date.now()
-      timer = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - start) / 1000))
-      }, 1000)
+      timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
     } else {
       setElapsed(0)
     }
@@ -63,30 +65,65 @@ export default function UpdatePage() {
     setDone(null)
 
     const res = await fetch('/api/admin/update', { method: 'POST' })
-    const data = await res.json()
-    setSteps(data.steps ?? [])
-    setDone(data.success)
-    setRunning(false)
+    if (!res.ok || !res.body) {
+      setDone(false)
+      setRunning(false)
+      return
+    }
 
-    if (data.success) {
-      setTimeout(() => window.location.replace('/'), 4000)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done: streamDone, value } = await reader.read()
+      if (streamDone) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() ?? ''
+
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue
+        try {
+          const parsed = JSON.parse(part.slice(6))
+          if (parsed.done !== undefined) {
+            setDone(parsed.done)
+          } else {
+            setSteps(prev => [...prev, parsed as Step])
+          }
+        } catch {
+          // malformed chunk — ignore
+        }
+      }
+    }
+
+    setRunning(false)
+    if (done !== false) {
+      // done state already set via stream; redirect on success
     }
   }
+
+  // Redirect after success once stream closed
+  useEffect(() => {
+    if (done === true) {
+      const t = setTimeout(() => window.location.replace('/'), 4000)
+      return () => clearTimeout(t)
+    }
+  }, [done])
 
   const successCount = steps.filter(s => !s.error).length
   const errorCount = steps.filter(s => s.error).length
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Server-Update</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Zieht den neuesten Stand von Git, installiert Abhängigkeiten, führt Datenbank-Migration durch, baut die App neu und startet den Server neu.
+          Zieht den neuesten Stand von Git, installiert Abhängigkeiten (nur bei Änderungen), führt Datenbank-Migration durch, baut die App neu und startet den Server neu.
         </p>
       </div>
 
-      {/* Info card */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex gap-3">
         <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -94,14 +131,14 @@ export default function UpdatePage() {
         <div className="text-sm text-amber-800 space-y-1">
           <p className="font-semibold">Hinweise vor dem Update</p>
           <ul className="list-disc list-inside text-amber-700 space-y-0.5">
-            <li>Der Dienst ist während des Builds (~2–5 Min.) kurzzeitig nicht erreichbar</li>
+            <li>Der Dienst ist während des Builds (~1–5 Min.) kurzzeitig nicht erreichbar</li>
             <li>Daten in der Datenbank bleiben vollständig erhalten</li>
             <li>Update zieht immer den neuesten Stand aus dem <strong>main</strong>-Branch</li>
+            <li>node_modules wird nur neu installiert wenn sich Pakete geändert haben</li>
           </ul>
         </div>
       </div>
 
-      {/* Action button */}
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={runUpdate}
@@ -114,7 +151,7 @@ export default function UpdatePage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
-              Update läuft... ({elapsed}s)
+              Update läuft… ({elapsed}s)
             </>
           ) : (
             <>
@@ -127,13 +164,12 @@ export default function UpdatePage() {
         </button>
         {running && (
           <p className="text-sm text-gray-500 animate-pulse">
-            Bitte warten — dies kann mehrere Minuten dauern…
+            Schritte erscheinen live — bitte warten…
           </p>
         )}
       </div>
 
-      {/* Progress summary */}
-      {steps.length > 0 && !running && (
+      {done !== null && !running && (
         <div className={`flex items-center gap-3 px-4 py-3 rounded-xl mb-4 font-medium text-sm ${done ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}`}>
           {done ? (
             <>
@@ -153,7 +189,6 @@ export default function UpdatePage() {
         </div>
       )}
 
-      {/* Step log */}
       {steps.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Protokoll</p>
@@ -173,6 +208,7 @@ export default function UpdatePage() {
               )}
             </div>
           ))}
+          <div ref={logEndRef} />
         </div>
       )}
     </div>
