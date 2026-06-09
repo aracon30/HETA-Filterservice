@@ -7,6 +7,8 @@ import { getChecklistForPlantType } from '@/lib/plant-types'
 import { JobStatus } from '@prisma/client'
 import { checkPermission, getScopeFilter } from '@/lib/permissions'
 
+const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
       customer: { select: { id: true, name: true } },
       plants: { include: { plant: { select: { id: true, name: true, type: true } } }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
-      jobMaterials: { select: { status: true } },
+      jobMaterials: EXTERNAL_ROLES.includes(session.user.role as string) ? false : { select: { status: true } },
     },
     orderBy: { scheduledAt: 'desc' },
   })

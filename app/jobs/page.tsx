@@ -241,7 +241,7 @@ function JobsPageInner() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2 flex-wrap">
                           <StatusBadge status={job.status} />
-                          {job.status === 'PLANNED' && <MaterialBadge materials={job.jobMaterials} />}
+                          {job.status === 'PLANNED' && !isExternal && <MaterialBadge materials={job.jobMaterials} />}
                         </div>
                       </td>
                       {!isExternal && (
