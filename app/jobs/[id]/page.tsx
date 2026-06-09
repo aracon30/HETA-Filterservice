@@ -307,6 +307,7 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading }: {
   onChange: (update: Partial<ChecklistItem>) => void
   onPhotoUpload: (itemId: string, file: File) => void
   uploading: string | null
+  onDelete?: () => void
 }) {
   return (
     <div className={`p-4 rounded-lg border transition-colors ${
@@ -318,7 +319,7 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading }: {
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-800">{item.label}</p>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-2 flex-shrink-0 items-center">
           <button
             type="button"
             onClick={() => onChange({ status: item.status === 'io' ? 'open' : 'io' })}
@@ -341,6 +342,15 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading }: {
           >
             n.i.O.
           </button>
+          {onDelete && (
+            <button type="button" onClick={onDelete}
+              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Punkt entfernen">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -445,6 +455,10 @@ export default function JobInspectionPage() {
   const [confirmReload, setConfirmReload] = useState(false)
   const [forceReload, setForceReload] = useState(false)
 
+  const [showAddCustomItem, setShowAddCustomItem] = useState(false)
+  const [newCustomItemLabel, setNewCustomItemLabel] = useState('')
+  const [deletedChecklistItemIds, setDeletedChecklistItemIds] = useState<Set<string>>(new Set())
+
   const canReloadChecklist =
     ['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') &&
     ['PLANNED', 'IN_PROGRESS'].includes(job?.status ?? '')
@@ -508,7 +522,9 @@ export default function JobInspectionPage() {
       body: JSON.stringify({
         findings,
         recommendations,
-        checklistItems: checklist,
+        checklistItems: checklist.filter(i => !i.id.startsWith('__new__')),
+        newChecklistItems: checklist.filter(i => i.id.startsWith('__new__')).map(i => ({ label: i.label, section: i.section, plantId: i.plantId, status: i.status, comment: i.comment })),
+        deletedChecklistItemIds: [...deletedChecklistItemIds],
         technicianSignature: techSignature,
         customerSignature,
         clientUpdatedAt: jobUpdatedAt.current,
@@ -524,6 +540,10 @@ export default function JobInspectionPage() {
     if (res.ok) {
       const updated = await res.json()
       jobUpdatedAt.current = updated.updatedAt
+      if (updated.checklistItems) {
+        setChecklist(updated.checklistItems.map((i: ChecklistItem) => ({ ...i, status: (i.status as 'open' | 'io' | 'nio') || 'open' })))
+        setDeletedChecklistItemIds(new Set())
+      }
     }
     setSaving(false)
     return true
@@ -600,7 +620,7 @@ export default function JobInspectionPage() {
   const plantOrder: string[] = []
   const plantSections: Record<string, Record<string, ChecklistItem[]>> = {}
 
-  checklist.forEach(item => {
+  checklist.filter(item => item.section !== 'Einsatzspezifisch').forEach(item => {
     const pid = item.plantId ?? null
     const key = pid ?? '__none__'
     if (!plantSections[key]) {
@@ -1354,6 +1374,111 @@ export default function JobInspectionPage() {
               })}
             </div>
           ))}
+
+          {/* Job-specific checklist items */}
+          <div className="bg-white border border-purple-200 rounded-xl overflow-hidden mb-3">
+            <div className="px-4 py-3 bg-purple-50 border-b border-purple-200 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                Einsatzspezifisch
+              </h4>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700`}>
+                  {checklist.filter(i => i.section === 'Einsatzspezifisch' && !i.id.startsWith('__deleted__')).length}
+                </span>
+                {!showAddCustomItem && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomItem(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-purple-700 bg-white border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Hinzufügen
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-3 space-y-2">
+              {checklist.filter(i => i.section === 'Einsatzspezifisch').map(item => (
+                <InspectionItemRow
+                  key={item.id}
+                  item={item}
+                  onChange={update => updateItem(item.id, update)}
+                  onPhotoUpload={handlePhotoUpload}
+                  uploading={uploadingItem}
+                  onDelete={() => {
+                    if (!item.id.startsWith('__new__')) {
+                      setDeletedChecklistItemIds(prev => new Set([...prev, item.id]))
+                    }
+                    setChecklist(prev => prev.filter(i => i.id !== item.id))
+                  }}
+                />
+              ))}
+              {checklist.filter(i => i.section === 'Einsatzspezifisch').length === 0 && !showAddCustomItem && (
+                <p className="text-xs text-gray-400 py-2 text-center">Keine einsatzspezifischen Punkte.</p>
+              )}
+              {showAddCustomItem && (
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                  <input
+                    type="text"
+                    placeholder="Bezeichnung des Prüfpunkts *"
+                    value={newCustomItemLabel}
+                    onChange={e => setNewCustomItemLabel(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newCustomItemLabel.trim()) {
+                        setChecklist(prev => [...prev, {
+                          id: `__new__${Date.now()}`,
+                          label: newCustomItemLabel.trim(),
+                          section: 'Einsatzspezifisch',
+                          plantId: null,
+                          status: 'open',
+                          checked: false,
+                          comment: null,
+                          photoUrl: null,
+                        }])
+                        setNewCustomItemLabel('')
+                        setShowAddCustomItem(false)
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white mb-2"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newCustomItemLabel.trim()) return
+                        setChecklist(prev => [...prev, {
+                          id: `__new__${Date.now()}`,
+                          label: newCustomItemLabel.trim(),
+                          section: 'Einsatzspezifisch',
+                          plantId: null,
+                          status: 'open',
+                          checked: false,
+                          comment: null,
+                          photoUrl: null,
+                        }])
+                        setNewCustomItemLabel('')
+                        setShowAddCustomItem(false)
+                      }}
+                      className="flex-1 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Hinzufügen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddCustomItem(false); setNewCustomItemLabel('') }}
+                      className="px-4 py-1.5 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="flex gap-3">
             <button onClick={() => setStep('verify')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">

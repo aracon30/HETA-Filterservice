@@ -47,6 +47,7 @@ export async function PUT(
   const body = await request.json()
   const {
     status, findings, recommendations, checklistItems,
+    newChecklistItems, deletedChecklistItemIds,
     duration, vehicles, scheduledAt, technicianIds,
     technicianSignature, customerSignature, complete, workTimeEntries,
     clientUpdatedAt,
@@ -96,6 +97,24 @@ export async function PUT(
           data: techUsers.map((t, idx) => ({ jobId: params.id, userId: t.id, userName: t.name, order: idx })),
         })
       }
+    }
+
+    if (deletedChecklistItemIds && Array.isArray(deletedChecklistItemIds) && deletedChecklistItemIds.length > 0) {
+      await tx.checklistItem.deleteMany({ where: { id: { in: deletedChecklistItemIds }, jobId: params.id } })
+    }
+
+    if (newChecklistItems && Array.isArray(newChecklistItems) && newChecklistItems.length > 0) {
+      await tx.checklistItem.createMany({
+        data: newChecklistItems.map((item: { label: string; section?: string | null; plantId?: string | null; status?: string; comment?: string | null }) => ({
+          jobId: params.id,
+          label: item.label,
+          section: item.section ?? null,
+          plantId: item.plantId ?? null,
+          status: item.status ?? 'open',
+          checked: item.status === 'io',
+          comment: item.comment ?? null,
+        })),
+      })
     }
 
     if (checklistItems && Array.isArray(checklistItems)) {
