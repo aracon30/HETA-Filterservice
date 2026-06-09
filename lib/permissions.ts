@@ -1,22 +1,69 @@
 import { UserRole } from '@prisma/client'
 import { Session } from 'next-auth'
-import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
 export type Resource = 'customers' | 'plants' | 'jobs' | 'checklist' | 'opportunities' | 'users'
 export type Action = 'view' | 'create' | 'edit' | 'delete'
 
-// Fetch role-level permissions from DB with caching
-export const getPermissions = unstable_cache(
-  async (role: UserRole, resource: Resource) => {
-    const perm = await prisma.rolePermission.findUnique({
-      where: { role_resource: { role, resource } },
-    })
-    return perm
+type PermEntry = {
+  canView: boolean
+  canCreate: boolean
+  canEdit: boolean
+  canDelete: boolean
+  scope: string
+}
+
+// Hardcoded role permissions — edit here to change defaults
+export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
+  ADMIN: {
+    customers:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    plants:        { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    jobs:          { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    checklist:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    opportunities: { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    users:         { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
   },
-  ['role-permissions'],
-  { revalidate: 60 }
-)
+  SERVICE_MANAGER: {
+    customers:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    plants:        { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    jobs:          { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    checklist:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    opportunities: { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    users:         { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+  },
+  SERVICE_TECHNICIAN: {
+    customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    plants:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    jobs:          { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, scope: 'all' },
+    checklist:     { canView: true,  canCreate: false, canEdit: true,  canDelete: false, scope: 'all' },
+    opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+  },
+  MAINTENANCE_MANAGER: {
+    customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    plants:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    jobs:          { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    checklist:     { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+  },
+  MAINTENANCE_TECHNICIAN: {
+    customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    plants:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    jobs:          { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    checklist:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+  },
+  BUYER: {
+    customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    plants:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    jobs:          { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    checklist:     { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+  },
+}
 
 // Fetch user-specific permissions (overrides role defaults)
 async function getUserPermission(userId: string, resource: Resource) {
@@ -26,7 +73,6 @@ async function getUserPermission(userId: string, resource: Resource) {
 }
 
 // Check if the session user can perform an action on a resource
-// User-specific permissions take precedence over role defaults
 export async function checkPermission(
   session: Session | null,
   resource: Resource,
@@ -36,10 +82,9 @@ export async function checkPermission(
 
   const role = session.user.role as UserRole
 
-  // Admin always has full access
   if (role === 'ADMIN') return true
 
-  // Check user-specific permissions first
+  // User-specific overrides take precedence
   const userId = session.user.id
   if (userId) {
     const userPerm = await getUserPermission(userId, resource)
@@ -54,8 +99,8 @@ export async function checkPermission(
     }
   }
 
-  // Fall back to role permissions
-  const perm = await getPermissions(role, resource)
+  // Fall back to hardcoded role permissions
+  const perm = ROLE_PERMISSIONS[role]?.[resource]
   if (!perm) return false
 
   switch (action) {
@@ -70,42 +115,25 @@ export async function checkPermission(
 // Returns a Prisma where-clause to scope queries for external users
 export function getScopeFilter(
   session: Session | null,
-  resource: Resource,
-  scope: string | null
+  resource: Resource
 ): Record<string, unknown> {
   if (!session?.user) return {}
 
   const role = session.user.role as UserRole
   const customerId = session.user.customerId
 
-  // Internal roles without a customer binding — no filter needed
-  if (role === 'ADMIN' || role === 'SERVICE_MANAGER') {
-    return {}
-  }
-  // SERVICE_TECHNICIAN is internal only if no customerId is set
-  if (role === 'SERVICE_TECHNICIAN' && !customerId) {
-    return {}
-  }
+  if (role === 'ADMIN' || role === 'SERVICE_MANAGER') return {}
+  if (role === 'SERVICE_TECHNICIAN' && !customerId) return {}
 
-  if (!customerId) return { id: 'NONE' } // external user without customer → block all
+  if (!customerId) return { id: 'NONE' }
 
-  if (scope === 'own_company') {
-    // Filter by customerId
+  const scope = ROLE_PERMISSIONS[role]?.[resource]?.scope ?? 'all'
+
+  if (scope === 'own_company' || scope === 'own_plant') {
     if (resource === 'customers') return { id: customerId }
     if (resource === 'plants') return { customerId }
     if (resource === 'jobs') return { customerId }
     if (resource === 'opportunities') return { customerId }
-    return {}
-  }
-
-  if (scope === 'own_plant') {
-    // MAINTENANCE_TECHNICIAN — scoped to customer (plant-level would need plantId in session)
-    if (resource === 'plants') return { customerId }
-    if (resource === 'jobs') return { customerId }
-    if (resource === 'checklist') {
-      // checklist items are fetched via job, filter happens at job level
-      return {}
-    }
     return {}
   }
 

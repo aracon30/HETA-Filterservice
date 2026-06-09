@@ -46,20 +46,6 @@ model UserPermission {
   @@unique([userId, resource])
 }
 
-model RolePermission {
-  id        String   @id @default(cuid())
-  role      UserRole
-  resource  String
-  canView   Boolean  @default(false)
-  canCreate Boolean  @default(false)
-  canEdit   Boolean  @default(false)
-  canDelete Boolean  @default(false)
-  scope     String   @default("all")
-  updatedAt DateTime @updatedAt
-
-  @@unique([role, resource])
-}
-
 model Customer {
   id            String        @id @default(cuid())
   name          String

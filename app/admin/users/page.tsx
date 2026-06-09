@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { ROLE_PERMISSIONS } from '@/lib/permissions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,15 +28,6 @@ type PermRow = {
   canEdit: boolean | null
   canDelete: boolean | null
   scope: string | null
-}
-
-type RolePerm = {
-  resource: string
-  canView: boolean
-  canCreate: boolean
-  canEdit: boolean
-  canDelete: boolean
-  scope: string
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -101,12 +93,12 @@ const EXTERNAL_ONLY_RESOURCES = ['opportunities', 'users']
 
 function PermissionMatrix({
   userId,
-  rolePerms,
+  userRole,
   isExternal,
   onClose,
 }: {
   userId: string
-  rolePerms: RolePerm[]
+  userRole: string
   isExternal: boolean
   onClose: () => void
 }) {
@@ -124,15 +116,19 @@ function PermissionMatrix({
       })
   }, [userId])
 
+  function roleDefault(resource: string, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'scope') {
+    const rp = ROLE_PERMISSIONS[userRole]?.[resource]
+    if (!rp) return field === 'scope' ? 'all' : false
+    return rp[field]
+  }
+
   // Effective value: user override or role default
   function effective(row: PermRow, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'scope') {
     if (row.hasOverride) {
       if (field === 'scope') return row.scope ?? 'all'
       return row[field] ?? false
     }
-    const rp = rolePerms.find(r => r.resource === row.resource)
-    if (!rp) return field === 'scope' ? 'all' : false
-    return rp[field]
+    return roleDefault(row.resource, field)
   }
 
   function toggle(resource: string, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete') {
@@ -142,11 +138,11 @@ function PermissionMatrix({
       return {
         ...row,
         hasOverride: true,
-        canView: row.hasOverride ? row.canView : (rolePerms.find(r => r.resource === resource)?.canView ?? false),
-        canCreate: row.hasOverride ? row.canCreate : (rolePerms.find(r => r.resource === resource)?.canCreate ?? false),
-        canEdit: row.hasOverride ? row.canEdit : (rolePerms.find(r => r.resource === resource)?.canEdit ?? false),
-        canDelete: row.hasOverride ? row.canDelete : (rolePerms.find(r => r.resource === resource)?.canDelete ?? false),
-        scope: row.scope ?? rolePerms.find(r => r.resource === resource)?.scope ?? 'all',
+        canView: row.hasOverride ? row.canView : (roleDefault(resource, 'canView') as boolean),
+        canCreate: row.hasOverride ? row.canCreate : (roleDefault(resource, 'canCreate') as boolean),
+        canEdit: row.hasOverride ? row.canEdit : (roleDefault(resource, 'canEdit') as boolean),
+        canDelete: row.hasOverride ? row.canDelete : (roleDefault(resource, 'canDelete') as boolean),
+        scope: row.scope ?? (roleDefault(resource, 'scope') as string),
         [field]: !current,
       }
     }))
@@ -158,10 +154,10 @@ function PermissionMatrix({
       return {
         ...row,
         hasOverride: true,
-        canView: row.hasOverride ? row.canView : (rolePerms.find(r => r.resource === resource)?.canView ?? false),
-        canCreate: row.hasOverride ? row.canCreate : (rolePerms.find(r => r.resource === resource)?.canCreate ?? false),
-        canEdit: row.hasOverride ? row.canEdit : (rolePerms.find(r => r.resource === resource)?.canEdit ?? false),
-        canDelete: row.hasOverride ? row.canDelete : (rolePerms.find(r => r.resource === resource)?.canDelete ?? false),
+        canView: row.hasOverride ? row.canView : (roleDefault(resource, 'canView') as boolean),
+        canCreate: row.hasOverride ? row.canCreate : (roleDefault(resource, 'canCreate') as boolean),
+        canEdit: row.hasOverride ? row.canEdit : (roleDefault(resource, 'canEdit') as boolean),
+        canDelete: row.hasOverride ? row.canDelete : (roleDefault(resource, 'canDelete') as boolean),
         scope,
       }
     }))
@@ -208,7 +204,7 @@ function PermissionMatrix({
     <div className="p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs text-gray-500">
-          Individuelle Rechte — überschreiben die Rollen-Standards.
+          Individuelle Rechte — überschreiben die Rollen-Standardrechte.
           <span className="ml-1 text-gray-400">Grau = Rollen-Standard</span>
         </p>
       </div>
@@ -275,7 +271,7 @@ function PermissionMatrix({
                       <button
                         onClick={() => resetToRole(row.resource)}
                         className="text-gray-400 hover:text-red-500 text-xs"
-                        title="Auf Rollen-Standard zurücksetzen"
+                        title="Auf Standard zurücksetzen"
                       >
                         ↺
                       </button>
@@ -312,7 +308,6 @@ function UserCard({
   user,
   canEditRole,
   customers,
-  rolePerms,
   onEdit,
   onToggle,
   onDelete,
@@ -320,7 +315,6 @@ function UserCard({
   user: User
   canEditRole: boolean
   customers: Customer[]
-  rolePerms: RolePerm[]
   onEdit: (u: User) => void
   onToggle: (u: User) => void
   onDelete: (u: User) => void
@@ -399,7 +393,7 @@ function UserCard({
         <div className="border-t border-gray-100">
           <PermissionMatrix
             userId={user.id}
-            rolePerms={rolePerms}
+            userRole={user.role}
             isExternal={isExternal}
             onClose={() => setShowPerms(false)}
           />
@@ -414,7 +408,6 @@ function UserCard({
 function CustomerGroup({
   customer,
   users,
-  rolePerms,
   customers,
   onEdit,
   onToggle,
@@ -423,7 +416,6 @@ function CustomerGroup({
 }: {
   customer: Customer
   users: User[]
-  rolePerms: RolePerm[]
   customers: Customer[]
   onEdit: (u: User) => void
   onToggle: (u: User) => void
@@ -471,7 +463,6 @@ function CustomerGroup({
                 user={u}
                 canEditRole={true}
                 customers={customers}
-                rolePerms={rolePerms}
                 onEdit={onEdit}
                 onToggle={onToggle}
                 onDelete={onDelete}
@@ -500,7 +491,6 @@ export default function UsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [rolePerms, setRolePerms] = useState<RolePerm[]>([])
   const [loading, setLoading] = useState(true)
 
   // Form state
@@ -515,14 +505,12 @@ export default function UsersPage() {
   const currentRole = session?.user?.role as string | undefined
 
   const loadAll = useCallback(async () => {
-    const [uRes, cRes, pRes] = await Promise.all([
+    const [uRes, cRes] = await Promise.all([
       fetch('/api/users'),
       fetch('/api/customers'),
-      fetch('/api/permissions'),
     ])
     if (uRes.ok) setUsers(await uRes.json())
     if (cRes.ok) setCustomers(await cRes.json())
-    if (pRes.ok) setRolePerms(await pRes.json())
     setLoading(false)
   }, [])
 
@@ -618,11 +606,6 @@ export default function UsersPage() {
   const internalUsers = users.filter(u => INTERNAL_ROLES.includes(u.role))
   const externalUsers = users.filter(u => EXTERNAL_ROLES.includes(u.role))
 
-  // Get rolePerms for a given role
-  function permsForRole(role: string): RolePerm[] {
-    return rolePerms.filter((p: any) => p.role === role)
-  }
-
   // (customers list already contains all relevant companies)
 
   return (
@@ -690,7 +673,6 @@ export default function UsersPage() {
                         user={u}
                         canEditRole={role !== 'ADMIN'}
                         customers={customers}
-                        rolePerms={permsForRole(u.role)}
                         onEdit={openEdit}
                         onToggle={toggleActive}
                         onDelete={deleteUser}
@@ -730,7 +712,6 @@ export default function UsersPage() {
                   key={c.id}
                   customer={c}
                   users={cusUsers}
-                  rolePerms={rolePerms.filter((p: any) => EXTERNAL_ROLES.includes(p.role))}
                   customers={customers}
                   onEdit={openEdit}
                   onToggle={toggleActive}
@@ -753,7 +734,6 @@ export default function UsersPage() {
                         user={u}
                         canEditRole={true}
                         customers={customers}
-                        rolePerms={permsForRole(u.role)}
                         onEdit={openEdit}
                         onToggle={toggleActive}
                         onDelete={deleteUser}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
+import { checkPermission, getScopeFilter } from '@/lib/permissions'
 import { JobStatus } from '@prisma/client'
 import { addMinutes } from 'date-fns'
 
@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
   const technician = searchParams.get('technician')
   const status = searchParams.get('status')
 
-  const perm = await getPermissions(session.user.role, 'jobs')
-  const scopeFilter = getScopeFilter(session, 'jobs', perm?.scope ?? null)
+  const scopeFilter = getScopeFilter(session, 'jobs')
 
   const where: Record<string, unknown> = { ...scopeFilter }
 
