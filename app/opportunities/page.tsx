@@ -127,7 +127,7 @@ function OpportunityModal({
             <input value={form.title} onChange={e => set('title', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Kunde *</label>
               <select value={form.customerId} onChange={e => set('customerId', e.target.value)}
@@ -145,7 +145,7 @@ function OpportunityModal({
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Wert (€)</label>
               <input type="number" value={form.value} onChange={e => set('value', e.target.value)}
@@ -157,7 +157,7 @@ function OpportunityModal({
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="50" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phase</label>
               <select value={form.stage} onChange={e => set('stage', e.target.value)}
@@ -373,7 +373,7 @@ export default function VertriebPage() {
     <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
               <TrendingUp size={22} className="text-blue-600" /> Vertrieb
@@ -381,7 +381,7 @@ export default function VertriebPage() {
             <p className="text-sm text-gray-500 mt-0.5">Pipeline-Management und Vertriebschancen</p>
           </div>
           <button onClick={() => setModal({ open: true, opp: null })}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 self-start sm:self-auto">
             <Plus size={16} /> Neue Chance
           </button>
         </div>
@@ -428,14 +428,14 @@ export default function VertriebPage() {
 
         {/* Kanban View */}
         {view === 'kanban' && (
-          <div className="flex gap-4 h-full min-h-[500px]">
+          <div className="flex flex-col md:flex-row gap-4 h-full min-h-[500px] overflow-x-auto">
             {STAGES.filter(s => s !== 'LOST').map(stage => {
               const cfg = STAGE_CONFIG[stage]
               const stageOpps = opportunities.filter(o => o.stage === stage)
               const stageValue = stageOpps.reduce((s, o) => s + (o.value || 0), 0)
               return (
                 <div key={stage}
-                  className={`flex-1 min-w-[200px] flex flex-col rounded-xl border-2 ${dragOver === stage ? 'border-blue-400 bg-blue-50/50' : 'border-gray-200 bg-white'} transition-colors`}
+                  className={`flex-1 min-w-full md:min-w-[200px] flex flex-col rounded-xl border-2 ${dragOver === stage ? 'border-blue-400 bg-blue-50/50' : 'border-gray-200 bg-white'} transition-colors`}
                   onDragOver={e => { e.preventDefault(); setDragOver(stage) }}
                   onDragLeave={() => setDragOver(null)}
                   onDrop={e => { e.preventDefault(); setDragOver(null); handleDrop(e.dataTransfer.getData('oppId'), stage) }}>
@@ -498,16 +498,16 @@ export default function VertriebPage() {
 
         {/* Table View */}
         {view === 'table' && (
-          <div className="bg-white rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="bg-gray-50 border-b">
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Titel</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Kunde / Anlage</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Wert</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Phase</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Abschluss</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Quelle</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Abschluss</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">Quelle</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -519,10 +519,10 @@ export default function VertriebPage() {
                       <p className="text-gray-800">{opp.customer.name}</p>
                       {opp.plant && <p className="text-xs text-gray-400">{opp.plant.name || opp.plant.type}</p>}
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{fmt(opp.value)}</td>
+                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{fmt(opp.value)}</td>
                     <td className="px-4 py-3"><StageBadge stage={opp.stage} /></td>
-                    <td className="px-4 py-3 text-gray-500">{fmtDate(opp.expectedCloseAt)}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{SOURCE_CONFIG[opp.source]?.icon} {SOURCE_CONFIG[opp.source]?.label}</td>
+                    <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{fmtDate(opp.expectedCloseAt)}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">{SOURCE_CONFIG[opp.source]?.icon} {SOURCE_CONFIG[opp.source]?.label}</td>
                     <td className="px-4 py-3">
                       <Edit3 size={14} className="text-gray-400 hover:text-blue-600" />
                     </td>
