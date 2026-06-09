@@ -29,6 +29,8 @@ model User {
   updatedAt       DateTime         @updatedAt
   technicianAssignments ServiceJobTechnician[] @relation("TechnicianAssignments")
   userPermissions UserPermission[]
+  defaultForPlants    Plant[]           @relation("PlantDefaultTechnician")
+  externalPlants      PlantExternalUser[]
 }
 
 model UserPermission {
@@ -44,6 +46,16 @@ model UserPermission {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, resource])
+}
+
+model PlantExternalUser {
+  id      String @id @default(cuid())
+  plantId String
+  userId  String
+  plant   Plant  @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([plantId, userId])
 }
 
 model Customer {
@@ -136,6 +148,9 @@ model Plant {
   materials         PlantMaterial[]
   opportunities     Opportunity[]
   documents         PlantDocument[]
+  defaultTechnicianId String?
+  defaultTechnician   User?             @relation("PlantDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: SetNull)
+  externalUsers       PlantExternalUser[]
 }
 
 enum DocumentType {
