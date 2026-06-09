@@ -31,7 +31,17 @@ export default async function DashboardPage() {
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
-  const jobFilter = isExternal && customerId ? { customerId } : {}
+  const jobFilter: Record<string, unknown> = isExternal && customerId ? { customerId } : {}
+
+  // MAINTENANCE_TECHNICIAN: restrict to assigned plants only
+  if (role === 'MAINTENANCE_TECHNICIAN' && session?.user?.id) {
+    const assignments = await prisma.plantExternalUser.findMany({
+      where: { userId: session.user.id },
+      select: { plantId: true },
+    })
+    const plantIds = assignments.map(a => a.plantId)
+    jobFilter.plants = { some: { plantId: { in: plantIds.length > 0 ? plantIds : ['__none__'] } } }
+  }
 
   const [openJobs, todayJobs, opportunities, upcomingJobs] = await Promise.all([
     prisma.serviceJob.count({
