@@ -47,18 +47,36 @@ export default async function PortalPage() {
   })
   if (!customer) redirect('/')
 
+  // For own_plant scope (MAINTENANCE_TECHNICIAN), restrict to assigned plants
+  let plantIdFilter: string[] | null = null
+  if (role === 'MAINTENANCE_TECHNICIAN' && session.user.id) {
+    const assignments = await prisma.plantExternalUser.findMany({
+      where: { userId: session.user.id },
+      select: { plantId: true },
+    })
+    plantIdFilter = assignments.map(a => a.plantId)
+  }
+
+  const plantWhere = plantIdFilter !== null
+    ? { customerId, id: { in: plantIdFilter.length > 0 ? plantIdFilter : ['__none__'] } }
+    : { customerId }
+
   // Load plants if permitted
   const plants = canViewPlants
     ? await prisma.plant.findMany({
-        where: { customerId },
+        where: plantWhere,
         orderBy: { name: 'asc' },
       })
     : []
 
   // Load jobs if permitted
+  const jobPlantFilter = plantIdFilter !== null
+    ? { plants: { some: { plantId: { in: plantIdFilter.length > 0 ? plantIdFilter : ['__none__'] } } } }
+    : {}
+
   const plannedJobs = (canViewJobs && role !== 'BUYER')
     ? await prisma.serviceJob.findMany({
-        where: { customerId, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+        where: { customerId, status: { in: ['PLANNED', 'IN_PROGRESS'] }, ...jobPlantFilter },
         include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } }, technicians: { orderBy: { order: 'asc' } } },
         orderBy: { scheduledAt: 'asc' },
       })
@@ -66,7 +84,7 @@ export default async function PortalPage() {
 
   const completedJobs = canViewJobs
     ? await prisma.serviceJob.findMany({
-        where: { customerId, status: 'COMPLETED' },
+        where: { customerId, status: 'COMPLETED', ...jobPlantFilter },
         include: { plants: { include: { plant: { select: { name: true } } }, orderBy: { order: 'asc' } }, technicians: { orderBy: { order: 'asc' } } },
         orderBy: { completedAt: 'desc' },
         take: 50,
