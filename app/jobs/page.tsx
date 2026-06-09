@@ -127,9 +127,9 @@ function JobsPageInner() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Serviceeinsätze</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Serviceeinsätze</h1>
           <p className="text-sm text-gray-500 mt-1">{jobs.length} Einsätze</p>
         </div>
         <div className="flex items-center gap-3">
@@ -173,7 +173,7 @@ function JobsPageInner() {
       ) : (
         <>
           {/* Filters */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <div className="flex gap-2 flex-wrap">
               {STATUS_OPTIONS.map((opt) => (
                 <button
@@ -189,13 +189,13 @@ function JobsPageInner() {
                 </button>
               ))}
             </div>
-            <form onSubmit={handleSearch} className="flex gap-2 ml-auto">
+            <form onSubmit={handleSearch} className="flex gap-2 sm:ml-auto">
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Kunde oder Auftragsnummer suchen..."
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
               />
               <button type="submit" className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                 Suchen

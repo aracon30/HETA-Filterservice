@@ -74,9 +74,9 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             {new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className={`grid gap-6 mb-8 ${isExternal ? 'grid-cols-2' : 'grid-cols-3'}`}>
+      <div className={`grid gap-4 sm:gap-6 mb-8 ${isExternal ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'}`}>
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -161,34 +161,34 @@ export default async function DashboardPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Auftragsnummer</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Kunde</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Anlage</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Techniker</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Auftragsnr.</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Kunde</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Anlage</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Techniker</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {upcomingJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={6} className="px-3 sm:px-6 py-8 text-center text-sm text-gray-400">
                     Keine geplanten Einsätze
                   </td>
                 </tr>
               ) : (
                 upcomingJobs.map((job) => (
                   <tr key={job.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-gray-900">{formatDate(job.scheduledAt)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 sm:px-6 py-4 text-sm text-gray-900 whitespace-nowrap">{formatDate(job.scheduledAt)}</td>
+                    <td className="px-3 sm:px-6 py-4">
                       <Link href={`/jobs/${job.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
                         {job.orderNumber}
                       </Link>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{(job as { plants: { plant: { name: string } }[] }).plants.length === 0 ? '—' : (job as { plants: { plant: { name: string } }[] }).plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{(job as unknown as { technicians: { userName: string }[] }).technicians.length === 0 ? '—' : (job as unknown as { technicians: { userName: string }[] }).technicians.map(t => t.userName).join(', ')}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 sm:px-6 py-4 text-sm text-gray-900">{job.customer.name}</td>
+                    <td className="px-3 sm:px-6 py-4 text-sm text-gray-500 hidden md:table-cell">{(job as { plants: { plant: { name: string } }[] }).plants.length === 0 ? '—' : (job as { plants: { plant: { name: string } }[] }).plants.map((jp: { plant: { name: string } }) => jp.plant.name).join(', ')}</td>
+                    <td className="px-3 sm:px-6 py-4 text-sm text-gray-900 hidden lg:table-cell">{(job as unknown as { technicians: { userName: string }[] }).technicians.length === 0 ? '—' : (job as unknown as { technicians: { userName: string }[] }).technicians.map(t => t.userName).join(', ')}</td>
+                    <td className="px-3 sm:px-6 py-4">
                       <StatusBadge status={job.status} />
                     </td>
                   </tr>
