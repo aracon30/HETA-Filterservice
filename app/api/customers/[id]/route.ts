@@ -35,7 +35,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       plants: {
         where: plantWhere,
         orderBy: { name: 'asc' },
-        include: { _count: { select: { jobPlants: true } } },
+        include: {
+          _count: { select: { jobPlants: true } },
+          defaultTechnician: { select: { id: true, name: true } },
+          externalUsers: { include: { user: { select: { id: true, name: true } } } },
+        },
       },
       _count: { select: { jobs: true } },
     },
