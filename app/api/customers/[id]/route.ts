@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkPermission } from '@/lib/permissions'
+import { checkPermission, ROLE_PERMISSIONS } from '@/lib/permissions'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -15,10 +15,25 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (session.user.customerId && params.id !== session.user.customerId)
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
+  // For own_plant scope, only return assigned plants
+  const role = session.user.role as string
+  const plantScope = ROLE_PERMISSIONS[role]?.plants?.scope ?? 'all'
+  let plantWhere: Record<string, unknown> = {}
+
+  if (plantScope === 'own_plant' && session.user.id) {
+    const assignments = await prisma.plantExternalUser.findMany({
+      where: { userId: session.user.id },
+      select: { plantId: true },
+    })
+    const plantIds = assignments.map(a => a.plantId)
+    plantWhere = { id: { in: plantIds.length > 0 ? plantIds : ['__none__'] } }
+  }
+
   const customer = await prisma.customer.findUnique({
     where: { id: params.id },
     include: {
       plants: {
+        where: plantWhere,
         orderBy: { name: 'asc' },
         include: { _count: { select: { jobPlants: true } } },
       },
