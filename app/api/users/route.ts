@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@prisma/client'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
@@ -15,7 +15,16 @@ export async function GET() {
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
+  const { searchParams } = new URL(request.url)
+  const roleFilter = searchParams.get('role')
+  const customerIdFilter = searchParams.get('customerId')
+
+  const where: Record<string, unknown> = {}
+  if (roleFilter) where.role = roleFilter as UserRole
+  if (customerIdFilter) where.customerId = customerIdFilter
+
   const users = await prisma.user.findMany({
+    where,
     include: { customer: { select: { id: true, name: true } } },
     orderBy: { createdAt: 'desc' },
   })

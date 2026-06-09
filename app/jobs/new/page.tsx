@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 interface Customer { id: string; name: string }
-interface Plant { id: string; name: string; type: string }
+interface Plant { id: string; name: string; type: string; defaultTechnicianId: string | null }
 interface Technician { id: string; name: string; role: string }
 
 interface ConflictJob {
@@ -76,6 +76,8 @@ function NewJobPage() {
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([])
   const [selectedTechnicianIds, setSelectedTechnicianIds] = useState<string[]>([])
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([])
+  const [suggestedTechId, setSuggestedTechId] = useState<string | null>(null)
+  const [suggestedTechName, setSuggestedTechName] = useState<string>('')
 
   const [form, setForm] = useState({
     orderNumber: '',
@@ -97,6 +99,25 @@ function NewJobPage() {
     fetch(`/api/plants?customerId=${form.customerId}`).then(r => r.json()).then(setPlants)
     setSelectedPlantIds([])
   }, [form.customerId])
+
+  // Suggest default technician when plant selection changes
+  useEffect(() => {
+    const selected = plants.filter(p => selectedPlantIds.includes(p.id))
+    const defaultTechId = selected.find(p => p.defaultTechnicianId)?.defaultTechnicianId ?? null
+    if (defaultTechId && !selectedTechnicianIds.includes(defaultTechId)) {
+      const tech = technicians.find(t => t.id === defaultTechId)
+      if (tech) {
+        setSuggestedTechId(defaultTechId)
+        setSuggestedTechName(tech.name)
+      } else {
+        setSuggestedTechId(null)
+        setSuggestedTechName('')
+      }
+    } else {
+      setSuggestedTechId(null)
+      setSuggestedTechName('')
+    }
+  }, [selectedPlantIds, plants, technicians, selectedTechnicianIds])
 
   const checkAvailability = useCallback(async (
     date: string, duration: number, technicianIds: string[], vehicles: string[]
@@ -300,6 +321,21 @@ function NewJobPage() {
           {/* Techniker */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Techniker</label>
+            {suggestedTechId && (
+              <div className="mb-2 flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-blue-700 flex-1">Standardtechniker: <strong>{suggestedTechName}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTechnicianIds(prev => [...prev, suggestedTechId])}
+                  className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Hinzufügen
+                </button>
+              </div>
+            )}
             {technicians.length === 0 ? (
               <p className="text-sm text-gray-400 py-2">Keine Techniker verfügbar.</p>
             ) : (

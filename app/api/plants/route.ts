@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const customerId = searchParams.get('customerId')
 
-  const scopeFilter = getScopeFilter(session, 'plants')
+  const scopeFilter = await getScopeFilter(session, 'plants')
 
   const where: Record<string, unknown> = { ...scopeFilter }
   if (customerId) {
@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
   const plants = await prisma.plant.findMany({
     where,
     orderBy: { name: 'asc' },
+    include: {
+      defaultTechnician: { select: { id: true, name: true } },
+    },
   })
 
   return NextResponse.json(plants)

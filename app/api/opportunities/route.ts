@@ -14,7 +14,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
-  const scopeFilter = getScopeFilter(session, 'opportunities')
+  const scopeFilter = await getScopeFilter(session, 'opportunities')
 
   const opportunities = await prisma.opportunity.findMany({
     where: scopeFilter,

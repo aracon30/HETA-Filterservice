@@ -113,10 +113,10 @@ export async function checkPermission(
 }
 
 // Returns a Prisma where-clause to scope queries for external users
-export function getScopeFilter(
+export async function getScopeFilter(
   session: Session | null,
   resource: Resource
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   if (!session?.user) return {}
 
   const role = session.user.role as UserRole
@@ -129,11 +129,29 @@ export function getScopeFilter(
 
   const scope = ROLE_PERMISSIONS[role]?.[resource]?.scope ?? 'all'
 
-  if (scope === 'own_company' || scope === 'own_plant') {
+  if (scope === 'own_company') {
     if (resource === 'customers') return { id: customerId }
     if (resource === 'plants') return { customerId }
     if (resource === 'jobs') return { customerId }
     if (resource === 'opportunities') return { customerId }
+    return {}
+  }
+
+  if (scope === 'own_plant') {
+    const userId = session.user.id
+    if (!userId) return { id: 'NONE' }
+
+    const assignments = await prisma.plantExternalUser.findMany({
+      where: { userId },
+      select: { plantId: true },
+    })
+    const plantIds = assignments.map(a => a.plantId)
+
+    if (plantIds.length === 0) return { id: 'NONE' }
+
+    if (resource === 'plants') return { id: { in: plantIds } }
+    if (resource === 'jobs') return { plants: { some: { plantId: { in: plantIds } } } }
+    if (resource === 'customers') return { id: customerId }
     return {}
   }
 

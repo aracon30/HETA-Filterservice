@@ -28,7 +28,7 @@ export async function GET() {
   if (!(await checkPermission(session, 'opportunities', 'view')))
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
-  const scopeFilter = getScopeFilter(session, 'jobs')
+  const scopeFilter = await getScopeFilter(session, 'jobs')
 
   // Jobs with NOK checklist items
   const jobsWithNok = await prisma.serviceJob.findMany({

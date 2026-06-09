@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search')
   const customerIdParam = searchParams.get('customerId')
 
-  const scopeFilter = getScopeFilter(session, 'jobs')
+  const scopeFilter = await getScopeFilter(session, 'jobs')
 
   const where: Record<string, unknown> = { ...scopeFilter }
 
