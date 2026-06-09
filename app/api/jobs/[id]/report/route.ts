@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkPermission } from '@/lib/permissions'
-import { createElement } from 'react'
 
 export async function GET(
   _request: NextRequest,
@@ -70,13 +69,11 @@ export async function GET(
   }
 
   try {
-    // Both imports must be dynamic so only one instance of @react-pdf/renderer is loaded
-    const [{ renderToBuffer }, { ServiceReportPDF }] = await Promise.all([
-      import('@react-pdf/renderer'),
-      import('@/lib/pdf/ServiceReportPDF'),
-    ])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const buffer = await renderToBuffer(createElement(ServiceReportPDF, { data }) as any)
+    // Dynamic import ensures @react-pdf/renderer is loaded as ESM (not CJS via
+    // serverExternalPackages). The component and all primitives are defined inside
+    // renderServiceReportPDF(), so they all use the same ESM instance.
+    const { renderServiceReportPDF } = await import('@/lib/pdf/ServiceReportPDF')
+    const buffer = await renderServiceReportPDF(data)
     const uint8 = new Uint8Array(buffer)
 
     const fileName = `Servicebericht_${job.orderNumber.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`
