@@ -43,7 +43,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
     plants:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
     jobs:          { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
-    checklist:     { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    checklist:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
     opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
   },
