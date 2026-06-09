@@ -47,14 +47,21 @@ export default async function PortalPage() {
   })
   if (!customer) redirect('/')
 
-  // For own_plant scope (MAINTENANCE_TECHNICIAN), restrict to assigned plants
+  // For own_plant scope (MAINTENANCE_TECHNICIAN), restrict to assigned plants only.
+  // If no assignments exist, plantIdFilter stays [] — no plants/jobs are shown.
   let plantIdFilter: string[] | null = null
-  if (role === 'MAINTENANCE_TECHNICIAN' && session.user.id) {
-    const assignments = await prisma.plantExternalUser.findMany({
-      where: { userId: session.user.id },
-      select: { plantId: true },
-    })
-    plantIdFilter = assignments.map(a => a.plantId)
+  if (role === 'MAINTENANCE_TECHNICIAN') {
+    const userId = session.user.id
+    if (userId) {
+      const assignments = await prisma.plantExternalUser.findMany({
+        where: { userId },
+        select: { plantId: true },
+      })
+      plantIdFilter = assignments.map(a => a.plantId)
+    } else {
+      // No user ID in session — deny access to all plants/jobs
+      plantIdFilter = []
+    }
   }
 
   const plantWhere = plantIdFilter !== null
