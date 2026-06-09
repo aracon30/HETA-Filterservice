@@ -9,6 +9,13 @@ import InvoicePanel from '@/components/InvoicePanel'
 
 const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
 
+// Normalize legacy /uploads/ URLs to the auth-protected /api/files/ route
+function toFileUrl(url: string): string {
+  if (!url) return url
+  if (url.startsWith('/uploads/')) return `/api/files/${url.slice('/uploads/'.length)}`
+  return url
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface ChecklistItem {
@@ -308,8 +315,13 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading }: {
           />
         </label>
         {item.photoUrl && (
-          <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
-            <img src={item.photoUrl} className="w-8 h-8 object-cover rounded border" alt="" />
+          <a href={toFileUrl(item.photoUrl)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+            <img
+              src={toFileUrl(item.photoUrl)}
+              className="w-8 h-8 object-cover rounded border"
+              alt=""
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
             Foto ansehen
           </a>
         )}
@@ -451,6 +463,8 @@ export default function JobInspectionPage() {
     if (res.ok) {
       const { url } = await res.json()
       setChecklist(prev => prev.map(i => i.id === itemId ? { ...i, photoUrl: url } : i))
+    } else {
+      alert('Foto-Upload fehlgeschlagen. Bitte erneut versuchen.')
     }
     setUploadingItem(null)
   }
