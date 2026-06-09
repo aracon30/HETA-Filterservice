@@ -98,7 +98,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="relative z-10">
-          <p className="text-slate-600 text-xs">© 2025 HETA Filtrationssysteme GmbH</p>
+          <p className="text-slate-600 text-xs">© 2026 HETA Filtrationssysteme GmbH</p>
         </div>
       </div>
 
