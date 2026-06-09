@@ -302,7 +302,7 @@ function SignatureCanvas({ label, value, onChange }: {
 
 // ─── Checklist Item Row ───────────────────────────────────────────────────────
 
-function InspectionItemRow({ item, onChange, onPhotoUpload, uploading }: {
+function InspectionItemRow({ item, onChange, onPhotoUpload, uploading, onDelete }: {
   item: ChecklistItem
   onChange: (update: Partial<ChecklistItem>) => void
   onPhotoUpload: (itemId: string, file: File) => void
