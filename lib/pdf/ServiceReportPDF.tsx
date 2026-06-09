@@ -58,8 +58,7 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
   // (which happens when primitives come from CJS and renderToBuffer from ESM).
   const {
     Document, Page, Text, View, Image, StyleSheet, renderToBuffer,
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  } = require('@react-pdf/renderer')
+  } = await import('@react-pdf/renderer')
 
   const s = StyleSheet.create({
     page: {
