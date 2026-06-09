@@ -3,9 +3,12 @@ const path = require('path')
 
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
-  // Keep @react-pdf/renderer external so webpack doesn't try to bundle it
-  // (it has native Node.js deps). Sub-packages resolve automatically.
-  serverExternalPackages: ['@react-pdf/renderer'],
+  // Next.js 14.1 uses experimental.serverComponentsExternalPackages (renamed
+  // to serverExternalPackages in Next.js 14.2+). Keep @react-pdf external so
+  // webpack doesn't try to bundle the ESM-only package.
+  experimental: {
+    serverComponentsExternalPackages: ['@react-pdf/renderer'],
+  },
   webpack: (config) => {
     config.resolve.alias['@'] = path.resolve(__dirname)
     return config
