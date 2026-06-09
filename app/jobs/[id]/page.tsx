@@ -75,6 +75,78 @@ interface Job {
   jobMaterials: JobMaterial[]
 }
 
+function MaterialRow({ mat, onStatus, onDelivery, onNotes, onDelete }: {
+  mat: JobMaterial
+  onStatus: (s: string) => void
+  onDelivery: (v: string | null) => void
+  onNotes: (v: string | null) => void
+  onDelete?: () => void
+}) {
+  return (
+    <div className={`p-4 rounded-lg border ${
+      mat.status === 'IN_STOCK' ? 'bg-green-50 border-green-200' :
+      mat.status === 'TO_ORDER' ? 'bg-orange-50 border-orange-200' :
+      mat.status === 'ORDERED'  ? 'bg-blue-50 border-blue-200' :
+      'bg-gray-50 border-gray-200'
+    }`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900">{mat.label}</p>
+          {mat.partNumber && <p className="text-xs text-gray-500 font-mono mt-0.5">{mat.partNumber}</p>}
+          <p className="text-xs text-gray-500 mt-0.5">Menge: {mat.quantity}</p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+          {(['TO_ORDER', 'ORDERED', 'IN_STOCK', 'NOT_NEEDED'] as const).map(s => (
+            <button key={s} type="button" onClick={() => onStatus(s)}
+              className={`px-2 py-1 text-xs font-medium rounded-md border transition-colors ${
+                mat.status === s
+                  ? s === 'TO_ORDER' ? 'bg-orange-500 text-white border-orange-500'
+                    : s === 'ORDERED'  ? 'bg-blue-500 text-white border-blue-500'
+                    : s === 'IN_STOCK' ? 'bg-green-600 text-white border-green-600'
+                    : 'bg-gray-500 text-white border-gray-500'
+                  : 'bg-white text-gray-500 border-gray-300 hover:border-gray-400'
+              }`}>
+              {s === 'TO_ORDER' ? 'Bestellen' : s === 'ORDERED' ? 'Bestellt' : s === 'IN_STOCK' ? 'Im Lager' : 'Nicht nötig'}
+            </button>
+          ))}
+          {onDelete && (
+            <button type="button" onClick={onDelete}
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors ml-1"
+              title="Entfernen">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+      {mat.status === 'ORDERED' && (
+        <div className="mt-3 flex items-center gap-2">
+          <label className="text-xs text-gray-500 flex-shrink-0">Liefertermin:</label>
+          <input
+            type="date"
+            value={mat.deliveryDate ? mat.deliveryDate.slice(0, 10) : ''}
+            min="2000-01-01" max="2099-12-31"
+            onChange={e => {
+              const val = e.target.value
+              const year = parseInt(val.split('-')[0] ?? '0', 10)
+              if (!val || year <= 9999) onDelivery(val || null)
+            }}
+            className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      )}
+      <input
+        type="text"
+        value={mat.notes ?? ''}
+        onChange={e => onNotes(e.target.value || null)}
+        placeholder="Notiz..."
+        className="mt-2 w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+      />
+    </div>
+  )
+}
+
 type Step = 'verify' | 'inspection' | 'findings' | 'summary'
 
 const STEPS: { key: Step; label: string; short: string }[] = [
@@ -355,6 +427,8 @@ export default function JobInspectionPage() {
   const [activeView, setActiveView] = useState<'wizard' | 'materials'>('wizard')
   const [jobMaterials, setJobMaterials] = useState<JobMaterial[]>([])
   const [savingMaterials, setSavingMaterials] = useState(false)
+  const [showAddJobMaterial, setShowAddJobMaterial] = useState(false)
+  const [newJobMaterial, setNewJobMaterial] = useState({ label: '', partNumber: '', quantity: 1 })
 
   type WorkTimeEntry = { date: string; startTime: string; endTime: string }
   const [workTimeEntries, setWorkTimeEntries] = useState<WorkTimeEntry[]>([
@@ -925,15 +999,15 @@ export default function JobInspectionPage() {
               </div>
             )}
 
-            {jobMaterials.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 text-sm">
-                <p>Keine Materialien hinterlegt.</p>
+            {/* Plant materials */}
+            {jobMaterials.filter(m => m.plantId !== '__job__').length === 0 && jobMaterials.filter(m => m.plantId === '__job__').length === 0 ? (
+              <div className="py-6 text-center text-gray-400 text-sm">
+                <p>Keine Anlagen-Materialien hinterlegt.</p>
                 <p className="text-xs mt-1">Ggf. erst Materialliste in den Anlageninformationen pflegen.</p>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Group by plant */}
-                {Array.from(new Map(jobMaterials.map(m => [m.plantId, m.plantName]))).map(([plantId, plantName]) => (
+                {Array.from(new Map(jobMaterials.filter(m => m.plantId !== '__job__').map(m => [m.plantId, m.plantName]))).map(([plantId, plantName]) => (
                   <div key={plantId}>
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full" />
@@ -942,82 +1016,131 @@ export default function JobInspectionPage() {
                     <div className="space-y-3">
                       {jobMaterials.filter(m => m.plantId === plantId).map((mat, idx) => {
                         const globalIdx = jobMaterials.indexOf(mat)
-                        return (
-                          <div key={mat.id ?? `${plantId}-${idx}`} className={`p-4 rounded-lg border ${
-                            mat.status === 'IN_STOCK' ? 'bg-green-50 border-green-200' :
-                            mat.status === 'TO_ORDER' ? 'bg-orange-50 border-orange-200' :
-                            mat.status === 'ORDERED' ? 'bg-blue-50 border-blue-200' :
-                            'bg-gray-50 border-gray-200'
-                          }`}>
-                            <div className="flex items-start gap-3">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">{mat.label}</p>
-                                {mat.partNumber && <p className="text-xs text-gray-500 font-mono mt-0.5">{mat.partNumber}</p>}
-                                <p className="text-xs text-gray-500 mt-0.5">Menge: {mat.quantity}</p>
-                              </div>
-                              <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                                {(['TO_ORDER', 'ORDERED', 'IN_STOCK', 'NOT_NEEDED'] as const).map(s => (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, status: s } : m))}
-                                    className={`px-2 py-1 text-xs font-medium rounded-md border transition-colors ${
-                                      mat.status === s
-                                        ? s === 'TO_ORDER' ? 'bg-orange-500 text-white border-orange-500'
-                                          : s === 'ORDERED' ? 'bg-blue-500 text-white border-blue-500'
-                                          : s === 'IN_STOCK' ? 'bg-green-600 text-white border-green-600'
-                                          : 'bg-gray-500 text-white border-gray-500'
-                                        : 'bg-white text-gray-500 border-gray-300 hover:border-gray-400'
-                                    }`}
-                                  >
-                                    {s === 'TO_ORDER' ? 'Bestellen' : s === 'ORDERED' ? 'Bestellt' : s === 'IN_STOCK' ? 'Im Lager' : 'Nicht nötig'}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            {mat.status === 'ORDERED' && (
-                              <div className="mt-3 flex items-center gap-2">
-                                <label className="text-xs text-gray-500 flex-shrink-0">Liefertermin:</label>
-                                <input
-                                  type="date"
-                                  value={mat.deliveryDate ? mat.deliveryDate.slice(0, 10) : ''}
-                                  min="2000-01-01"
-                                  max="2099-12-31"
-                                  onChange={e => {
-                                    const val = e.target.value
-                                    const year = parseInt(val.split('-')[0] ?? '0', 10)
-                                    if (!val || year <= 9999) setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, deliveryDate: val || null } : m))
-                                  }}
-                                  className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              </div>
-                            )}
-                            <input
-                              type="text"
-                              value={mat.notes ?? ''}
-                              onChange={e => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, notes: e.target.value || null } : m))}
-                              placeholder="Notiz..."
-                              className="mt-2 w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                            />
-                          </div>
-                        )
+                        return <MaterialRow key={mat.id ?? `${plantId}-${idx}`} mat={mat} onStatus={s => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, status: s } : m))} onDelivery={val => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, deliveryDate: val } : m))} onNotes={val => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, notes: val } : m))} />
                       })}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Job-specific materials section */}
+            <div className="mt-6 border-t border-gray-100 pt-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                  Einsatzspezifisch
+                </h3>
+                {!showAddJobMaterial && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddJobMaterial(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Hinzufügen
+                  </button>
+                )}
+              </div>
+
+              {/* Add form */}
+              {showAddJobMaterial && (
+                <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                  <p className="text-xs font-medium text-purple-800 mb-3">Neues einsatzspezifisches Material</p>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Bezeichnung *"
+                      value={newJobMaterial.label}
+                      onChange={e => setNewJobMaterial(prev => ({ ...prev, label: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Artikelnummer (optional)"
+                        value={newJobMaterial.partNumber}
+                        onChange={e => setNewJobMaterial(prev => ({ ...prev, partNumber: e.target.value }))}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-mono"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        value={newJobMaterial.quantity}
+                        onChange={e => setNewJobMaterial(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
+                        className="w-20 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        title="Menge"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newJobMaterial.label.trim()) return
+                        const newMat: JobMaterial = {
+                          id: `__new__${Date.now()}`,
+                          plantId: '__job__',
+                          plantName: 'Einsatzspezifisch',
+                          label: newJobMaterial.label.trim(),
+                          partNumber: newJobMaterial.partNumber.trim() || null,
+                          quantity: newJobMaterial.quantity,
+                          status: 'TO_ORDER',
+                          deliveryDate: null,
+                          notes: null,
+                          order: jobMaterials.length,
+                        }
+                        setJobMaterials(prev => [...prev, newMat])
+                        setNewJobMaterial({ label: '', partNumber: '', quantity: 1 })
+                        setShowAddJobMaterial(false)
+                      }}
+                      className="flex-1 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Hinzufügen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddJobMaterial(false); setNewJobMaterial({ label: '', partNumber: '', quantity: 1 }) }}
+                      className="px-4 py-2 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Job-specific list */}
+              {jobMaterials.filter(m => m.plantId === '__job__').length === 0 && !showAddJobMaterial ? (
+                <p className="text-xs text-gray-400 py-2">Keine einsatzspezifischen Materialien.</p>
+              ) : (
+                <div className="space-y-3">
+                  {jobMaterials.filter(m => m.plantId === '__job__').map((mat) => {
+                    const globalIdx = jobMaterials.indexOf(mat)
+                    return (
+                      <MaterialRow
+                        key={mat.id}
+                        mat={mat}
+                        onStatus={s => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, status: s } : m))}
+                        onDelivery={val => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, deliveryDate: val } : m))}
+                        onNotes={val => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, notes: val } : m))}
+                        onDelete={() => setJobMaterials(prev => prev.filter((_, i) => i !== globalIdx))}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          {jobMaterials.length > 0 && (
-            <button
-              onClick={handleSaveMaterials}
-              disabled={savingMaterials}
-              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {savingMaterials ? 'Speichern...' : 'Materialstatus speichern'}
-            </button>
-          )}
+          <button
+            onClick={handleSaveMaterials}
+            disabled={savingMaterials}
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {savingMaterials ? 'Speichern...' : 'Materialien speichern'}
+          </button>
         </div>
       )}
 
