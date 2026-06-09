@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkPermission } from '@/lib/permissions'
 import { createElement } from 'react'
-import { ServiceReportPDF } from '@/lib/pdf/ServiceReportPDF'
 
 export async function GET(
   _request: NextRequest,
@@ -71,8 +70,11 @@ export async function GET(
   }
 
   try {
-    // Dynamic import handles ESM-only @react-pdf/renderer correctly at runtime
-    const { renderToBuffer } = await import('@react-pdf/renderer')
+    // Both imports must be dynamic so only one instance of @react-pdf/renderer is loaded
+    const [{ renderToBuffer }, { ServiceReportPDF }] = await Promise.all([
+      import('@react-pdf/renderer'),
+      import('@/lib/pdf/ServiceReportPDF'),
+    ])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await renderToBuffer(createElement(ServiceReportPDF, { data }) as any)
     const uint8 = new Uint8Array(buffer)
