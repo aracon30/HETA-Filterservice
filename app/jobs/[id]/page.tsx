@@ -1410,7 +1410,7 @@ export default function JobInspectionPage() {
                   uploading={uploadingItem}
                   onDelete={() => {
                     if (!item.id.startsWith('__new__')) {
-                      setDeletedChecklistItemIds(prev => new Set([...prev, item.id]))
+                      setDeletedChecklistItemIds(prev => new Set(Array.from(prev).concat(item.id)))
                     }
                     setChecklist(prev => prev.filter(i => i.id !== item.id))
                   }}
