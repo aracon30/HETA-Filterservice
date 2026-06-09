@@ -15,7 +15,13 @@ chmod +x setup-linux.sh
 ./setup-linux.sh
 ```
 
-Das Skript installiert Node.js, PostgreSQL und PM2, richtet die Datenbank ein und startet die App automatisch. Nach Abschluss ist die App unter [http://localhost:3000](http://localhost:3000) erreichbar.
+Das Skript installiert Node.js, PostgreSQL und PM2, richtet die Datenbank ein und startet die App automatisch.
+
+Nach Abschluss ist die App erreichbar unter:
+- **Lokal:** `http://localhost:3000`
+- **Remote-Server:** `http://<SERVER-IP>:3000`
+
+> **Hinweis:** Damit der Port 3000 von außen erreichbar ist, muss er in der Firewall freigegeben sein (z. B. `sudo ufw allow 3000`).
 
 ---
 
