@@ -1,7 +1,5 @@
-// NO top-level @react-pdf/renderer imports — all loaded dynamically inside
-// renderServiceReportPDF() so that static and dynamic imports share the same
-// ESM instance. Mixing static (CJS via serverExternalPackages) and dynamic
-// (ESM) imports of @react-pdf causes "Eh.component is not a constructor".
+// All @react-pdf/renderer imports are inside renderServiceReportPDF() to
+// ensure a single module instance is used (avoids CJS/ESM split).
 
 export interface ReportData {
   orderNumber: string
@@ -55,14 +53,13 @@ function fmtDateTime(iso: string) {
 }
 
 export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> {
-  // All @react-pdf imports inside this function — ensures a single ESM instance
-  const ReactPDF = await import('@react-pdf/renderer')
+  // Dynamic import so the same ESM instance is used for all primitives
+  // and for renderToBuffer — required to avoid "Eh.component is not a constructor"
+  // (which happens when primitives come from CJS and renderToBuffer from ESM).
   const {
-    Document, Page, Text, View, Image, StyleSheet,
-    renderToBuffer,
-  } = ReactPDF as typeof import('@react-pdf/renderer') & {
-    renderToBuffer: (element: unknown) => Promise<Buffer>
-  }
+    Document, Page, Text, View, Image, StyleSheet, renderToBuffer,
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  } = require('@react-pdf/renderer')
 
   const s = StyleSheet.create({
     page: {
@@ -74,9 +71,9 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
       paddingHorizontal: 40,
     },
     header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'flex-start' as const,
       marginBottom: 20,
       paddingBottom: 14,
       borderBottomWidth: 2,
@@ -84,28 +81,29 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
     },
     companyName: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', letterSpacing: 1 },
     companyTagline: { fontSize: 8, color: '#6b7280', marginTop: 2 },
-    headerRight: { alignItems: 'flex-end' },
+    headerRight: { alignItems: 'flex-end' as const },
     reportTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#1f2937' },
     orderNumber: { fontSize: 10, color: '#4b5563', marginTop: 2 },
-    infoGrid: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+    infoGrid: { flexDirection: 'row' as const, gap: 12, marginBottom: 14 },
     infoBox: {
       flex: 1, backgroundColor: '#f9fafb', borderRadius: 4,
       padding: 10, borderWidth: 1, borderColor: '#e5e7eb',
     },
     infoBoxTitle: {
       fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#6b7280',
-      textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5,
+      textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 5,
     },
-    infoRow: { flexDirection: 'row', marginBottom: 3 },
+    infoRow: { flexDirection: 'row' as const, marginBottom: 3 },
     infoLabel: { fontSize: 8, color: '#6b7280', width: 70 },
     infoValue: { fontSize: 8, color: '#1f2937', flex: 1, fontFamily: 'Helvetica-Bold' },
     sectionHeader: {
-      backgroundColor: '#1d4ed8', padding: '5 10', borderRadius: 3,
+      backgroundColor: '#1d4ed8', paddingTop: 5, paddingBottom: 5,
+      paddingLeft: 10, paddingRight: 10, borderRadius: 3,
       marginBottom: 6, marginTop: 12,
     },
     sectionHeaderText: {
       fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#ffffff',
-      textTransform: 'uppercase', letterSpacing: 0.5,
+      textTransform: 'uppercase' as const, letterSpacing: 0.5,
     },
     subSection: {
       fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#374151',
@@ -113,24 +111,25 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
       borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
     },
     tableHeader: {
-      flexDirection: 'row', backgroundColor: '#f3f4f6',
-      padding: '4 6', borderTopLeftRadius: 3, borderTopRightRadius: 3,
+      flexDirection: 'row' as const, backgroundColor: '#f3f4f6',
+      paddingTop: 4, paddingBottom: 4, paddingLeft: 6, paddingRight: 6,
     },
     tableHeaderText: {
       fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#6b7280',
-      textTransform: 'uppercase', letterSpacing: 0.3,
+      textTransform: 'uppercase' as const, letterSpacing: 0.3,
     },
     tableRow: {
-      flexDirection: 'row', padding: '4 6',
-      borderBottomWidth: 1, borderBottomColor: '#f3f4f6', alignItems: 'flex-start',
+      flexDirection: 'row' as const,
+      paddingTop: 4, paddingBottom: 4, paddingLeft: 6, paddingRight: 6,
+      borderBottomWidth: 1, borderBottomColor: '#f3f4f6', alignItems: 'flex-start' as const,
     },
     tableRowAlt: { backgroundColor: '#fafafa' },
     colStatus: { width: 40 },
     colLabel: { flex: 1 },
     colComment: { width: 130 },
-    badgeIO: { backgroundColor: '#dcfce7', padding: '2 5', borderRadius: 3 },
-    badgeNIO: { backgroundColor: '#fee2e2', padding: '2 5', borderRadius: 3 },
-    badgeOpen: { backgroundColor: '#f3f4f6', padding: '2 5', borderRadius: 3 },
+    badgeIO: { backgroundColor: '#dcfce7', paddingTop: 2, paddingBottom: 2, paddingLeft: 5, paddingRight: 5, borderRadius: 3 },
+    badgeNIO: { backgroundColor: '#fee2e2', paddingTop: 2, paddingBottom: 2, paddingLeft: 5, paddingRight: 5, borderRadius: 3 },
+    badgeOpen: { backgroundColor: '#f3f4f6', paddingTop: 2, paddingBottom: 2, paddingLeft: 5, paddingRight: 5, borderRadius: 3 },
     badgeIOText: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#15803d' },
     badgeNIOText: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#dc2626' },
     badgeOpenText: { fontSize: 7, color: '#9ca3af' },
@@ -140,37 +139,38 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
     },
     textBlockLabel: {
       fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#6b7280',
-      textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
+      textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4,
     },
     textBlockContent: { fontSize: 9, color: '#1f2937', lineHeight: 1.5 },
     wtTable: { marginTop: 4 },
     wtRow: {
-      flexDirection: 'row', borderBottomWidth: 1,
-      borderBottomColor: '#f3f4f6', padding: '3 6',
+      flexDirection: 'row' as const, borderBottomWidth: 1,
+      borderBottomColor: '#f3f4f6',
+      paddingTop: 3, paddingBottom: 3, paddingLeft: 6, paddingRight: 6,
     },
     wtCol: { flex: 1, fontSize: 8 },
-    signatureGrid: { flexDirection: 'row', gap: 12, marginTop: 8 },
+    signatureGrid: { flexDirection: 'row' as const, gap: 12, marginTop: 8 },
     signatureBox: {
       flex: 1, borderWidth: 1, borderColor: '#e5e7eb',
       borderRadius: 4, padding: 8, minHeight: 80,
     },
     signatureLabel: {
       fontSize: 7, color: '#6b7280', marginBottom: 4,
-      fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 0.3,
+      fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' as const, letterSpacing: 0.3,
     },
-    signatureImage: { width: '100%', height: 60, objectFit: 'contain' },
-    statsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-    statBox: { flex: 1, borderRadius: 4, padding: 8, alignItems: 'center' },
+    signatureImage: { width: '100%', height: 60, objectFit: 'contain' as const },
+    statsRow: { flexDirection: 'row' as const, gap: 8, marginBottom: 12 },
+    statBox: { flex: 1, borderRadius: 4, padding: 8, alignItems: 'center' as const },
     statNumber: { fontSize: 18, fontFamily: 'Helvetica-Bold' },
     statLabel: { fontSize: 7, color: '#6b7280', marginTop: 2 },
     footer: {
-      position: 'absolute', bottom: 20, left: 40, right: 40,
-      flexDirection: 'row', justifyContent: 'space-between',
+      position: 'absolute' as const, bottom: 20, left: 40, right: 40,
+      flexDirection: 'row' as const, justifyContent: 'space-between' as const,
       borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 6,
     },
     footerText: { fontSize: 7, color: '#9ca3af' },
-    photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4, marginBottom: 4 },
-    photoThumb: { width: 60, height: 60, borderRadius: 3, objectFit: 'cover' },
+    photoRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 4, marginTop: 4, marginBottom: 4 },
+    photoThumb: { width: 60, height: 60, borderRadius: 3 },
   })
 
   type Items = ReportData['checklistItems']
@@ -200,7 +200,7 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
                 {item.label}
               </Text>
             </View>
-            <Text style={[{ fontSize: 8, color: '#6b7280', fontStyle: 'italic' }, s.colComment]}>
+            <Text style={[{ fontSize: 8, color: '#6b7280', fontStyle: 'italic' as const }, s.colComment]}>
               {item.comment ?? ''}
             </Text>
           </View>
@@ -303,9 +303,9 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
                 <View key={idx} style={[s.infoBox, { flex: 0, minWidth: 180 }]}>
                   <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1f2937', marginBottom: 3 }}>{p.name}</Text>
                   <Text style={{ fontSize: 8, color: '#6b7280' }}>{p.type}{p.serialNumber ? ` · SN: ${p.serialNumber}` : ''}</Text>
-                  {p.location   && <Text style={{ fontSize: 8, color: '#6b7280' }}>Standort: {p.location}</Text>}
+                  {p.location    && <Text style={{ fontSize: 8, color: '#6b7280' }}>Standort: {p.location}</Text>}
                   {p.manufacturer && <Text style={{ fontSize: 8, color: '#6b7280' }}>Hersteller: {p.manufacturer}{p.model ? ` ${p.model}` : ''}</Text>}
-                  {p.buildYear  && <Text style={{ fontSize: 8, color: '#6b7280' }}>Baujahr: {p.buildYear}</Text>}
+                  {p.buildYear   && <Text style={{ fontSize: 8, color: '#6b7280' }}>Baujahr: {p.buildYear}</Text>}
                 </View>
               ))}
             </View>
@@ -425,5 +425,5 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
     </Document>
   )
 
-  return renderToBuffer(element as never)
+  return renderToBuffer(element)
 }
