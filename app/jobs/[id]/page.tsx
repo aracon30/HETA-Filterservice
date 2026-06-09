@@ -524,7 +524,7 @@ export default function JobInspectionPage() {
         recommendations,
         checklistItems: checklist.filter(i => !i.id.startsWith('__new__')),
         newChecklistItems: checklist.filter(i => i.id.startsWith('__new__')).map(i => ({ label: i.label, section: i.section, plantId: i.plantId, status: i.status, comment: i.comment })),
-        deletedChecklistItemIds: [...deletedChecklistItemIds],
+        deletedChecklistItemIds: Array.from(deletedChecklistItemIds),
         technicianSignature: techSignature,
         customerSignature,
         clientUpdatedAt: jobUpdatedAt.current,
