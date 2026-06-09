@@ -246,7 +246,13 @@ function NewJobPage() {
             <input
               type="datetime-local"
               value={form.scheduledAt}
-              onChange={e => setField('scheduledAt', e.target.value)}
+              min="2000-01-01T00:00"
+              max="2099-12-31T23:59"
+              onChange={e => {
+                const val = e.target.value
+                const year = parseInt(val.split('-')[0] ?? '0', 10)
+                if (!val || year <= 9999) setField('scheduledAt', val)
+              }}
               required
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

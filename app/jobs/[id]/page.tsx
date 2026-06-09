@@ -981,7 +981,13 @@ export default function JobInspectionPage() {
                                 <input
                                   type="date"
                                   value={mat.deliveryDate ? mat.deliveryDate.slice(0, 10) : ''}
-                                  onChange={e => setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, deliveryDate: e.target.value || null } : m))}
+                                  min="2000-01-01"
+                                  max="2099-12-31"
+                                  onChange={e => {
+                                    const val = e.target.value
+                                    const year = parseInt(val.split('-')[0] ?? '0', 10)
+                                    if (!val || year <= 9999) setJobMaterials(prev => prev.map((m, i) => i === globalIdx ? { ...m, deliveryDate: val || null } : m))
+                                  }}
                                   className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                               </div>
@@ -1332,7 +1338,13 @@ export default function JobInspectionPage() {
                     <input
                       type="date"
                       value={entry.date}
-                      onChange={e => setWorkTimeEntries(prev => prev.map((r, i) => i === idx ? { ...r, date: e.target.value } : r))}
+                      min="2000-01-01"
+                      max="2099-12-31"
+                      onChange={e => {
+                        const val = e.target.value
+                        const year = parseInt(val.split('-')[0] ?? '0', 10)
+                        if (!val || year <= 9999) setWorkTimeEntries(prev => prev.map((r, i) => i === idx ? { ...r, date: val } : r))
+                      }}
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
