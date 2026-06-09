@@ -20,6 +20,9 @@ interface Plant {
   manufacturer: string | null
   model: string | null
   customerId: string
+  defaultTechnicianId: string | null
+  defaultTechnician: { id: string; name: string } | null
+  externalUsers: { userId: string; user: { id: string; name: string } }[]
   _count?: { jobPlants: number }
 }
 
@@ -59,6 +62,8 @@ interface PlantForm {
   contactPerson: string
   manufacturer: string
   model: string
+  defaultTechnicianId: string
+  externalUserIds: string[]
 }
 
 const emptyPlantForm: PlantForm = {
@@ -72,6 +77,8 @@ const emptyPlantForm: PlantForm = {
   contactPerson: '',
   manufacturer: '',
   model: '',
+  defaultTechnicianId: '',
+  externalUserIds: [],
 }
 
 export default function CustomerDetailPage() {
@@ -114,6 +121,10 @@ export default function CustomerDetailPage() {
   // Plant types from DB
   const [plantTypes, setPlantTypes] = useState<PlantType[]>([])
 
+  // Technician lists for plant assignment
+  const [internalTechs, setInternalTechs] = useState<{id: string; name: string}[]>([])
+  const [externalTechs, setExternalTechs] = useState<{id: string; name: string}[]>([])
+
   // Per-plant checklist override editor
   const [checklistPlant, setChecklistPlant] = useState<Plant | null>(null)
   const [overrideItems, setOverrideItems] = useState<ChecklistOverrideItem[]>([])
@@ -141,6 +152,14 @@ export default function CustomerDetailPage() {
   useEffect(() => {
     if (id) fetchCustomer()
     fetch('/api/plant-types').then(r => r.json()).then(setPlantTypes).catch(() => {})
+    // Load internal technicians (SERVICE_TECHNICIAN)
+    fetch('/api/users?role=SERVICE_TECHNICIAN').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setInternalTechs(data.filter((u: {active: boolean}) => u.active))
+    }).catch(() => {})
+    // Load external technicians for this customer (MAINTENANCE_TECHNICIAN)
+    fetch(`/api/users?customerId=${id}&role=MAINTENANCE_TECHNICIAN`).then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setExternalTechs(data.filter((u: {active: boolean}) => u.active))
+    }).catch(() => {})
   }, [id])
 
   async function openChecklistEditor(plant: Plant) {
@@ -262,6 +281,8 @@ export default function CustomerDetailPage() {
       contactPerson: plant.contactPerson ?? '',
       manufacturer: plant.manufacturer ?? '',
       model: plant.model ?? '',
+      defaultTechnicianId: plant.defaultTechnicianId ?? '',
+      externalUserIds: plant.externalUsers?.map(eu => eu.userId) ?? [],
     })
     setShowPlantModal(true)
   }
@@ -274,6 +295,8 @@ export default function CustomerDetailPage() {
       customerId: id,
       buildYear: plantForm.buildYear ? Number(plantForm.buildYear) : null,
       installedAt: plantForm.installedAt || null,
+      defaultTechnicianId: plantForm.defaultTechnicianId || null,
+      externalUserIds: plantForm.externalUserIds,
     }
     const url = editingPlant ? `/api/plants/${editingPlant.id}` : '/api/plants'
     const method = editingPlant ? 'PUT' : 'POST'
@@ -545,6 +568,9 @@ export default function CustomerDetailPage() {
                   {plant.contactPerson && (
                     <div className="text-gray-500">Ansprechperson: {plant.contactPerson}</div>
                   )}
+                  {plant.defaultTechnician && (
+                    <div className="text-gray-500">Standardtechniker: {plant.defaultTechnician.name}</div>
+                  )}
                   {plant.description && (
                     <p className="text-gray-500 line-clamp-2 mt-2">{plant.description}</p>
                   )}
@@ -766,6 +792,54 @@ export default function CustomerDetailPage() {
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Standardtechniker (intern) */}
+              {canManagePlants && internalTechs.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Standardtechniker (intern)</label>
+                  <select
+                    value={plantForm.defaultTechnicianId}
+                    onChange={e => setPlantForm(f => ({ ...f, defaultTechnicianId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Kein Standardtechniker</option>
+                    {internalTechs.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">Wird bei Einsatzerstellung vorgeschlagen.</p>
+                </div>
+              )}
+
+              {/* Externe Techniker (Kundenzugang) */}
+              {canManagePlants && externalTechs.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Externe Techniker (Kundenzugang)</label>
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-36 overflow-y-auto">
+                    {externalTechs.map(t => {
+                      const checked = plantForm.externalUserIds.includes(t.id)
+                      return (
+                        <label key={t.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setPlantForm(f => ({
+                              ...f,
+                              externalUserIds: checked
+                                ? f.externalUserIds.filter(uid => uid !== t.id)
+                                : [...f.externalUserIds, t.id],
+                            }))}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                          />
+                          <span className="text-sm text-gray-800">{t.name}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">Diese Benutzer können die Anlage und zugehörige Einsätze sehen.</p>
+                </div>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"

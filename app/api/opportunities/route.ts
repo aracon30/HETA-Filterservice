@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OpportunityStage, OpportunitySource } from '@prisma/client'
-import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
+import { checkPermission, getScopeFilter } from '@/lib/permissions'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -14,8 +14,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
-  const perm = await getPermissions(session.user.role, 'opportunities')
-  const scopeFilter = getScopeFilter(session, 'opportunities', perm?.scope ?? null)
+  const scopeFilter = await getScopeFilter(session, 'opportunities')
 
   const opportunities = await prisma.opportunity.findMany({
     where: scopeFilter,

@@ -7,7 +7,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 
-  const plant = await prisma.plant.findUnique({ where: { id: params.id } })
+  const plant = await prisma.plant.findUnique({
+    where: { id: params.id },
+    include: {
+      defaultTechnician: { select: { id: true, name: true } },
+      externalUsers: { include: { user: { select: { id: true, name: true } } } },
+    },
+  })
   if (!plant) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
 
   // External roles may only access plants belonging to their own customer
@@ -55,10 +61,29 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       contactPerson: body.contactPerson || null,
       manufacturer: body.manufacturer || null,
       model: body.model || null,
+      defaultTechnicianId: body.defaultTechnicianId ?? null,
     },
   })
 
-  return NextResponse.json(plant)
+  // Sync external users
+  if (body.externalUserIds !== undefined) {
+    await prisma.plantExternalUser.deleteMany({ where: { plantId: params.id } })
+    if (Array.isArray(body.externalUserIds) && body.externalUserIds.length > 0) {
+      await prisma.plantExternalUser.createMany({
+        data: body.externalUserIds.map((userId: string) => ({ plantId: params.id, userId })),
+      })
+    }
+  }
+
+  const updatedPlant = await prisma.plant.findUnique({
+    where: { id: params.id },
+    include: {
+      defaultTechnician: { select: { id: true, name: true } },
+      externalUsers: { include: { user: { select: { id: true, name: true } } } },
+    },
+  })
+
+  return NextResponse.json(updatedPlant)
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {

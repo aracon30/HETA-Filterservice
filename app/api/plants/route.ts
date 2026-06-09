@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
+import { checkPermission, getScopeFilter } from '@/lib/permissions'
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const customerId = searchParams.get('customerId')
 
-  const perm = await getPermissions(session.user.role, 'plants')
-  const scopeFilter = getScopeFilter(session, 'plants', perm?.scope ?? null)
+  const scopeFilter = await getScopeFilter(session, 'plants')
 
   const where: Record<string, unknown> = { ...scopeFilter }
   if (customerId) {
@@ -28,6 +27,9 @@ export async function GET(request: NextRequest) {
   const plants = await prisma.plant.findMany({
     where,
     orderBy: { name: 'asc' },
+    include: {
+      defaultTechnician: { select: { id: true, name: true } },
+    },
   })
 
   return NextResponse.json(plants)

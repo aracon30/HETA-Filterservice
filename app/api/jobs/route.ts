@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { DEFAULT_CHECKLIST_ITEMS } from '@/lib/constants'
 import { getChecklistForPlantType } from '@/lib/plant-types'
 import { JobStatus } from '@prisma/client'
-import { checkPermission, getScopeFilter, getPermissions } from '@/lib/permissions'
+import { checkPermission, getScopeFilter } from '@/lib/permissions'
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search')
   const customerIdParam = searchParams.get('customerId')
 
-  const perm = await getPermissions(session.user.role, 'jobs')
-  const scopeFilter = getScopeFilter(session, 'jobs', perm?.scope ?? null)
+  const scopeFilter = await getScopeFilter(session, 'jobs')
 
   const where: Record<string, unknown> = { ...scopeFilter }
 
