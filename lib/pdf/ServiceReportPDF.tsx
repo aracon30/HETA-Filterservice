@@ -78,7 +78,7 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
       borderBottomWidth: 2,
       borderBottomColor: '#1d4ed8',
     },
-    companyName: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', letterSpacing: 1 },
+    companyName: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', letterSpacing: 0.5 },
     companyTagline: { fontSize: 8, color: '#6b7280', marginTop: 2 },
     headerRight: { alignItems: 'flex-end' as const },
     reportTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#1f2937' },
@@ -230,13 +230,13 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
   const now = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   const element = (
-    <Document title={`Servicebericht ${data.orderNumber}`} author="HETA Filterservice" subject="Inspektionsbericht">
+    <Document title={`Servicebericht ${data.orderNumber}`} author="HETA Verfahrenstechnik GmbH" subject="Inspektionsbericht">
       <Page size="A4" style={s.page}>
 
         <View style={s.header} fixed>
           <View>
-            <Text style={s.companyName}>HETA</Text>
-            <Text style={s.companyTagline}>Filterservice</Text>
+            <Text style={s.companyName}>HETA Verfahrenstechnik GmbH</Text>
+            <Text style={s.companyTagline}>Gottlieb-Daimler-Str. 7 · D-35423 Lich · service@heta.de</Text>
           </View>
           <View style={s.headerRight}>
             <Text style={s.reportTitle}>Servicebericht</Text>
@@ -415,7 +415,7 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
         </View>
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>HETA Filterservice · {data.orderNumber}</Text>
+          <Text style={s.footerText}>HETA Verfahrenstechnik GmbH · {data.orderNumber}</Text>
           <Text style={s.footerText} render={({ pageNumber, totalPages }) => `Seite ${pageNumber} von ${totalPages}`} />
           <Text style={s.footerText}>Erstellt am {now}</Text>
         </View>

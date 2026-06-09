@@ -71,7 +71,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <div>
-            <div className="text-white font-bold text-sm leading-tight">HETA</div>
+            <div className="text-white font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-slate-400 text-xs leading-tight">ServiceHub</div>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="relative z-10">
-          <p className="text-slate-600 text-xs">© 2026 HETA Filtrationssysteme GmbH</p>
+          <p className="text-slate-600 text-xs">© 2026 HETA Verfahrenstechnik GmbH · Gottlieb-Daimler-Str. 7, D-35423 Lich</p>
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <span className="font-bold text-gray-900">HETA ServiceHub</span>
+            <span className="font-bold text-gray-900">HETA Verfahrenstechnik</span>
           </div>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Willkommen zurück</h1>
@@ -179,7 +179,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-8 text-center text-xs text-gray-400">
-            HETA Filtrationssysteme · ServiceHub v1.0
+            HETA Verfahrenstechnik GmbH · service@heta.de
           </p>
         </div>
       </div>

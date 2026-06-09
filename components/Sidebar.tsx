@@ -110,7 +110,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-bold text-sm leading-tight">HETA</div>
+            <div className="font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-xs text-slate-400 leading-tight">ServiceHub</div>
           </div>
           {/* Close button — mobile only */}
@@ -238,8 +238,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <div className="px-6 py-3 border-t border-slate-700">
-        <p className="text-xs text-slate-500">HETA Filtrationssysteme</p>
-        <p className="text-xs text-slate-600">v1.0.0</p>
+        <p className="text-xs text-slate-500">HETA Verfahrenstechnik GmbH</p>
+        <p className="text-xs text-slate-600">Gottlieb-Daimler-Str. 7 · D-35423 Lich</p>
       </div>
     </aside>
   )
