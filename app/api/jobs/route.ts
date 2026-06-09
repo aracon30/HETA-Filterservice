@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       customer: { select: { id: true, name: true } },
       plants: { include: { plant: { select: { id: true, name: true, type: true } } }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
+      jobMaterials: { select: { status: true } },
     },
     orderBy: { scheduledAt: 'desc' },
   })

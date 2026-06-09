@@ -22,6 +22,38 @@ interface Job {
   technicians: { userId: string; userName: string }[]
   customer: { name: string }
   plants: { plant: { id: string; name: string } }[]
+  jobMaterials: { status: string }[]
+}
+
+function MaterialBadge({ materials }: { materials: { status: string }[] }) {
+  if (!materials.length) return null
+  const toOrder = materials.filter(m => m.status === 'TO_ORDER').length
+  const ordered = materials.filter(m => m.status === 'ORDERED').length
+  const inStock = materials.filter(m => m.status === 'IN_STOCK').length
+  const total = materials.length
+
+  if (toOrder > 0)
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+        {toOrder}/{total} fehlt
+      </span>
+    )
+  if (ordered > 0)
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+        {ordered}/{total} bestellt
+      </span>
+    )
+  if (inStock === total)
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+        Lager ✓
+      </span>
+    )
+  return null
 }
 
 const STATUS_OPTIONS = [
@@ -206,7 +238,12 @@ function JobsPageInner() {
                       <td className="px-4 py-4 text-sm text-gray-900">{job.customer.name}</td>
                       <td className="px-4 py-4 text-sm text-gray-500 hidden lg:table-cell">{job.plants.length === 0 ? '—' : job.plants.map(jp => jp.plant.name).join(', ')}</td>
                       <td className="px-4 py-4 text-sm text-gray-900 hidden md:table-cell">{job.technicians.length === 0 ? '—' : job.technicians.map(t => t.userName).join(', ')}</td>
-                      <td className="px-4 py-4"><StatusBadge status={job.status} /></td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <StatusBadge status={job.status} />
+                          {job.status === 'PLANNED' && <MaterialBadge materials={job.jobMaterials} />}
+                        </div>
+                      </td>
                       {!isExternal && (
                         <td className="px-4 py-4 text-right">
                           <button onClick={() => { setConfirmDelete(job.id); setDeleteError(null) }}
