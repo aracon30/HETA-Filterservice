@@ -71,6 +71,7 @@ model Customer {
   opportunities Opportunity[]
   users         User[]
   invoices      Invoice[]
+  requests      PlantRequest[]
 }
 
 model Invoice {
@@ -151,6 +152,7 @@ model Plant {
   defaultTechnicianId String?
   defaultTechnician   User?             @relation("PlantDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: SetNull)
   externalUsers       PlantExternalUser[]
+  requestPlants       PlantRequestPlant[]
 }
 
 enum DocumentType {
@@ -312,4 +314,90 @@ enum OpportunitySource {
   MANUAL
   SERVICE_REPORT
   CHECKLIST_NOK
+}
+
+enum RequestType {
+  STOERUNG
+  WARTUNG
+  ANGEBOT
+  INFORMATION
+  SONSTIGES
+}
+
+enum RequestPriority {
+  LOW
+  NORMAL
+  URGENT
+  CRITICAL
+}
+
+enum RequestStatus {
+  OPEN
+  IN_REVIEW
+  OFFER_SENT
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  JOB_PLANNED
+  REJECTED
+  CLOSED
+}
+
+model PlantRequest {
+  id              String          @id @default(cuid())
+  requestNumber   String          @unique
+  title           String
+  description     String
+  type            RequestType     @default(SONSTIGES)
+  priority        RequestPriority @default(NORMAL)
+  status          RequestStatus   @default(OPEN)
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdByName   String
+  plants          PlantRequestPlant[]
+  messages        PlantRequestMessage[]
+  offerNumber     String?
+  offerPdfs       PlantRequestOffer[]
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionNote   String?
+  serviceJobId    String?
+  serviceJobNumber String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model PlantRequestPlant {
+  id        String       @id @default(cuid())
+  requestId String
+  request   PlantRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  plantId   String
+  plant     Plant        @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  plantName String
+
+  @@unique([requestId, plantId])
+}
+
+model PlantRequestMessage {
+  id          String       @id @default(cuid())
+  requestId   String
+  request     PlantRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId    String
+  authorName  String
+  authorRole  String
+  content     String
+  statusChange String?
+  createdAt   DateTime     @default(now())
+}
+
+model PlantRequestOffer {
+  id          String       @id @default(cuid())
+  requestId   String
+  request     PlantRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  offerNumber String
+  fileUrl     String
+  fileName    String
+  uploadedById   String
+  uploadedByName String
+  createdAt   DateTime     @default(now())
 }

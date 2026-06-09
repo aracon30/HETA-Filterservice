@@ -63,6 +63,17 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: '/requests',
+    label: 'Anfragen',
+    roles: ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'],
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+      </svg>
+    ),
+  },
 ]
 
 const ROLE_LABELS: Record<string, string> = {
@@ -126,13 +137,32 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </div>
 
+      {/* Anfragen-Link für externe Nutzer */}
+      {isExternal && (
+        <Link
+          href="/portal/requests"
+          onClick={onClose}
+          className={`mx-3 mt-3 px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors ${
+            isActive('/portal/requests')
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+          Anfragen
+        </Link>
+      )}
+
       {/* Firmen-Badge für externe Nutzer — klickbar */}
       {isExternal && (
         <Link
           href="/portal"
           onClick={onClose}
           className={`mx-3 mt-3 px-3 py-2.5 rounded-lg border flex items-center gap-2.5 transition-colors group ${
-            isActive('/portal')
+            isActive('/portal') && !isActive('/portal/requests')
               ? 'bg-green-700/50 border-green-600/60'
               : 'bg-green-900/30 border-green-700/30 hover:bg-green-800/40 hover:border-green-600/50'
           }`}
