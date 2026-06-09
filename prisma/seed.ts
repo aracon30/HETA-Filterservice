@@ -29,7 +29,6 @@ async function main() {
   await prisma.plantType.deleteMany()
   await prisma.user.deleteMany()
   await prisma.customer.deleteMany()
-  await prisma.rolePermission.deleteMany()
 
   // Seed plant types with checklists
   await prisma.plantType.create({
