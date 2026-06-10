@@ -59,10 +59,6 @@ async function main() {
     },
   })
 
-  for (const typeValue of ['Druckfilter', 'Saugfilter', 'Rücklauffilter', 'Belüftungsfilter', 'Filteraggregat', 'Sonstige']) {
-    await prisma.plantType.create({ data: { value: typeValue, label: typeValue } })
-  }
-
   // Admin user
   await prisma.user.create({
     data: {
