@@ -413,6 +413,7 @@ function CustomerGroup({
   onToggle,
   onDelete,
   onAddUser,
+  forceOpen,
 }: {
   customer: Customer
   users: User[]
@@ -421,8 +422,10 @@ function CustomerGroup({
   onToggle: (u: User) => void
   onDelete: (u: User) => void
   onAddUser: (customerId: string) => void
+  forceOpen?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const isOpen = forceOpen || open
   const activeCount = users.filter(u => u.active).length
 
   return (
@@ -431,6 +434,7 @@ function CustomerGroup({
       <button
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
         onClick={() => setOpen(v => !v)}
+        disabled={forceOpen}
       >
         <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
           <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -443,16 +447,18 @@ function CustomerGroup({
             {users.length} Benutzer{users.length !== 1 ? '' : ''} · {activeCount} aktiv
           </p>
         </div>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        {!forceOpen && (
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
       </button>
 
       {/* Users */}
-      {open && (
+      {isOpen && (
         <div className="border-t border-gray-100 p-3 space-y-2">
           {users.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-3">Keine Benutzer für diesen Kunden</p>
@@ -492,6 +498,8 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [internalOpen, setInternalOpen] = useState(false)
 
   // Form state
   const [showForm, setShowForm] = useState(false)
@@ -606,12 +614,24 @@ export default function UsersPage() {
   const internalUsers = users.filter(u => INTERNAL_ROLES.includes(u.role))
   const externalUsers = users.filter(u => EXTERNAL_ROLES.includes(u.role))
 
-  // (customers list already contains all relevant companies)
+  // Search filter helpers
+  const q = search.toLowerCase().trim()
+  const matchesUser = (u: User) =>
+    !q ||
+    u.name.toLowerCase().includes(q) ||
+    u.email.toLowerCase().includes(q) ||
+    (u.customer?.name ?? '').toLowerCase().includes(q)
+  const matchesCustomer = (c: Customer) =>
+    !q || c.name.toLowerCase().includes(q) ||
+    externalUsers.filter(u => u.customerId === c.id).some(matchesUser)
+
+  const filteredInternal = internalUsers.filter(matchesUser)
+  const filteredCustomers = customers.filter(matchesCustomer)
 
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Benutzerverwaltung</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -629,65 +649,32 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {/* ── INTERN ─────────────────────────────────────────────────────────── */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      {/* Search */}
+      <div className="relative mb-8">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Suche nach Unternehmen, Name oder E-Mail…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </div>
-          <h2 className="text-base font-bold text-gray-900">Interne Benutzer</h2>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{internalUsers.length}</span>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {INTERNAL_GROUP_ORDER.map(role => {
-            const group = internalUsers.filter(u => u.role === role)
-            return (
-              <div key={role} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                {/* Group header */}
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{INTERNAL_GROUP_LABELS[role]}</p>
-                    <p className="text-xs text-gray-400">{group.length} Benutzer</p>
-                  </div>
-                  <button
-                    onClick={() => openCreate(undefined, role)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                    title="Benutzer hinzufügen"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
-                </div>
-                {/* Users */}
-                <div className="p-2 space-y-2 min-h-[60px]">
-                  {group.length === 0 ? (
-                    <p className="text-xs text-gray-300 text-center py-4">Keine Benutzer</p>
-                  ) : (
-                    group.map(u => (
-                      <UserCard
-                        key={u.id}
-                        user={u}
-                        canEditRole={role !== 'ADMIN'}
-                        customers={customers}
-                        onEdit={openEdit}
-                        onToggle={toggleActive}
-                        onDelete={deleteUser}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+          </button>
+        )}
       </div>
 
-      {/* ── EXTERN ─────────────────────────────────────────────────────────── */}
-      <div>
+      {/* ── EXTERN (vorne) ─────────────────────────────────────────────────── */}
+      <div className="mb-10">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-7 h-7 bg-green-600 rounded-lg flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -705,8 +692,8 @@ export default function UsersPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {customers.map(c => {
-              const cusUsers = externalUsers.filter(u => u.customerId === c.id)
+            {filteredCustomers.map(c => {
+              const cusUsers = externalUsers.filter(u => u.customerId === c.id && matchesUser(u))
               return (
                 <CustomerGroup
                   key={c.id}
@@ -717,12 +704,18 @@ export default function UsersPage() {
                   onToggle={toggleActive}
                   onDelete={deleteUser}
                   onAddUser={(cid) => openCreate(cid)}
+                  forceOpen={!!q}
                 />
               )
             })}
+            {filteredCustomers.length === 0 && q && (
+              <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-sm text-gray-400">
+                Keine Ergebnisse für „{search}"
+              </div>
+            )}
             {/* External users without customer */}
             {(() => {
-              const orphans = externalUsers.filter(u => !u.customerId)
+              const orphans = externalUsers.filter(u => !u.customerId && matchesUser(u))
               if (orphans.length === 0) return null
               return (
                 <div className="border border-amber-200 bg-amber-50 rounded-xl p-4">
@@ -743,6 +736,76 @@ export default function UsersPage() {
                 </div>
               )
             })()}
+          </div>
+        )}
+      </div>
+
+      {/* ── INTERN (einklappbar) ────────────────────────────────────────────── */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <button
+          className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors text-left"
+          onClick={() => setInternalOpen(v => !v)}
+        >
+          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <div className="flex-1 flex items-center gap-2">
+            <h2 className="text-base font-bold text-gray-900">Interne Benutzer</h2>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{internalUsers.length}</span>
+          </div>
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform ${internalOpen ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {internalOpen && (
+          <div className="border-t border-gray-100 p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {INTERNAL_GROUP_ORDER.map(role => {
+                const group = filteredInternal.filter(u => u.role === role)
+                return (
+                  <div key={role} className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{INTERNAL_GROUP_LABELS[role]}</p>
+                        <p className="text-xs text-gray-400">{group.length} Benutzer</p>
+                      </div>
+                      <button
+                        onClick={() => openCreate(undefined, role)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                        title="Benutzer hinzufügen"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="p-2 space-y-2 min-h-[60px]">
+                      {group.length === 0 ? (
+                        <p className="text-xs text-gray-300 text-center py-4">Keine Benutzer</p>
+                      ) : (
+                        group.map(u => (
+                          <UserCard
+                            key={u.id}
+                            user={u}
+                            canEditRole={role !== 'ADMIN'}
+                            customers={customers}
+                            onEdit={openEdit}
+                            onToggle={toggleActive}
+                            onDelete={deleteUser}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
