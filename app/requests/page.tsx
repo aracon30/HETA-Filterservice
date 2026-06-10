@@ -39,6 +39,7 @@ const STATUS_OPTIONS = [
   { value: 'JOB_PLANNED', label: 'Einsatz geplant' },
   { value: 'REJECTED', label: 'Abgelehnt' },
   { value: 'CLOSED', label: 'Geschlossen' },
+  { value: 'ARCHIVED', label: 'Archiviert' },
 ]
 
 export default function RequestsPage() {

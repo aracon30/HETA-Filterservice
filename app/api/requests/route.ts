@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status')
   const search = searchParams.get('search')
   const plantId = searchParams.get('plantId')
+  const customerId = searchParams.get('customerId')
+  const noPlant = searchParams.get('noPlant')
 
   const scopeFilter = await getScopeFilter(session, 'requests')
   const where: Record<string, unknown> = { ...scopeFilter }
@@ -43,8 +45,16 @@ export async function GET(request: NextRequest) {
     where.status = status
   }
 
+  if (customerId) {
+    where.customerId = customerId
+  }
+
   if (plantId) {
     where.plants = { some: { plantId } }
+  }
+
+  if (noPlant === 'true') {
+    where.plants = { none: {} }
   }
 
   if (search) {
