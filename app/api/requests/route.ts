@@ -34,12 +34,17 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const search = searchParams.get('search')
+  const plantId = searchParams.get('plantId')
 
   const scopeFilter = await getScopeFilter(session, 'requests')
   const where: Record<string, unknown> = { ...scopeFilter }
 
   if (status && status !== 'ALL') {
     where.status = status
+  }
+
+  if (plantId) {
+    where.plants = { some: { plantId } }
   }
 
   if (search) {

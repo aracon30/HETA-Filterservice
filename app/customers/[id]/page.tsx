@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import InvoicePanel from '@/components/InvoicePanel'
 import PlantDocuments from '@/components/PlantDocuments'
+import PlantArchivedRequests from '@/components/PlantArchivedRequests'
 
 interface Plant {
   id: string
@@ -590,6 +591,9 @@ export default function CustomerDetailPage() {
                   customerId={customer.id}
                   role={role ?? ''}
                 />
+                {['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') && (
+                  <PlantArchivedRequests plantId={plant.id} />
+                )}
               </div>
             ))}
           </div>
