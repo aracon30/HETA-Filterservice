@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -25,8 +26,6 @@ interface RequestItem {
   updatedAt: string
   plants: { plantId: string; plantName: string }[]
 }
-
-import { useSession } from 'next-auth/react'
 
 const CAN_CREATE_ROLES = ['MAINTENANCE_MANAGER', 'BUYER']
 
