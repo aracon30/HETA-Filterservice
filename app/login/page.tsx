@@ -64,7 +64,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <img src="/heta-logo.svg" alt="HETA Logo" className="h-10 w-10" />
+          <img src="/heta-logo.svg" alt="HETA Logo" className="h-10 w-10 brightness-0 invert" />
           <div>
             <div className="text-white font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-slate-400 text-xs leading-tight">ServiceHub</div>
@@ -102,8 +102,8 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
-              <img src="/heta-logo.svg" alt="HETA Logo" className="h-7 w-7" />
+            <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center p-1.5">
+              <img src="/heta-logo.svg" alt="HETA Logo" className="h-full w-full brightness-0 invert" />
             </div>
             <span className="font-bold text-gray-900">HETA Verfahrenstechnik</span>
           </div>

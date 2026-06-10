@@ -114,7 +114,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-3">
-          <img src="/heta-logo.svg" alt="HETA Logo" className="h-8 w-8 flex-shrink-0" />
+          <img src="/heta-logo.svg" alt="HETA Logo" className="h-8 w-8 flex-shrink-0 brightness-0 invert" />
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-xs text-slate-400 leading-tight">ServiceHub</div>
