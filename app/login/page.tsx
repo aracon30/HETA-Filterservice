@@ -63,11 +63,11 @@ export default function LoginPage() {
         </div>
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <img src="/heta-logo.svg" alt="HETA Logo" className="h-10 w-10 brightness-0 invert" />
+        <div className="relative z-10 flex items-center gap-4">
+          <img src="/heta-logo.svg" alt="HETA Logo" className="h-20 w-20 brightness-0 invert" />
           <div>
-            <div className="text-white font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
-            <div className="text-slate-400 text-xs leading-tight">ServiceHub</div>
+            <div className="text-white font-bold text-lg leading-tight">HETA Verfahrenstechnik</div>
+            <div className="text-slate-400 text-sm leading-tight">ServiceHub</div>
           </div>
         </div>
 
