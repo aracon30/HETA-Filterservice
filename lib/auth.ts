@@ -6,7 +6,19 @@ import { prisma } from '@/lib/prisma'
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60, // 8 hours max, but cookie is session-only (see cookies config below)
+  },
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax' as const,
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        // No maxAge → session cookie: browser deletes it on close
+      },
+    },
   },
   pages: {
     signIn: '/login',
