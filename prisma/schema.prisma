@@ -379,15 +379,16 @@ model PlantRequestPlant {
 }
 
 model PlantRequestMessage {
-  id          String       @id @default(cuid())
-  requestId   String
-  request     PlantRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  authorId    String
-  authorName  String
-  authorRole  String
-  content     String
-  statusChange String?
-  createdAt   DateTime     @default(now())
+  id                String       @id @default(cuid())
+  requestId         String
+  request           PlantRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId          String
+  authorName        String
+  authorRole        String
+  content           String
+  statusChange      String?
+  readByRequester   Boolean      @default(false)
+  createdAt         DateTime     @default(now())
 }
 
 model PlantRequestOffer {

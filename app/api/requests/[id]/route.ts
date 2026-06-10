@@ -6,6 +6,8 @@ import { checkPermission, getScopeFilter } from '@/lib/permissions'
 import { RequestStatus } from '@prisma/client'
 
 const MANAGER_ROLES = ['ADMIN', 'SERVICE_MANAGER']
+const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
+const EXTERNAL_REQUESTER_ROLES = ['MAINTENANCE_MANAGER', 'BUYER']
 
 export async function GET(
   request: NextRequest,
@@ -33,6 +35,19 @@ export async function GET(
 
   if (!found) {
     return NextResponse.json({ error: 'Anfrage nicht gefunden' }, { status: 404 })
+  }
+
+  // Mark internal messages as read when external requester opens the detail page
+  const role = session.user.role as string
+  if (EXTERNAL_REQUESTER_ROLES.includes(role)) {
+    await prisma.plantRequestMessage.updateMany({
+      where: {
+        requestId: params.id,
+        readByRequester: false,
+        authorRole: { in: INTERNAL_ROLES },
+      },
+      data: { readByRequester: true },
+    })
   }
 
   return NextResponse.json(found)
