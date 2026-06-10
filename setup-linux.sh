@@ -39,7 +39,6 @@ sudo apt-get install -y -qq curl gnupg ca-certificates lsb-release openssl xdg-u
 # Node.js installieren (falls nicht vorhanden oder zu alt)
 NODE_OK=0
 if command -v node &>/dev/null; then
-  CURRENT_NODE=$(node -e "process.exit(parseInt(process.versions.node))" 2>/dev/null; echo $?)
   MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
   if [ "$MAJOR" -ge 18 ]; then
     NODE_OK=1
@@ -132,7 +131,12 @@ echo ""
 echo "[5/7] Installiere App-Abhängigkeiten und richte Schema ein..."
 
 rm -rf node_modules
-npm install --silent --no-warnings 2>&1 | grep -v "^npm warn" || true
+npm install 2>&1 | grep -v "^npm warn" || true
+# Ensure npm install failure is caught despite the pipe
+if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+  echo "FEHLER: npm install fehlgeschlagen."
+  exit 1
+fi
 npx prisma migrate deploy 2>&1 | grep -E "migrations|applied|Error" || true
 npx prisma generate
 npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
