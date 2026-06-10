@@ -89,8 +89,12 @@ export async function POST() {
       }).join('\n')
       send('Datei-Check', fileSizes, stillMissing.length > 0)
 
-      // Abhängigkeiten nur neu installieren wenn package.json / package-lock.json geändert
-      if (packagesChanged) {
+      // Abhängigkeiten neu installieren wenn package.json/package-lock.json geändert
+      // ODER wenn node_modules fehlt (z.B. nach fehlgeschlagenem vorherigen Update)
+      const nodeModulesExists = fs.existsSync(`${APP_DIR}/node_modules/.bin/next`)
+      if (packagesChanged || !nodeModulesExists) {
+        const reason = !nodeModulesExists ? 'node_modules fehlt — erzwinge Installation' : 'Pakete geändert'
+        send('Cache leeren', reason)
         await run('Cache leeren', 'rm -rf .next node_modules/.cache tsconfig.tsbuildinfo')
         await run('node_modules entfernen', 'rm -rf node_modules')
         const installed = await run('npm ci', 'npm ci --prefer-offline')
@@ -104,9 +108,9 @@ export async function POST() {
         await run('Cache leeren (.next)', 'rm -rf .next tsconfig.tsbuildinfo')
       }
 
-      // Prisma
-      await run('Prisma generate', 'npx prisma generate')
-      await run('Prisma db push', 'npx prisma db push --accept-data-loss')
+      // Prisma — lokales Binary verwenden (verhindert Download einer falschen Version via npx)
+      await run('Prisma generate', './node_modules/.bin/prisma generate')
+      await run('Prisma migrate deploy', './node_modules/.bin/prisma migrate deploy')
 
       // Build
       const built = await run('Build', 'npm run build')
