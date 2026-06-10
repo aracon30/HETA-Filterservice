@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { REQUEST_TYPE_LABELS, REQUEST_PRIORITY_LABELS } from '@/lib/request-helpers'
+
+const CAN_CREATE_ROLES = ['MAINTENANCE_MANAGER', 'BUYER']
 
 interface Plant {
   id: string
@@ -13,6 +16,15 @@ interface Plant {
 
 export default function NewRequestPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+
+  if (session && !CAN_CREATE_ROLES.includes(session.user?.role as string ?? '')) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-gray-500 text-sm">Sie haben keine Berechtigung, Anfragen zu stellen.</p>
+      </div>
+    )
+  }
   const [plants, setPlants] = useState<Plant[]>([])
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([])
   const [title, setTitle] = useState('')

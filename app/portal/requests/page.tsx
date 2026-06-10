@@ -26,9 +26,15 @@ interface RequestItem {
   plants: { plantId: string; plantName: string }[]
 }
 
+import { useSession } from 'next-auth/react'
+
+const CAN_CREATE_ROLES = ['MAINTENANCE_MANAGER', 'BUYER']
+
 export default function PortalRequestsPage() {
+  const { data: session } = useSession()
   const [requests, setRequests] = useState<RequestItem[]>([])
   const [loading, setLoading] = useState(true)
+  const canCreate = CAN_CREATE_ROLES.includes(session?.user?.role as string ?? '')
 
   useEffect(() => {
     fetch('/api/requests')
@@ -44,15 +50,17 @@ export default function PortalRequestsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Meine Anfragen</h1>
           <p className="text-sm text-gray-500 mt-0.5">Anfragen an den HETA Servicedesk</p>
         </div>
-        <Link
-          href="/portal/requests/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Neue Anfrage
-        </Link>
+        {canCreate && (
+          <Link
+            href="/portal/requests/new"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Neue Anfrage
+          </Link>
+        )}
       </div>
 
       {loading ? (
@@ -65,9 +73,11 @@ export default function PortalRequestsPage() {
             </svg>
           </div>
           <p className="text-gray-500 text-sm">Noch keine Anfragen vorhanden.</p>
-          <Link href="/portal/requests/new" className="mt-3 inline-block text-sm text-blue-600 hover:text-blue-800">
-            Erste Anfrage stellen →
-          </Link>
+          {canCreate && (
+            <Link href="/portal/requests/new" className="mt-3 inline-block text-sm text-blue-600 hover:text-blue-800">
+              Erste Anfrage stellen →
+            </Link>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
