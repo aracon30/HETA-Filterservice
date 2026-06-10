@@ -4,18 +4,13 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Seeding database...')
+  const existingAdmin = await prisma.user.findFirst({ where: { role: UserRole.ADMIN } })
+  if (existingAdmin) {
+    console.log('Datenbank bereits eingerichtet — Seed übersprungen.')
+    return
+  }
 
-  // Clean up
-  await prisma.checklistItem.deleteMany()
-  await prisma.serviceJob.deleteMany()
-  await prisma.opportunity.deleteMany()
-  await prisma.plantChecklistOverride.deleteMany()
-  await prisma.plant.deleteMany()
-  await prisma.plantTypeChecklistItem.deleteMany()
-  await prisma.plantType.deleteMany()
-  await prisma.user.deleteMany()
-  await prisma.customer.deleteMany()
+  console.log('Erstinstallation — Seed wird ausgeführt...')
 
   // Plant types with checklists
   await prisma.plantType.create({
