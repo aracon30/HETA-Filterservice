@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "test -d node_modules/.bin || npm install --prefer-offline",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
