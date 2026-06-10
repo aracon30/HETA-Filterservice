@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import RequestsBadge from '@/components/RequestsBadge'
+import HetaLogo from '@/components/HetaLogo'
 
 const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
 const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
@@ -114,7 +115,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-3">
-          <img src="/heta-logo.svg" alt="HETA Logo" className="h-8 w-8 flex-shrink-0" />
+          <HetaLogo className="h-8 w-8 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-xs text-slate-400 leading-tight">ServiceHub</div>

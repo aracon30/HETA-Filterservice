@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
+import HetaLogo from '@/components/HetaLogo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -64,7 +65,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-4">
-          <img src="/heta-logo.svg" alt="HETA Logo" className="h-20 w-20" />
+          <HetaLogo className="h-20 w-20" />
           <div>
             <div className="text-white font-bold text-lg leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-slate-400 text-sm leading-tight">ServiceHub</div>
@@ -103,7 +104,7 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
             <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center p-1.5">
-              <img src="/heta-logo.svg" alt="HETA Logo" className="h-full w-full" />
+              <HetaLogo className="h-full w-full" />
             </div>
             <span className="font-bold text-gray-900">HETA Verfahrenstechnik</span>
           </div>
