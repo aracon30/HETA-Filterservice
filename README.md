@@ -44,18 +44,13 @@ Als Admin unter `/admin/update` auf **„Update starten"** klicken.
 
 ---
 
-## Demo-Zugangsdaten
-
-> Nur für lokale Testumgebungen.
+## Standard-Zugangsdaten (nach Installation)
 
 | Email | Passwort | Rolle |
 |-------|----------|-------|
 | `admin@heta.de` | `Admin1234!` | Admin |
-| `manager@heta.de` | `Manager1234!` | Service Manager |
-| `techniker@heta.de` | `Tech1234!` | Service Techniker |
-| `instandhaltung@chemiewerk.de` | `Kunde1234!` | Instandhaltungsleiter |
-| `techniker@chemiewerk.de` | `Kunde1234!` | Instandhaltungstechniker |
-| `einkauf@chemiewerk.de` | `Kunde1234!` | Einkäufer |
+
+> **Hinweis:** Das Passwort nach dem ersten Login unter `/admin/users` ändern.
 
 ---
 

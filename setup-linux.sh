@@ -29,12 +29,12 @@ fi
 # SCHRITT 1: Systempakete & Node.js installieren
 # -----------------------------------------------
 echo ""
-echo "[1/6] Installiere Systempakete..."
+echo "[1/7] Installiere Systempakete..."
 
 sudo apt-get update -qq
 
 # Basis-Tools
-sudo apt-get install -y -qq curl gnupg ca-certificates lsb-release openssl xdg-utils
+sudo apt-get install -y -qq curl gnupg ca-certificates lsb-release openssl xdg-utils psmisc
 
 # Node.js installieren (falls nicht vorhanden oder zu alt)
 NODE_OK=0
@@ -67,7 +67,7 @@ fi
 # SCHRITT 2: PostgreSQL starten
 # -----------------------------------------------
 echo ""
-echo "[2/6] Starte PostgreSQL..."
+echo "[2/7] Starte PostgreSQL..."
 
 pg_running() {
   if command -v pg_isready &>/dev/null && pg_isready -q 2>/dev/null; then return 0; fi
@@ -92,7 +92,7 @@ echo "    PostgreSQL läuft."
 # SCHRITT 3: Datenbank & Benutzer anlegen
 # -----------------------------------------------
 echo ""
-echo "[3/6] Richte Datenbank ein..."
+echo "[3/7] Richte Datenbank ein..."
 
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename='${DB_USER}'" | grep -q 1; then
   # Benutzer existiert — Passwort aktualisieren damit es mit .env übereinstimmt
@@ -112,7 +112,7 @@ echo "    Datenbank '${DB_NAME}' bereit."
 # SCHRITT 4: .env Datei erstellen
 # -----------------------------------------------
 echo ""
-echo "[4/6] Erstelle Konfigurationsdatei..."
+echo "[4/7] Erstelle Konfigurationsdatei..."
 
 DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=public"
 NEXTAUTH_SECRET=$(openssl rand -base64 32)
@@ -129,11 +129,11 @@ echo "    .env erstellt."
 # SCHRITT 5: npm-Abhängigkeiten, Schema & Seed
 # -----------------------------------------------
 echo ""
-echo "[5/6] Installiere App-Abhängigkeiten und richte Schema ein..."
+echo "[5/7] Installiere App-Abhängigkeiten und richte Schema ein..."
 
 rm -rf node_modules
 npm install --silent --no-warnings 2>&1 | grep -v "^npm warn" || true
-npx prisma db push --skip-generate 2>&1 | grep -E "Your database|Error" || true
+npx prisma migrate deploy 2>&1 | grep -E "migrations|applied|Error" || true
 npx prisma generate
 npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
 
@@ -198,11 +198,8 @@ echo "========================================"
 echo ""
 echo "  App läuft unter: http://localhost:3000"
 echo ""
-echo "  Demo-Zugangsdaten:"
-echo "    admin@heta.de              / Admin1234!"
-echo "    manager@heta.de            / Manager1234!"
-echo "    techniker@heta.de          / Tech1234!"
-echo "    instandhaltung@chemiewerk.de / Kunde1234!"
+echo "  Zugangsdaten (bitte nach dem ersten Login ändern):"
+echo "    admin@heta.de  /  Admin1234!"
 echo ""
 echo "  Nützliche Befehle:"
 echo "    pm2 status          — App-Status anzeigen"
