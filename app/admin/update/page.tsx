@@ -134,7 +134,7 @@ export default function UpdatePage() {
             <li>Der Dienst ist während des Builds (~1–5 Min.) kurzzeitig nicht erreichbar</li>
             <li>Daten in der Datenbank bleiben vollständig erhalten</li>
             <li>Update zieht immer den neuesten Stand aus dem <strong>main</strong>-Branch</li>
-            <li>node_modules wird nur neu installiert wenn sich Pakete geändert haben</li>
+            <li>node_modules wird nur neu installiert wenn sich Pakete geändert haben oder fehlen</li>
           </ul>
         </div>
       </div>
