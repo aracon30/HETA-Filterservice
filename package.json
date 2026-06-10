@@ -1,6 +1,7 @@
 {
   "name": "heta-servicehub",
   "version": "0.1.0",
+  "description": "HETA ServiceHub - Industrielle Serviceplattform",
   "private": true,
   "scripts": {
     "dev": "next dev",
