@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
@@ -35,7 +35,6 @@ export default function PlantTypesPage() {
   const [selectedType, setSelectedType] = useState<PlantType | null>(null)
   const [editLabel, setEditLabel] = useState('')
 
-  // Tab state
   const [activeTab, setActiveTab] = useState<'checklist' | 'parts'>('checklist')
 
   // New plant type form
@@ -44,6 +43,12 @@ export default function PlantTypesPage() {
   const [newLabel, setNewLabel] = useState('')
   const [creating, setCreating] = useState(false)
 
+  // Copy dialog
+  const [copySource, setCopySource] = useState<PlantType | null>(null)
+  const [copyValue, setCopyValue] = useState('')
+  const [copyLabel, setCopyLabel] = useState('')
+  const [copying, setCopying] = useState(false)
+
   // Checklist editor state
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([])
   const [savingChecklist, setSavingChecklist] = useState(false)
@@ -51,6 +56,10 @@ export default function PlantTypesPage() {
   // Parts editor state
   const [partItems, setPartItems] = useState<PartItem[]>([])
   const [savingParts, setSavingParts] = useState(false)
+
+  // Drag state
+  const dragIndexRef = useRef<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   const role = session?.user?.role as string | undefined
 
@@ -74,7 +83,6 @@ export default function PlantTypesPage() {
     setSelectedType(pt)
     setEditLabel(pt.label)
     setChecklistItems(pt.items.map((item, idx) => ({ ...item, order: idx })))
-    // Fetch part items for this plant type
     const res = await fetch(`/api/plant-types/${pt.id}/parts`)
     if (res.ok) {
       const data: PartItem[] = await res.json()
@@ -128,6 +136,62 @@ export default function PlantTypesPage() {
     setCreating(false)
   }
 
+  function openCopyDialog(pt: PlantType, e: React.MouseEvent) {
+    e.stopPropagation()
+    setCopySource(pt)
+    setCopyValue('')
+    setCopyLabel(pt.label + ' (Kopie)')
+  }
+
+  async function executeCopy() {
+    if (!copySource || !copyValue.trim() || !copyLabel.trim()) return
+    setCopying(true)
+
+    // Fetch latest checklist + parts for source
+    const [clRes, partsRes] = await Promise.all([
+      fetch(`/api/plant-types/${copySource.id}/checklist`),
+      fetch(`/api/plant-types/${copySource.id}/parts`),
+    ])
+    const sourceChecklist: ChecklistItem[] = clRes.ok ? await clRes.json() : []
+    const sourceParts: PartItem[] = partsRes.ok ? await partsRes.json() : []
+
+    // Create new type
+    const createRes = await fetch('/api/plant-types', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: copyValue.trim(), label: copyLabel.trim() }),
+    })
+    if (!createRes.ok) {
+      const err = await createRes.json()
+      alert(err.error ?? 'Fehler beim Erstellen')
+      setCopying(false)
+      return
+    }
+    const newType: PlantType = await createRes.json()
+
+    // Copy checklist
+    if (sourceChecklist.length > 0) {
+      await fetch(`/api/plant-types/${newType.id}/checklist`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: sourceChecklist.map(({ section, label }, i) => ({ section, label, order: i })) }),
+      })
+    }
+
+    // Copy parts
+    if (sourceParts.length > 0) {
+      await fetch(`/api/plant-types/${newType.id}/parts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: sourceParts.map(({ label, partNumber, quantity }, i) => ({ label, partNumber, quantity, order: i })) }),
+      })
+    }
+
+    await fetchPlantTypes()
+    setCopySource(null)
+    setCopying(false)
+  }
+
   async function saveChecklist() {
     if (!selectedType) return
     setSavingChecklist(true)
@@ -179,14 +243,6 @@ export default function PlantTypesPage() {
     setChecklistItems(items => items.filter((_, i) => i !== idx).map((item, i) => ({ ...item, order: i })))
   }
 
-  function moveItem(idx: number, dir: -1 | 1) {
-    const newItems = [...checklistItems]
-    const target = idx + dir
-    if (target < 0 || target >= newItems.length) return
-    ;[newItems[idx], newItems[target]] = [newItems[target], newItems[idx]]
-    setChecklistItems(newItems.map((item, i) => ({ ...item, order: i })))
-  }
-
   // Parts helpers
   function addPartItem() {
     setPartItems(items => [...items, { label: '', partNumber: '', quantity: 1, order: items.length }])
@@ -200,12 +256,49 @@ export default function PlantTypesPage() {
     setPartItems(items => items.filter((_, i) => i !== idx).map((item, i) => ({ ...item, order: i })))
   }
 
-  function movePartItem(idx: number, dir: -1 | 1) {
+  // Drag & Drop handlers (shared for checklist and parts)
+  function handleDragStart(idx: number) {
+    dragIndexRef.current = idx
+  }
+
+  function handleDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    setDragOverIndex(idx)
+  }
+
+  function handleDropChecklist(dropIdx: number) {
+    const dragIdx = dragIndexRef.current
+    if (dragIdx === null || dragIdx === dropIdx) {
+      dragIndexRef.current = null
+      setDragOverIndex(null)
+      return
+    }
+    const newItems = [...checklistItems]
+    const [moved] = newItems.splice(dragIdx, 1)
+    newItems.splice(dropIdx, 0, moved)
+    setChecklistItems(newItems.map((item, i) => ({ ...item, order: i })))
+    dragIndexRef.current = null
+    setDragOverIndex(null)
+  }
+
+  function handleDropParts(dropIdx: number) {
+    const dragIdx = dragIndexRef.current
+    if (dragIdx === null || dragIdx === dropIdx) {
+      dragIndexRef.current = null
+      setDragOverIndex(null)
+      return
+    }
     const newItems = [...partItems]
-    const target = idx + dir
-    if (target < 0 || target >= newItems.length) return
-    ;[newItems[idx], newItems[target]] = [newItems[target], newItems[idx]]
+    const [moved] = newItems.splice(dragIdx, 1)
+    newItems.splice(dropIdx, 0, moved)
     setPartItems(newItems.map((item, i) => ({ ...item, order: i })))
+    dragIndexRef.current = null
+    setDragOverIndex(null)
+  }
+
+  function handleDragEnd() {
+    dragIndexRef.current = null
+    setDragOverIndex(null)
   }
 
   const sections = Array.from(new Set(checklistItems.map(i => i.section).filter(Boolean)))
@@ -230,6 +323,7 @@ export default function PlantTypesPage() {
         </button>
       </div>
 
+      {/* New type form */}
       {showNewForm && (
         <div className="mb-6 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Neuen Anlagentyp erstellen</h2>
@@ -273,6 +367,55 @@ export default function PlantTypesPage() {
         </div>
       )}
 
+      {/* Copy dialog */}
+      {copySource && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-base font-semibold text-slate-800 mb-1">Anlagentyp kopieren</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Kopiert <span className="font-medium text-slate-700">{copySource.label}</span> inkl. Checkliste und Materialien.
+            </p>
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Interner Wert (eindeutig)</label>
+                <input
+                  type="text"
+                  value={copyValue}
+                  onChange={e => setCopyValue(e.target.value)}
+                  placeholder={copySource.value + '-kopie'}
+                  autoFocus
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Anzeigename</label>
+                <input
+                  type="text"
+                  value={copyLabel}
+                  onChange={e => setCopyLabel(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={executeCopy}
+                disabled={copying || !copyValue.trim() || !copyLabel.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {copying ? 'Kopiere...' : 'Kopieren'}
+              </button>
+              <button
+                onClick={() => setCopySource(null)}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-6">
         {/* Left: Type List */}
         <div className="col-span-1">
@@ -285,15 +428,26 @@ export default function PlantTypesPage() {
                 <li key={pt.id}>
                   <button
                     onClick={() => selectType(pt)}
-                    className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center justify-between ${selectedType?.id === pt.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''}`}
+                    className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center justify-between group ${selectedType?.id === pt.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''}`}
                   >
-                    <div>
-                      <p className={`text-sm font-medium ${selectedType?.id === pt.id ? 'text-blue-700' : 'text-slate-800'}`}>{pt.label}</p>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium truncate ${selectedType?.id === pt.id ? 'text-blue-700' : 'text-slate-800'}`}>{pt.label}</p>
                       <p className="text-xs text-slate-400">{pt.items.length} Prüfpunkte · {pt.partItems?.length ?? 0} Teile</p>
                     </div>
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <span
+                        title="Kopieren"
+                        onClick={e => openCopyDialog(pt, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-opacity"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </span>
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   </button>
                 </li>
               ))}
@@ -367,7 +521,7 @@ export default function PlantTypesPage() {
                   </button>
                 </div>
 
-                {/* Checklist tab content */}
+                {/* Checklist tab */}
                 {activeTab === 'checklist' && (
                   <>
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -399,28 +553,21 @@ export default function PlantTypesPage() {
                         </div>
                       )}
                       {checklistItems.map((item, idx) => (
-                        <div key={idx} className="px-5 py-3 flex items-center gap-3">
-                          <div className="flex flex-col gap-0.5">
-                            <button
-                              onClick={() => moveItem(idx, -1)}
-                              disabled={idx === 0}
-                              className="text-slate-300 hover:text-slate-500 disabled:opacity-20"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => moveItem(idx, 1)}
-                              disabled={idx === checklistItems.length - 1}
-                              className="text-slate-300 hover:text-slate-500 disabled:opacity-20"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </div>
-                          <span className="text-xs text-slate-400 w-6 text-center">{idx + 1}</span>
+                        <div
+                          key={idx}
+                          draggable
+                          onDragStart={() => handleDragStart(idx)}
+                          onDragOver={e => handleDragOver(e, idx)}
+                          onDrop={() => handleDropChecklist(idx)}
+                          onDragEnd={handleDragEnd}
+                          className={`px-5 py-3 flex items-center gap-3 transition-colors ${dragOverIndex === idx && dragIndexRef.current !== idx ? 'bg-blue-50 border-t-2 border-blue-400' : ''}`}
+                        >
+                          <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 touch-none">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                            </svg>
+                          </span>
+                          <span className="text-xs text-slate-400 w-6 text-center select-none">{idx + 1}</span>
                           <input
                             type="text"
                             value={item.section}
@@ -454,7 +601,7 @@ export default function PlantTypesPage() {
                   </>
                 )}
 
-                {/* Parts tab content */}
+                {/* Parts tab */}
                 {activeTab === 'parts' && (
                   <>
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -479,10 +626,9 @@ export default function PlantTypesPage() {
                       </div>
                     </div>
 
-                    {/* Header row */}
                     {partItems.length > 0 && (
                       <div className="px-5 py-2 flex items-center gap-3 text-xs text-slate-400 border-b border-slate-50">
-                        <div className="w-5" />
+                        <div className="w-4" />
                         <span className="w-6" />
                         <span className="flex-1">Bezeichnung</span>
                         <span className="w-32">Artikelnummer</span>
@@ -498,28 +644,21 @@ export default function PlantTypesPage() {
                         </div>
                       )}
                       {partItems.map((item, idx) => (
-                        <div key={idx} className="px-5 py-3 flex items-center gap-3">
-                          <div className="flex flex-col gap-0.5">
-                            <button
-                              onClick={() => movePartItem(idx, -1)}
-                              disabled={idx === 0}
-                              className="text-slate-300 hover:text-slate-500 disabled:opacity-20"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => movePartItem(idx, 1)}
-                              disabled={idx === partItems.length - 1}
-                              className="text-slate-300 hover:text-slate-500 disabled:opacity-20"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </div>
-                          <span className="text-xs text-slate-400 w-6 text-center">{idx + 1}</span>
+                        <div
+                          key={idx}
+                          draggable
+                          onDragStart={() => handleDragStart(idx)}
+                          onDragOver={e => handleDragOver(e, idx)}
+                          onDrop={() => handleDropParts(idx)}
+                          onDragEnd={handleDragEnd}
+                          className={`px-5 py-3 flex items-center gap-3 transition-colors ${dragOverIndex === idx && dragIndexRef.current !== idx ? 'bg-blue-50 border-t-2 border-blue-400' : ''}`}
+                        >
+                          <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 touch-none">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                            </svg>
+                          </span>
+                          <span className="text-xs text-slate-400 w-6 text-center select-none">{idx + 1}</span>
                           <input
                             type="text"
                             value={item.label}

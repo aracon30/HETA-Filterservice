@@ -43,7 +43,9 @@ export default async function DashboardPage() {
     jobFilter.plants = { some: { plantId: { in: plantIds.length > 0 ? plantIds : ['__none__'] } } }
   }
 
-  const [openJobs, todayJobs, opportunities, upcomingJobs] = await Promise.all([
+  const isManagerRole = role === 'ADMIN' || role === 'SERVICE_MANAGER'
+
+  const [openJobs, todayJobs, opportunities, upcomingJobs, openRequestsCount, latestRequests] = await Promise.all([
     prisma.serviceJob.count({
       where: { ...jobFilter, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
     }),
@@ -68,6 +70,17 @@ export default async function DashboardPage() {
       orderBy: { scheduledAt: 'asc' },
       take: 5,
     }),
+    isManagerRole
+      ? prisma.plantRequest.count({ where: { status: 'OPEN' } })
+      : Promise.resolve(0),
+    isManagerRole
+      ? prisma.plantRequest.findMany({
+          where: { status: { in: ['OPEN', 'IN_REVIEW', 'OFFER_SENT'] } },
+          include: { customer: { select: { name: true } } },
+          orderBy: { updatedAt: 'desc' },
+          take: 5,
+        })
+      : Promise.resolve([]),
   ])
 
   const totalOpportunityValue = (opportunities as { value: number | null }[]).reduce((sum, o) => sum + (o.value ?? 0), 0)
@@ -148,6 +161,49 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Anfragen-Widget — nur für Manager */}
+      {isManagerRole && (latestRequests as any[]).length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-semibold text-gray-900">Offene Anfragen</h2>
+              {openRequestsCount > 0 && (
+                <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {openRequestsCount}
+                </span>
+              )}
+            </div>
+            <Link href="/requests" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+              Alle anzeigen →
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {(latestRequests as any[]).map((req) => (
+              <Link
+                key={req.id}
+                href={`/requests/${req.id}`}
+                className="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-blue-600">{req.requestNumber}</span>
+                    <span className="text-sm text-gray-900 truncate">{req.title}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">{req.customer.name}</p>
+                </div>
+                <span className={`ml-3 flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+                  req.status === 'OPEN' ? 'bg-blue-100 text-blue-800' :
+                  req.status === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-purple-100 text-purple-800'
+                }`}>
+                  {req.status === 'OPEN' ? 'Offen' : req.status === 'IN_REVIEW' ? 'In Prüfung' : 'Angebot versendet'}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Upcoming Jobs Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">

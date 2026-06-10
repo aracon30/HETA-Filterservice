@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
+import HetaLogo from '@/components/HetaLogo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -63,31 +64,26 @@ export default function LoginPage() {
         </div>
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
+        <div className="relative z-10 flex items-center gap-4">
+          <HetaLogo className="h-20 w-20" />
           <div>
-            <div className="text-white font-bold text-sm leading-tight">HETA Verfahrenstechnik</div>
-            <div className="text-slate-400 text-xs leading-tight">ServiceHub</div>
+            <div className="text-white font-bold text-lg leading-tight">HETA Verfahrenstechnik</div>
+            <div className="text-slate-400 text-sm leading-tight">ServiceHub</div>
           </div>
         </div>
 
         {/* Center text */}
         <div className="relative z-10">
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Filtrations&shy;systeme<br />im Griff.
+            Ihre Anlagen.<br />Unser Service.
           </h2>
           <p className="text-slate-400 text-base leading-relaxed max-w-sm">
-            Digitale Serviceplattform für Inspektionen, Einsatzplanung und Kundenverwaltung.
+            Stellen Sie Serviceanfragen, verfolgen Sie Einsätze und behalten Sie den Überblick über Ihre Anlagen — alles an einem Ort.
           </p>
 
           {/* Feature pills */}
           <div className="mt-8 flex flex-wrap gap-2">
-            {['Inspektionsberichte', 'Einsatzplanung', 'Kundenverwaltung', 'Anlagenverwaltung'].map(f => (
+            {['Serviceanfragen', 'Inspektionsberichte', 'Einsatzplanung', 'Anlagenverwaltung'].map(f => (
               <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                 {f}
@@ -107,11 +103,8 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+            <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center p-1.5">
+              <HetaLogo className="h-full w-full" />
             </div>
             <span className="font-bold text-gray-900">HETA Verfahrenstechnik</span>
           </div>

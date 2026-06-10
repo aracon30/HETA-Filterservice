@@ -2,7 +2,7 @@ import { UserRole } from '@prisma/client'
 import { Session } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 
-export type Resource = 'customers' | 'plants' | 'jobs' | 'checklist' | 'opportunities' | 'users'
+export type Resource = 'customers' | 'plants' | 'jobs' | 'checklist' | 'opportunities' | 'users' | 'requests'
 export type Action = 'view' | 'create' | 'edit' | 'delete'
 
 type PermEntry = {
@@ -22,6 +22,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     checklist:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
     opportunities: { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
     users:         { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    requests:      { canView: true,  canCreate: false, canEdit: true,  canDelete: true,  scope: 'all' },
   },
   SERVICE_MANAGER: {
     customers:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
@@ -30,6 +31,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     checklist:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
     opportunities: { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
     users:         { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    requests:      { canView: true,  canCreate: false, canEdit: true,  canDelete: false, scope: 'all' },
   },
   SERVICE_TECHNICIAN: {
     customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
@@ -38,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     checklist:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    requests:      { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
   },
   MAINTENANCE_MANAGER: {
     customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
@@ -46,6 +49,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     checklist:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
     opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    requests:      { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, scope: 'own_company' },
   },
   MAINTENANCE_TECHNICIAN: {
     customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
@@ -54,6 +58,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     checklist:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
     opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    requests:      { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
   },
   BUYER: {
     customers:     { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
@@ -62,6 +67,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     checklist:     { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     opportunities: { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     users:         { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
+    requests:      { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, scope: 'own_company' },
   },
 }
 
@@ -134,6 +140,7 @@ export async function getScopeFilter(
     if (resource === 'plants') return { customerId }
     if (resource === 'jobs') return { customerId }
     if (resource === 'opportunities') return { customerId }
+    if (resource === 'requests') return { customerId }
     return {}
   }
 

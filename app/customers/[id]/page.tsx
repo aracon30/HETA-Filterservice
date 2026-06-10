@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import InvoicePanel from '@/components/InvoicePanel'
 import PlantDocuments from '@/components/PlantDocuments'
+import PlantArchivedRequests from '@/components/PlantArchivedRequests'
+import CustomerArchivedRequests from '@/components/CustomerArchivedRequests'
 
 interface Plant {
   id: string
@@ -590,6 +592,9 @@ export default function CustomerDetailPage() {
                   customerId={customer.id}
                   role={role ?? ''}
                 />
+                {['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') && (
+                  <PlantArchivedRequests plantId={plant.id} />
+                )}
               </div>
             ))}
           </div>
@@ -955,6 +960,11 @@ export default function CustomerDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Archivierte Anfragen ohne Anlage — Admin und Service Manager */}
+      {canManagePlants && customer && (
+        <CustomerArchivedRequests customerId={customer.id} />
       )}
 
       {/* Rechnungen — nur für Admin und Service Manager */}
