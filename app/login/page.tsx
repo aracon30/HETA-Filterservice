@@ -64,7 +64,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-4">
-          <img src="/heta-logo.svg" alt="HETA Logo" className="h-20 w-20 brightness-0 invert" />
+          <img src="/heta-logo.svg" alt="HETA Logo" className="h-20 w-20" />
           <div>
             <div className="text-white font-bold text-lg leading-tight">HETA Verfahrenstechnik</div>
             <div className="text-slate-400 text-sm leading-tight">ServiceHub</div>
@@ -74,15 +74,15 @@ export default function LoginPage() {
         {/* Center text */}
         <div className="relative z-10">
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Filtrations&shy;systeme<br />im Griff.
+            Ihre Anlagen.<br />Unser Service.
           </h2>
           <p className="text-slate-400 text-base leading-relaxed max-w-sm">
-            Digitale Serviceplattform für Inspektionen, Einsatzplanung und Kundenverwaltung.
+            Stellen Sie Serviceanfragen, verfolgen Sie Einsätze und behalten Sie den Überblick über Ihre Anlagen — alles an einem Ort.
           </p>
 
           {/* Feature pills */}
           <div className="mt-8 flex flex-wrap gap-2">
-            {['Inspektionsberichte', 'Einsatzplanung', 'Kundenverwaltung', 'Anlagenverwaltung'].map(f => (
+            {['Serviceanfragen', 'Inspektionsberichte', 'Einsatzplanung', 'Anlagenverwaltung'].map(f => (
               <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                 {f}
@@ -102,8 +102,8 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center p-1.5">
-              <img src="/heta-logo.svg" alt="HETA Logo" className="h-full w-full brightness-0 invert" />
+            <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center p-1.5">
+              <img src="/heta-logo.svg" alt="HETA Logo" className="h-full w-full" />
             </div>
             <span className="font-bold text-gray-900">HETA Verfahrenstechnik</span>
           </div>
