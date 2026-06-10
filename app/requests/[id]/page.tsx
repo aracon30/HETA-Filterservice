@@ -74,13 +74,11 @@ export default function RequestDetailPage() {
   const [req, setReq] = useState<RequestDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Manager fields
   const [newStatus, setNewStatus] = useState('')
   const [messageContent, setMessageContent] = useState('')
   const [serviceJobNumber, setServiceJobNumber] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Offer upload
   const [offerNumber, setOfferNumber] = useState('')
   const [offerFile, setOfferFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -105,19 +103,13 @@ export default function RequestDetailPage() {
     if (newStatus) body.status = newStatus
     if (messageContent.trim()) body.messageContent = messageContent
     if (serviceJobNumber.trim()) body.serviceJobNumber = serviceJobNumber
-
     const res = await fetch(`/api/requests/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
     setSaving(false)
-    if (res.ok) {
-      setMessageContent('')
-      setNewStatus('')
-      setServiceJobNumber('')
-      loadRequest()
-    }
+    if (res.ok) { setMessageContent(''); setNewStatus(''); setServiceJobNumber(''); loadRequest() }
   }
 
   const handleOfferUpload = async () => {
@@ -129,15 +121,14 @@ export default function RequestDetailPage() {
     const res = await fetch(`/api/requests/${id}/offers`, { method: 'POST', body: fd })
     setUploading(false)
     if (res.ok) {
-      setOfferFile(null)
-      setOfferNumber('')
+      setOfferFile(null); setOfferNumber('')
       if (fileInputRef.current) fileInputRef.current.value = ''
       loadRequest()
     }
   }
 
   const handleArchive = async () => {
-    if (!confirm('Anfrage archivieren? Sie wird dann nur noch in der Anlagen-/Kundenansicht sichtbar sein.')) return
+    if (!confirm('Anfrage archivieren?')) return
     const res = await fetch(`/api/requests/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -147,54 +138,63 @@ export default function RequestDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Anfrage unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return
+    if (!confirm('Anfrage unwiderruflich löschen?')) return
     const res = await fetch(`/api/requests/${id}`, { method: 'DELETE' })
     if (res.ok) router.push('/requests')
   }
 
-  const handleAcceptOffer = async () => {
-    if (!confirm('Angebot wirklich annehmen? Diese Aktion kann nicht rückgängig gemacht werden.')) return
-    await fetch(`/api/requests/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'accept_offer' }),
-    })
-    loadRequest()
-  }
-
-  const handleRejectOffer = async () => {
-    const note = prompt('Ablehnungsgrund (optional):') ?? ''
-    await fetch(`/api/requests/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reject_offer', rejectionNote: note }),
-    })
-    loadRequest()
-  }
-
-  if (loading) return <div className="p-8 text-gray-500">Lade Anfrage...</div>
-  if (!req) return <div className="p-8 text-gray-500">Anfrage nicht gefunden.</div>
+  if (loading) return (
+    <div className="flex items-center justify-center p-16 text-gray-400 gap-2">
+      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+      </svg>
+      <span className="text-sm">Lade Anfrage...</span>
+    </div>
+  )
+  if (!req) return <div className="p-8 text-center text-gray-500 text-sm">Anfrage nicht gefunden.</div>
 
   const nextStatuses = isManager ? (REQUEST_STATUS_FLOW[req.status] ?? []) : []
+  const isClosed = ['CLOSED', 'REJECTED', 'ARCHIVED'].includes(req.status)
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
+    <div className="p-6 max-w-6xl mx-auto">
+
+      {/* Breadcrumb + Header */}
       <div className="mb-6">
-        <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-700 mb-3 flex items-center gap-1">
+        <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors mb-4">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Zurück
+          Alle Anfragen
         </button>
 
         <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap mb-2">
+              <span className="font-mono text-sm font-medium text-blue-600">{req.requestNumber}</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${REQUEST_STATUS_COLORS[req.status]}`}>
+                {REQUEST_STATUS_LABELS[req.status]}
+              </span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${REQUEST_PRIORITY_COLORS[req.priority]}`}>
+                {REQUEST_PRIORITY_LABELS[req.priority]}
+              </span>
+              <span className="text-xs text-gray-400">{REQUEST_TYPE_LABELS[req.type] ?? req.type}</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 leading-tight">{req.title}</h1>
+            <p className="text-sm text-gray-500 mt-1.5">
+              <Link href={`/customers/${req.customer.id}`} className="hover:text-blue-600 hover:underline">{req.customer.name}</Link>
+              {' · '}von {req.createdByName}
+              {' · '}erstellt {format(new Date(req.createdAt), 'dd.MM.yyyy', { locale: de })}
+            </p>
+          </div>
+
           {isManager && (
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {req.status !== 'ARCHIVED' && (
                 <button
                   onClick={handleArchive}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12v6m4-6v6" />
@@ -204,7 +204,7 @@ export default function RequestDetailPage() {
               )}
               <button
                 onClick={handleDelete}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -213,244 +213,263 @@ export default function RequestDetailPage() {
               </button>
             </div>
           )}
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <span className="font-mono text-blue-600 font-medium">{req.requestNumber}</span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REQUEST_STATUS_COLORS[req.status]}`}>
-                {REQUEST_STATUS_LABELS[req.status]}
-              </span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REQUEST_PRIORITY_COLORS[req.priority]}`}>
-                {REQUEST_PRIORITY_LABELS[req.priority]}
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">{req.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {REQUEST_TYPE_LABELS[req.type]} · {req.customer.name} · Gestellt von {req.createdByName} am {format(new Date(req.createdAt), 'dd.MM.yyyy', { locale: de })}
-            </p>
-          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Details + Timeline */}
-        <div className="lg:col-span-2 space-y-6">
+
+        {/* Linke Spalte: Beschreibung + Verlauf + Manager-Aktionen */}
+        <div className="lg:col-span-2 space-y-5">
+
           {/* Beschreibung */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-900 mb-3">Beschreibung</h2>
-            <p className="text-gray-700 whitespace-pre-wrap text-sm">{req.description}</p>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Beschreibung</h2>
+            <p className="text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">{req.description}</p>
           </div>
 
-          {/* Verlauf / Timeline */}
+          {/* Verlauf */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Verlauf</h2>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Verlauf</h2>
             {req.messages.length === 0 ? (
-              <p className="text-sm text-gray-500">Noch keine Nachrichten.</p>
+              <p className="text-sm text-gray-400 italic">Noch keine Einträge im Verlauf.</p>
             ) : (
-              <div className="space-y-4">
-                {req.messages.map(msg => (
-                  <div key={msg.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-blue-700 text-xs font-bold">
-                      {msg.authorName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-gray-900">{msg.authorName}</span>
-                        <span className="text-xs text-gray-400">{ROLE_LABELS[msg.authorRole] ?? msg.authorRole}</span>
-                        <span className="text-xs text-gray-400">{format(new Date(msg.createdAt), 'dd.MM.yyyy HH:mm', { locale: de })}</span>
+              <div className="relative">
+                <div className="absolute left-4 top-2 bottom-2 w-px bg-gray-100" />
+                <div className="space-y-5">
+                  {req.messages.map((msg, i) => (
+                    <div key={msg.id} className="relative flex gap-4">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 border-2 border-white ring-1 ring-gray-100 flex items-center justify-center flex-shrink-0 z-10 text-blue-700 text-xs font-bold shadow-sm">
+                        {msg.authorName.charAt(0).toUpperCase()}
                       </div>
-                      {msg.statusChange && (
-                        <div className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-0.5 inline-block mb-1">
-                          Status: {msg.statusChange.split('→').map(s => REQUEST_STATUS_LABELS[s] ?? s).join(' → ')}
+                      <div className="flex-1 min-w-0 pt-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          <span className="text-sm font-semibold text-gray-900">{msg.authorName}</span>
+                          <span className="text-xs text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{ROLE_LABELS[msg.authorRole] ?? msg.authorRole}</span>
+                          <span className="text-xs text-gray-400">{format(new Date(msg.createdAt), 'dd.MM.yyyy HH:mm', { locale: de })}</span>
                         </div>
-                      )}
-                      {msg.content && (
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{msg.content}</p>
-                      )}
+                        {msg.statusChange && (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1 mb-2">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            {msg.statusChange.split('→').map(s => REQUEST_STATUS_LABELS[s.trim()] ?? s.trim()).join(' → ')}
+                          </div>
+                        )}
+                        {msg.content && (
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">{msg.content}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Manager: Antwort / Status */}
-          {isManager && req.status !== 'CLOSED' && req.status !== 'REJECTED' && (
+          {/* Manager: Antworten */}
+          {isManager && !isClosed && (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-900 mb-4">Antworten / Status ändern</h2>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Antworten & Status</h2>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Status ändern auf</label>
-                  <select
-                    value={newStatus}
-                    onChange={e => setNewStatus(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">— kein Statuswechsel —</option>
-                    {nextStatuses.map(s => (
-                      <option key={s} value={s}>{REQUEST_STATUS_LABELS[s] ?? s}</option>
-                    ))}
-                  </select>
-                </div>
-                {newStatus === 'JOB_PLANNED' && (
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Auftragsnummer des Einsatzes</label>
-                    <input
-                      type="text"
-                      value={serviceJobNumber}
-                      onChange={e => setServiceJobNumber(e.target.value)}
-                      placeholder="z.B. AUF-2026-042"
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Status ändern auf</label>
+                    <select
+                      value={newStatus}
+                      onChange={e => setNewStatus(e.target.value)}
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">— kein Statuswechsel —</option>
+                      {nextStatuses.map(s => (
+                        <option key={s} value={s}>{REQUEST_STATUS_LABELS[s] ?? s}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
+                  {newStatus === 'JOB_PLANNED' && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Auftragsnummer des Einsatzes</label>
+                      <input
+                        type="text"
+                        value={serviceJobNumber}
+                        onChange={e => setServiceJobNumber(e.target.value)}
+                        placeholder="z.B. AUF-2026-042"
+                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Nachricht (optional)</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Nachricht an Anfragesteller</label>
                   <textarea
                     value={messageContent}
                     onChange={e => setMessageContent(e.target.value)}
                     rows={3}
-                    placeholder="Antwort an den Anfragesteller..."
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Antwort verfassen..."
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <button
-                  onClick={handleManagerSave}
-                  disabled={saving || (!messageContent.trim() && !newStatus && !serviceJobNumber.trim())}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saving ? 'Speichern...' : 'Speichern'}
-                </button>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleManagerSave}
+                    disabled={saving || (!messageContent.trim() && !newStatus && !serviceJobNumber.trim())}
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {saving ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        Speichern...
+                      </>
+                    ) : 'Speichern'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
           {/* Manager: Angebot hochladen */}
-          {isManager && req.status !== 'CLOSED' && req.status !== 'REJECTED' && (
+          {isManager && !isClosed && (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-900 mb-4">Angebot hochladen</h2>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Angebot hochladen</h2>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Angebotsnummer *</label>
-                  <input
-                    type="text"
-                    value={offerNumber}
-                    onChange={e => setOfferNumber(e.target.value)}
-                    placeholder="z.B. ANG-2026-001"
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Angebotsnummer *</label>
+                    <input
+                      type="text"
+                      value={offerNumber}
+                      onChange={e => setOfferNumber(e.target.value)}
+                      placeholder="z.B. ANG-2026-001"
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">PDF-Datei *</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf"
+                      onChange={e => setOfferFile(e.target.files?.[0] ?? null)}
+                      className="text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-200 file:text-xs file:bg-white file:text-gray-700 hover:file:bg-gray-50 w-full"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Angebot PDF *</label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={e => setOfferFile(e.target.files?.[0] ?? null)}
-                    className="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-300 file:text-sm file:bg-white file:text-gray-700 hover:file:bg-gray-50"
-                  />
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleOfferUpload}
+                    disabled={uploading || !offerFile || !offerNumber.trim()}
+                    className="inline-flex items-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    {uploading ? 'Hochladen...' : 'Angebot hochladen & versenden'}
+                  </button>
                 </div>
-                <button
-                  onClick={handleOfferUpload}
-                  disabled={uploading || !offerFile || !offerNumber.trim()}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {uploading ? 'Hochladen...' : 'Angebot hochladen & versenden'}
-                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Right: Metadaten + Angebote */}
-        <div className="space-y-6">
-          {/* Metadaten */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
-            <h2 className="font-semibold text-gray-900">Details</h2>
-            <div>
-              <p className="text-xs text-gray-500">Kunde</p>
-              <p className="text-sm font-medium text-gray-900">{req.customer.name}</p>
-            </div>
-            {req.plants.length > 0 && (
+        {/* Rechte Spalte: Details + Angebote */}
+        <div className="space-y-5">
+
+          {/* Details */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Details</h2>
+            <dl className="space-y-3">
               <div>
-                <p className="text-xs text-gray-500">Anlage(n)</p>
-                {req.plants.map(p => (
-                  <p key={p.plantId} className="text-sm text-gray-900">{p.plantName}</p>
-                ))}
+                <dt className="text-xs text-gray-400 mb-0.5">Kunde</dt>
+                <dd className="text-sm font-medium text-gray-900">
+                  <Link href={`/customers/${req.customer.id}`} className="hover:text-blue-600 hover:underline">
+                    {req.customer.name}
+                  </Link>
+                </dd>
               </div>
-            )}
-            {req.offerNumber && (
+              {req.plants.length > 0 && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Anlage(n)</dt>
+                  <dd className="space-y-0.5">
+                    {req.plants.map(p => (
+                      <p key={p.plantId} className="text-sm text-gray-800">{p.plantName}</p>
+                    ))}
+                  </dd>
+                </div>
+              )}
               <div>
-                <p className="text-xs text-gray-500">Angebotsnummer</p>
-                <p className="text-sm font-medium text-gray-900">{req.offerNumber}</p>
+                <dt className="text-xs text-gray-400 mb-0.5">Typ</dt>
+                <dd className="text-sm text-gray-800">{REQUEST_TYPE_LABELS[req.type] ?? req.type}</dd>
               </div>
-            )}
-            {req.serviceJobNumber && (
               <div>
-                <p className="text-xs text-gray-500">Einsatz</p>
-                <p className="text-sm font-medium text-gray-900">{req.serviceJobNumber}</p>
+                <dt className="text-xs text-gray-400 mb-0.5">Priorität</dt>
+                <dd>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REQUEST_PRIORITY_COLORS[req.priority]}`}>
+                    {REQUEST_PRIORITY_LABELS[req.priority]}
+                  </span>
+                </dd>
               </div>
-            )}
-            {req.acceptedAt && (
-              <div>
-                <p className="text-xs text-gray-500">Angebot angenommen am</p>
-                <p className="text-sm text-green-700">{format(new Date(req.acceptedAt), 'dd.MM.yyyy', { locale: de })}</p>
+              {req.offerNumber && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Angebotsnummer</dt>
+                  <dd className="text-sm font-medium text-purple-700">{req.offerNumber}</dd>
+                </div>
+              )}
+              {req.serviceJobNumber && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Einsatz</dt>
+                  <dd className="text-sm font-medium text-teal-700">{req.serviceJobNumber}</dd>
+                </div>
+              )}
+              {req.acceptedAt && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Angebot angenommen</dt>
+                  <dd className="text-sm text-green-700">{format(new Date(req.acceptedAt), 'dd.MM.yyyy', { locale: de })}</dd>
+                </div>
+              )}
+              {req.rejectedAt && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Angebot abgelehnt</dt>
+                  <dd className="text-sm text-red-700">{format(new Date(req.rejectedAt), 'dd.MM.yyyy', { locale: de })}</dd>
+                  {req.rejectionNote && <dd className="text-xs text-gray-500 mt-0.5">{req.rejectionNote}</dd>}
+                </div>
+              )}
+              <div className="pt-2 border-t border-gray-100">
+                <dt className="text-xs text-gray-400 mb-0.5">Zuletzt aktualisiert</dt>
+                <dd className="text-xs text-gray-500">{format(new Date(req.updatedAt), 'dd.MM.yyyy HH:mm', { locale: de })}</dd>
               </div>
-            )}
-            {req.rejectedAt && (
-              <div>
-                <p className="text-xs text-gray-500">Angebot abgelehnt am</p>
-                <p className="text-sm text-red-700">{format(new Date(req.rejectedAt), 'dd.MM.yyyy', { locale: de })}</p>
-                {req.rejectionNote && <p className="text-xs text-gray-500 mt-1">{req.rejectionNote}</p>}
-              </div>
-            )}
+            </dl>
           </div>
 
           {/* Angebote */}
           {req.offerPdfs.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-900 mb-3">Angebote</h2>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Angebote ({req.offerPdfs.length})
+              </h2>
               <div className="space-y-2">
                 {req.offerPdfs.map(offer => (
-                  <div key={offer.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-50 border border-gray-100">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-800 truncate">{offer.offerNumber}</p>
+                  <div key={offer.id} className="flex items-center justify-between gap-2 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{offer.offerNumber}</p>
                       <p className="text-xs text-gray-500 truncate">{offer.fileName}</p>
+                      <p className="text-xs text-gray-400">{format(new Date(offer.createdAt), 'dd.MM.yy', { locale: de })}</p>
                     </div>
                     <a
                       href={offer.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-shrink-0 text-blue-600 hover:text-blue-800"
-                      title="PDF herunterladen"
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-purple-200 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 transition-colors"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
+                      PDF
                     </a>
                   </div>
                 ))}
               </div>
-
-              {/* External: Angebot annehmen / ablehnen */}
-              {!isManager && req.status === 'OFFER_SENT' && (
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                  <p className="text-xs text-gray-600 font-medium">Möchten Sie das Angebot annehmen?</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleAcceptOffer}
-                      className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
-                    >
-                      Angebot annehmen
-                    </button>
-                    <button
-                      onClick={handleRejectOffer}
-                      className="flex-1 bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-200 transition-colors"
-                    >
-                      Ablehnen
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
