@@ -22,6 +22,7 @@ export const REQUEST_STATUS_LABELS: Record<string, string> = {
   JOB_PLANNED: 'Einsatz geplant',
   REJECTED: 'Abgelehnt',
   CLOSED: 'Geschlossen',
+  ARCHIVED: 'Archiviert',
 }
 
 export const REQUEST_STATUS_COLORS: Record<string, string> = {
@@ -33,6 +34,7 @@ export const REQUEST_STATUS_COLORS: Record<string, string> = {
   JOB_PLANNED: 'bg-teal-100 text-teal-800',
   REJECTED: 'bg-gray-100 text-gray-700',
   CLOSED: 'bg-gray-100 text-gray-500',
+  ARCHIVED: 'bg-slate-100 text-slate-500',
 }
 
 export const REQUEST_PRIORITY_COLORS: Record<string, string> = {

@@ -134,6 +134,25 @@ export async function PATCH(
     return NextResponse.json({ error: 'Keine Berechtigung für diese Aktion' }, { status: 403 })
   }
 
+  // Manager: archive action
+  if (body.action === 'archive') {
+    const updated = await prisma.plantRequest.update({
+      where: { id: params.id },
+      data: { status: 'ARCHIVED' },
+    })
+    await prisma.plantRequestMessage.create({
+      data: {
+        requestId: params.id,
+        authorId: session.user.id,
+        authorName: session.user.name ?? 'Unbekannt',
+        authorRole: role,
+        content: 'Anfrage wurde archiviert.',
+        statusChange: `${existing.status}→ARCHIVED`,
+      },
+    })
+    return NextResponse.json(updated)
+  }
+
   // Manager: status change + message + optional fields
   const {
     status,

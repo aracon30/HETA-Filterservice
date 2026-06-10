@@ -340,6 +340,7 @@ enum RequestStatus {
   JOB_PLANNED
   REJECTED
   CLOSED
+  ARCHIVED
 }
 
 model PlantRequest {

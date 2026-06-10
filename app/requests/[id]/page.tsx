@@ -136,6 +136,22 @@ export default function RequestDetailPage() {
     }
   }
 
+  const handleArchive = async () => {
+    if (!confirm('Anfrage archivieren? Sie wird dann nur noch in der Anlagen-/Kundenansicht sichtbar sein.')) return
+    const res = await fetch(`/api/requests/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'archive' }),
+    })
+    if (res.ok) loadRequest()
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Anfrage unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return
+    const res = await fetch(`/api/requests/${id}`, { method: 'DELETE' })
+    if (res.ok) router.push('/requests')
+  }
+
   const handleAcceptOffer = async () => {
     if (!confirm('Angebot wirklich annehmen? Diese Aktion kann nicht rückgängig gemacht werden.')) return
     await fetch(`/api/requests/${id}`, {
@@ -173,7 +189,31 @@ export default function RequestDetailPage() {
         </button>
 
         <div className="flex items-start justify-between gap-4">
-          <div>
+          {isManager && (
+            <div className="flex gap-2 flex-shrink-0">
+              {req.status !== 'ARCHIVED' && (
+                <button
+                  onClick={handleArchive}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12v6m4-6v6" />
+                  </svg>
+                  Archivieren
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Löschen
+              </button>
+            </div>
+          )}
+          <div className="flex-1">
             <div className="flex items-center gap-3 mb-1">
               <span className="font-mono text-blue-600 font-medium">{req.requestNumber}</span>
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REQUEST_STATUS_COLORS[req.status]}`}>

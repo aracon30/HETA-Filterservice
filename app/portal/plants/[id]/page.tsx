@@ -77,6 +77,19 @@ export default async function PortalPlantPage({
 
   if (!plant || plant.customerId !== customerId) notFound()
 
+  // Archived requests for this plant
+  const archivedRequests = await prisma.plantRequest.findMany({
+    where: {
+      customerId,
+      status: 'ARCHIVED',
+      plants: { some: { plantId: plant.id } },
+    },
+    include: {
+      plants: { select: { plantName: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+
   // Completed service jobs that involved this plant
   const jobs = await prisma.serviceJob.findMany({
     where: {
@@ -264,6 +277,38 @@ export default async function PortalPlantPage({
           </table>
         )}
       </div>
+
+      {/* ── Archived requests ─────────────────────────────────────────────── */}
+      {archivedRequests.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-5">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12v6m4-6v6" />
+              </svg>
+              Anfragen-Archiv
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {archivedRequests.map(req => (
+              <div key={req.id} className="px-6 py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs text-gray-400">{req.requestNumber}</span>
+                    <span className="text-sm text-gray-800 font-medium truncate">{req.title}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(req.updatedAt).toLocaleDateString('de-DE')} · {req.createdByName}
+                  </p>
+                </div>
+                <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                  Archiviert
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
