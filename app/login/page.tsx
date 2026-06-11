@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import Link from 'next/link'
 import HetaLogo from '@/components/HetaLogo'
 
 export default function LoginPage() {
@@ -131,14 +130,9 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Passwort
-                </label>
-                <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                  Passwort vergessen?
-                </Link>
-              </div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Passwort
+              </label>
               <input
                 id="password"
                 type="password"
