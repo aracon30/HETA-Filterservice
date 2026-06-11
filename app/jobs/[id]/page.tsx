@@ -29,6 +29,10 @@ interface ChecklistItem {
   photoUrl: string | null
 }
 
+interface PlantContact {
+  user: { id: string; name: string; email: string | null; phone: string | null }
+}
+
 interface PlantInfo {
   id: string
   name: string
@@ -38,6 +42,7 @@ interface PlantInfo {
   manufacturer: string | null
   model: string | null
   buildYear: number | null
+  externalUsers: PlantContact[]
 }
 
 interface JobMaterial {
@@ -1247,6 +1252,31 @@ export default function JobInspectionPage() {
                       </div>
                     )}
                   </div>
+                  {plant.externalUsers.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Ansprechpartner</p>
+                      <div className="space-y-2">
+                        {plant.externalUsers.map(({ user }) => (
+                          <div key={user.id} className="flex items-center gap-3 text-sm">
+                            <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-3.5 h-3.5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900">{user.name}</p>
+                              <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                                {user.email && (
+                                  <a href={`mailto:${user.email}`} className="text-blue-600 hover:underline truncate">{user.email}</a>
+                                )}
+                                {user.phone && <span>{user.phone}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -17,7 +17,18 @@ export async function GET(
     where: { id: params.id },
     include: {
       customer: true,
-      plants: { include: { plant: true }, orderBy: { order: 'asc' } },
+      plants: {
+        include: {
+          plant: {
+            include: {
+              externalUsers: {
+                include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+              },
+            },
+          },
+        },
+        orderBy: { order: 'asc' },
+      },
       technicians: { orderBy: { order: 'asc' } },
       checklistItems: { orderBy: { id: 'asc' } },
       jobMaterials: { orderBy: { order: 'asc' } },
