@@ -55,19 +55,26 @@ export async function POST(request: NextRequest) {
 
   const hashedPassword = await bcrypt.hash(password, 12)
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-      role: userRole as UserRole,
-      customerId: customerId || null,
-      phone: phone || null,
-    },
-    include: { customer: { select: { id: true, name: true } } },
-  })
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: userRole as UserRole,
+        customerId: customerId || null,
+        phone: phone || null,
+      },
+      include: { customer: { select: { id: true, name: true } } },
+    })
 
-  // Don't return password
-  const { password: _pw, ...safeUser } = user
-  return NextResponse.json(safeUser, { status: 201 })
+    const { password: _pw, ...safeUser } = user
+    return NextResponse.json(safeUser, { status: 201 })
+  } catch (err) {
+    const e = err as { code?: string }
+    if (e.code === 'P2002') {
+      return NextResponse.json({ error: 'Diese E-Mail-Adresse ist bereits vergeben.' }, { status: 409 })
+    }
+    throw err
+  }
 }
