@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         role: userRole as UserRole,
         customerId: customerId || null,
         phone: phone || null,
+        mustChangePassword: true,
       },
       include: { customer: { select: { id: true, name: true } } },
     })
