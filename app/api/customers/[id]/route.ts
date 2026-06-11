@@ -41,6 +41,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
           externalUsers: { include: { user: { select: { id: true, name: true } } } },
         },
       },
+      users: {
+        where: { active: true },
+        select: { id: true, name: true, email: true, phone: true, role: true },
+        orderBy: { name: 'asc' },
+      },
       _count: { select: { jobs: true } },
     },
   })

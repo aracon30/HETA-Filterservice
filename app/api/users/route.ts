@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { name, email, password, userRole, customerId } = body
+  const { name, email, password, userRole, customerId, phone } = body
 
   // Only ADMIN can create ADMIN or SERVICE_MANAGER users
   if (
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       password: hashedPassword,
       role: userRole as UserRole,
       customerId: customerId || null,
+      phone: phone || null,
     },
     include: { customer: { select: { id: true, name: true } } },
   })

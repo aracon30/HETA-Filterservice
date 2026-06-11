@@ -7,7 +7,6 @@ import Link from 'next/link'
 interface Customer {
   id: string
   name: string
-  contactName: string | null
   email: string | null
   phone: string | null
   address: string | null
@@ -17,7 +16,6 @@ interface Customer {
 
 interface CustomerForm {
   name: string
-  contactName: string
   email: string
   phone: string
   address: string
@@ -25,7 +23,6 @@ interface CustomerForm {
 
 const emptyForm: CustomerForm = {
   name: '',
-  contactName: '',
   email: '',
   phone: '',
   address: '',
@@ -87,7 +84,6 @@ export default function CustomersPage() {
     setEditingCustomer(c)
     setEditForm({
       name: c.name,
-      contactName: c.contactName ?? '',
       email: c.email ?? '',
       phone: c.phone ?? '',
       address: c.address ?? '',
@@ -146,7 +142,6 @@ export default function CustomersPage() {
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="text-left px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="text-left px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Kontakt</th>
               <th className="text-left px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">E-Mail</th>
               <th className="text-left px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Telefon</th>
               <th className="text-center px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Anlagen</th>
@@ -174,7 +169,6 @@ export default function CustomersPage() {
                     </Link>
                     {c.address && <div className="text-xs text-gray-400 mt-0.5">{c.address}</div>}
                   </td>
-                  <td className="px-4 sm:px-6 py-4 text-sm text-gray-700 hidden sm:table-cell">{c.contactName ?? '—'}</td>
                   <td className="px-4 sm:px-6 py-4 text-sm text-gray-700 hidden md:table-cell">
                     {c.email ? (
                       <a href={`mailto:${c.email}`} className="text-blue-600 hover:underline">{c.email}</a>
@@ -250,16 +244,6 @@ export default function CustomersPage() {
                   value={form.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ansprechpartner</label>
-                <input
-                  type="text"
-                  name="contactName"
-                  value={form.contactName}
-                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -341,15 +325,6 @@ export default function CustomersPage() {
                   value={editForm.name}
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ansprechpartner</label>
-                <input
-                  type="text"
-                  value={editForm.contactName}
-                  onChange={e => setEditForm(f => ({ ...f, contactName: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

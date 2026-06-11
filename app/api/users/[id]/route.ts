@@ -42,7 +42,7 @@ export async function PUT(
   }
 
   const body = await request.json()
-  const { name, email, password, userRole, customerId, active } = body
+  const { name, email, password, userRole, customerId, active, phone } = body
 
   // Only ADMIN can set privileged roles
   if (
@@ -58,6 +58,7 @@ export async function PUT(
   if (userRole !== undefined) updateData.role = userRole as UserRole
   if (customerId !== undefined) updateData.customerId = customerId || null
   if (active !== undefined) updateData.active = active
+  if (phone !== undefined) updateData.phone = phone || null
   if (password) {
     updateData.password = await bcrypt.hash(password, 12)
   }

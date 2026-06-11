@@ -18,7 +18,6 @@ interface Plant {
   installedAt: string | null
   buildYear: number | null
   description: string | null
-  contactPerson: string | null
   manufacturer: string | null
   model: string | null
   customerId: string
@@ -28,14 +27,22 @@ interface Plant {
   _count?: { jobPlants: number }
 }
 
+interface CustomerUser {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  role: string
+}
+
 interface Customer {
   id: string
   name: string
-  contactName: string | null
   email: string | null
   phone: string | null
   address: string | null
   plants: Plant[]
+  users: CustomerUser[]
   _count: { jobs: number }
 }
 
@@ -61,7 +68,6 @@ interface PlantForm {
   installedAt: string
   buildYear: string
   description: string
-  contactPerson: string
   manufacturer: string
   model: string
   defaultTechnicianId: string
@@ -76,7 +82,6 @@ const emptyPlantForm: PlantForm = {
   installedAt: '',
   buildYear: '',
   description: '',
-  contactPerson: '',
   manufacturer: '',
   model: '',
   defaultTechnicianId: '',
@@ -97,7 +102,6 @@ export default function CustomerDetailPage() {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({
     name: '',
-    contactName: '',
     email: '',
     phone: '',
     address: '',
@@ -123,9 +127,8 @@ export default function CustomerDetailPage() {
   // Plant types from DB
   const [plantTypes, setPlantTypes] = useState<PlantType[]>([])
 
-  // Technician lists for plant assignment
+  // Technician list for plant assignment (internal)
   const [internalTechs, setInternalTechs] = useState<{id: string; name: string}[]>([])
-  const [externalTechs, setExternalTechs] = useState<{id: string; name: string}[]>([])
 
   // Per-plant checklist override editor
   const [checklistPlant, setChecklistPlant] = useState<Plant | null>(null)
@@ -157,10 +160,6 @@ export default function CustomerDetailPage() {
     // Load internal technicians (SERVICE_TECHNICIAN)
     fetch('/api/users?role=SERVICE_TECHNICIAN').then(r => r.json()).then(data => {
       if (Array.isArray(data)) setInternalTechs(data.filter((u: {active: boolean}) => u.active))
-    }).catch(() => {})
-    // Load external technicians for this customer (MAINTENANCE_TECHNICIAN)
-    fetch(`/api/users?customerId=${id}&role=MAINTENANCE_TECHNICIAN`).then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setExternalTechs(data.filter((u: {active: boolean}) => u.active))
     }).catch(() => {})
   }, [id])
 
@@ -229,7 +228,6 @@ export default function CustomerDetailPage() {
     if (!customer) return
     setEditForm({
       name: customer.name,
-      contactName: customer.contactName ?? '',
       email: customer.email ?? '',
       phone: customer.phone ?? '',
       address: customer.address ?? '',
@@ -280,7 +278,6 @@ export default function CustomerDetailPage() {
       installedAt: plant.installedAt ? plant.installedAt.slice(0, 10) : '',
       buildYear: plant.buildYear != null ? String(plant.buildYear) : '',
       description: plant.description ?? '',
-      contactPerson: plant.contactPerson ?? '',
       manufacturer: plant.manufacturer ?? '',
       model: plant.model ?? '',
       defaultTechnicianId: plant.defaultTechnicianId ?? '',
@@ -394,15 +391,6 @@ export default function CustomerDetailPage() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ansprechpartner</label>
-              <input
-                type="text"
-                value={editForm.contactName}
-                onChange={e => setEditForm(f => ({ ...f, contactName: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
@@ -455,8 +443,8 @@ export default function CustomerDetailPage() {
               <dd className="text-sm text-gray-900">{customer.name}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Ansprechpartner</dt>
-              <dd className="text-sm text-gray-900">{customer.contactName ?? '—'}</dd>
+              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Personen</dt>
+              <dd className="text-sm text-gray-900">{customer.users.length} angelegt</dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">E-Mail</dt>
@@ -477,6 +465,46 @@ export default function CustomerDetailPage() {
           </dl>
         )}
       </div>
+
+      {/* Persons section — visible to internal roles */}
+      {['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role) && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Personen</h2>
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
+              {customer.users.length}
+            </span>
+          </div>
+          {customer.users.length === 0 ? (
+            <p className="text-sm text-gray-400">Keine externen Benutzer angelegt. Benutzer können in der Benutzerverwaltung hinzugefügt werden.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase tracking-wider">E-Mail</th>
+                    <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {customer.users.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-50">
+                      <td className="py-2.5 pr-4 font-medium text-gray-900">{u.name}</td>
+                      <td className="py-2.5 pr-4 text-gray-600">
+                        {u.email ? (
+                          <a href={`mailto:${u.email}`} className="text-blue-600 hover:underline">{u.email}</a>
+                        ) : '—'}
+                      </td>
+                      <td className="py-2.5 text-gray-600">{u.phone ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Plants section */}
       <div>
@@ -566,9 +594,6 @@ export default function CustomerDetailPage() {
                   )}
                   {plant.location && (
                     <div className="text-gray-500">Standort: {plant.location}</div>
-                  )}
-                  {plant.contactPerson && (
-                    <div className="text-gray-500">Ansprechperson: {plant.contactPerson}</div>
                   )}
                   {plant.defaultTechnician && (
                     <div className="text-gray-500">Standardtechniker: {plant.defaultTechnician.name}</div>
@@ -759,25 +784,14 @@ export default function CustomerDetailPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Standort</label>
-                  <input
-                    type="text"
-                    value={plantForm.location}
-                    onChange={e => setPlantForm(f => ({ ...f, location: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ansprechperson</label>
-                  <input
-                    type="text"
-                    value={plantForm.contactPerson}
-                    onChange={e => setPlantForm(f => ({ ...f, contactPerson: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Standort</label>
+                <input
+                  type="text"
+                  value={plantForm.location}
+                  onChange={e => setPlantForm(f => ({ ...f, location: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Installiert am</label>
@@ -816,32 +830,33 @@ export default function CustomerDetailPage() {
                 </div>
               )}
 
-              {/* Externe Techniker (Kundenzugang) */}
-              {canManagePlants && externalTechs.length > 0 && (
+              {/* Personen zuordnen */}
+              {canManagePlants && customer && customer.users.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Externe Techniker (Kundenzugang)</label>
-                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-36 overflow-y-auto">
-                    {externalTechs.map(t => {
-                      const checked = plantForm.externalUserIds.includes(t.id)
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Personen zuordnen</label>
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                    {customer.users.map(u => {
+                      const checked = plantForm.externalUserIds.includes(u.id)
                       return (
-                        <label key={t.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                        <label key={u.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors">
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => setPlantForm(f => ({
                               ...f,
                               externalUserIds: checked
-                                ? f.externalUserIds.filter(uid => uid !== t.id)
-                                : [...f.externalUserIds, t.id],
+                                ? f.externalUserIds.filter(uid => uid !== u.id)
+                                : [...f.externalUserIds, u.id],
                             }))}
                             className="w-4 h-4 text-blue-600 rounded border-gray-300"
                           />
-                          <span className="text-sm text-gray-800">{t.name}</span>
+                          <span className="text-sm text-gray-800">{u.name}</span>
+                          {u.email && <span className="text-xs text-gray-400 ml-auto">{u.email}</span>}
                         </label>
                       )
                     })}
                   </div>
-                  <p className="mt-1 text-xs text-gray-400">Diese Benutzer können die Anlage und zugehörige Einsätze sehen.</p>
+                  <p className="mt-1 text-xs text-gray-400">Zugeordnete Personen können diese Anlage im Portal einsehen.</p>
                 </div>
               )}
 
