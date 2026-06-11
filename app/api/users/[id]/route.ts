@@ -63,14 +63,22 @@ export async function PUT(
     updateData.password = await bcrypt.hash(password, 12)
   }
 
-  const user = await prisma.user.update({
-    where: { id: params.id },
-    data: updateData,
-    include: { customer: { select: { id: true, name: true } } },
-  })
+  try {
+    const user = await prisma.user.update({
+      where: { id: params.id },
+      data: updateData,
+      include: { customer: { select: { id: true, name: true } } },
+    })
 
-  const { password: _pw, ...safeUser } = user
-  return NextResponse.json(safeUser)
+    const { password: _pw, ...safeUser } = user
+    return NextResponse.json(safeUser)
+  } catch (err) {
+    const e = err as { code?: string }
+    if (e.code === 'P2002') {
+      return NextResponse.json({ error: 'Diese E-Mail-Adresse ist bereits vergeben.' }, { status: 409 })
+    }
+    throw err
+  }
 }
 
 export async function DELETE(
