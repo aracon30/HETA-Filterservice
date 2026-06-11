@@ -33,6 +33,7 @@ interface CustomerUser {
   email: string | null
   phone: string | null
   role: string
+  externalPlants: { plant: { id: string; name: string } }[]
 }
 
 interface Customer {
@@ -484,7 +485,8 @@ export default function CustomerDetailPage() {
                   <tr className="border-b border-gray-100">
                     <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase tracking-wider">E-Mail</th>
-                    <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                    <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                    <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Ansprechpartner für</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -496,7 +498,12 @@ export default function CustomerDetailPage() {
                           <a href={`mailto:${u.email}`} className="text-blue-600 hover:underline">{u.email}</a>
                         ) : '—'}
                       </td>
-                      <td className="py-2.5 text-gray-600">{u.phone ?? '—'}</td>
+                      <td className="py-2.5 pr-4 text-gray-600">{u.phone ?? '—'}</td>
+                      <td className="py-2.5 text-gray-600">
+                        {u.externalPlants.length > 0
+                          ? u.externalPlants.map(ep => ep.plant.name).join(', ')
+                          : <span className="text-gray-300">—</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
