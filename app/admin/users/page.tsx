@@ -11,6 +11,7 @@ type User = {
   id: string
   name: string
   email: string
+  phone: string | null
   role: string
   active: boolean
   customerId: string | null
@@ -505,7 +506,7 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [form, setForm] = useState({
-    name: '', email: '', password: '', userRole: 'SERVICE_TECHNICIAN', customerId: '',
+    name: '', email: '', password: '', userRole: 'SERVICE_TECHNICIAN', customerId: '', phone: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -534,7 +535,7 @@ export default function UsersPage() {
   function openCreate(presetCustomerId?: string, presetRole?: string) {
     setEditUser(null)
     setForm({
-      name: '', email: '', password: '',
+      name: '', email: '', password: '', phone: '',
       userRole: presetRole ?? (presetCustomerId ? 'MAINTENANCE_MANAGER' : 'SERVICE_TECHNICIAN'),
       customerId: presetCustomerId ?? '',
     })
@@ -550,6 +551,7 @@ export default function UsersPage() {
       password: '',
       userRole: user.role,
       customerId: user.customerId ?? '',
+      phone: user.phone ?? '',
     })
     setError('')
     setShowForm(true)
@@ -842,6 +844,15 @@ export default function UsersPage() {
                   value={form.email}
                   onChange={e => setForm({ ...form, email: e.target.value })}
                   required
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={e => setForm({ ...form, phone: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

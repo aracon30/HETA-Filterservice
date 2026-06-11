@@ -24,6 +24,7 @@ model User {
   role            UserRole
   customerId      String?
   customer        Customer?        @relation(fields: [customerId], references: [id])
+  phone           String?
   active          Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
