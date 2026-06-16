@@ -1,4 +1,8 @@
 import path from 'node:path'
+// Prisma 7 no longer auto-loads .env for the CLI — load it explicitly so that
+// `prisma migrate deploy` / `prisma generate` find DATABASE_URL even on a plain
+// shell run (not just when inheriting env from the running Next server).
+import 'dotenv/config'
 import { defineConfig } from 'prisma/config'
 
 // Prisma 7: connection URL for the CLI/Migrate lives here (no longer in schema.prisma).
