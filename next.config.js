@@ -1,6 +1,4 @@
 /** @type {import('next').NextConfig} */
-const path = require('path')
-
 const securityHeaders = [
   // Verhindert Clickjacking (Einbettung in fremde iframes)
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -33,17 +31,11 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
-  // ESLint runs during `next build` and fails on errors (quality gate).
-  // Next.js 14.1 uses experimental.serverComponentsExternalPackages (renamed
-  // to serverExternalPackages in Next.js 14.2+). Keep @react-pdf external so
-  // webpack doesn't try to bundle the ESM-only package.
-  experimental: {
-    serverComponentsExternalPackages: ['@react-pdf/renderer'],
-  },
-  webpack: (config) => {
-    config.resolve.alias['@'] = path.resolve(__dirname)
-    return config
-  },
+  // Keep @react-pdf external so the bundler doesn't try to bundle the ESM-only
+  // package (stable `serverExternalPackages` key since Next.js 15).
+  // The `@/*` import alias is resolved automatically from tsconfig paths
+  // (works under Turbopack, the default bundler in Next.js 16).
+  serverExternalPackages: ['@react-pdf/renderer'],
   async headers() {
     return [
       {

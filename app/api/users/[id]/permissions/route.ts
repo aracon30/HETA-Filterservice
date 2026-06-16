@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 
 const RESOURCES = ['customers', 'plants', 'jobs', 'checklist', 'opportunities', 'users']
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SERVICE_MANAGER')) {
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
@@ -32,7 +33,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(result)
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'SERVICE_MANAGER')) {
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })

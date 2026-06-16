@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { ROLE_PERMISSIONS } from '@/lib/permissions'
+import { ROLE_PERMISSIONS } from '@/lib/permissions-config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

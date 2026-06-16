@@ -19,8 +19,9 @@ const MIME_TYPES: Record<string, string> = {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { path: string[] } }
+  ctx: { params: Promise<{ path: string[] }> }
 ) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 

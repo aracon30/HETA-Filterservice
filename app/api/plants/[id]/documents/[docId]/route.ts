@@ -10,8 +10,9 @@ const DELETE_ROLES = ['ADMIN', 'SERVICE_MANAGER']
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; docId: string } }
+  ctx: { params: Promise<{ id: string; docId: string }> }
 ) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 

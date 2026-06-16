@@ -1,3 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* Tailwind v4 reads the existing JS config (content paths, theme) via @config */
+@config '../tailwind.config.ts';
