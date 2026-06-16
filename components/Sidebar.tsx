@@ -246,6 +246,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               {ROLE_LABELS[role ?? ''] ?? role}
             </span>
           </div>
+          <Link
+            href="/settings/password"
+            onClick={onClose}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
+              isActive('/settings/password') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            Passwort ändern
+          </Link>
           <button
             onClick={async () => { await signOut({ redirect: false }); window.location.href = '/login' }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"

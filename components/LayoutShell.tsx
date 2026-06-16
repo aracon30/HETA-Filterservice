@@ -7,9 +7,9 @@ import Sidebar from '@/components/Sidebar'
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const isLogin = pathname === '/login'
+  const isPublicPage = pathname === '/login' || pathname === '/forgot-password' || pathname.startsWith('/reset-password')
 
-  if (isLogin) {
+  if (isPublicPage) {
     return <>{children}</>
   }
 

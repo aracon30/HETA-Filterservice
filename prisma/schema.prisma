@@ -25,9 +25,12 @@ model User {
   customerId      String?
   customer        Customer?        @relation(fields: [customerId], references: [id])
   phone           String?
-  active          Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  active              Boolean          @default(true)
+  mustChangePassword  Boolean          @default(false)
+  resetToken          String?
+  resetTokenExpiry    DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
   technicianAssignments ServiceJobTechnician[] @relation("TechnicianAssignments")
   userPermissions UserPermission[]
   defaultForPlants    Plant[]           @relation("PlantDefaultTechnician")

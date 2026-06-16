@@ -44,6 +44,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           customerId: user.customerId,
           customerName: user.customer?.name ?? null,
+          mustChangePassword: user.mustChangePassword,
         }
       },
     }),
@@ -55,6 +56,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role
         token.customerId = user.customerId
         token.customerName = user.customerName ?? null
+        token.mustChangePassword = user.mustChangePassword
       }
       return token
     },
@@ -64,6 +66,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role
         session.user.customerId = token.customerId
         session.user.customerName = token.customerName as string | null
+        session.user.mustChangePassword = token.mustChangePassword
       }
       return session
     },
