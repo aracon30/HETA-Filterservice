@@ -90,10 +90,16 @@ export async function POST() {
       send('Datei-Check', fileSizes, stillMissing.length > 0)
 
       // Abhängigkeiten neu installieren wenn package.json/package-lock.json geändert
-      // ODER wenn node_modules fehlt (z.B. nach fehlgeschlagenem vorherigen Update)
-      const nodeModulesExists = fs.existsSync(`${APP_DIR}/node_modules/.bin/next`)
-      if (packagesChanged || !nodeModulesExists) {
-        const reason = !nodeModulesExists ? 'node_modules fehlt — erzwinge Installation' : 'Pakete geändert'
+      // ODER wenn node_modules fehlt/unvollständig ist (z.B. nach fehlgeschlagenem
+      // vorherigen Update oder einem Production-Install der devDependencies übersprang).
+      // Wir prüfen daher auch ein devDependency-Binary (prisma) und ein für den Build
+      // nötiges Paket (@tailwindcss/postcss), nicht nur `next`.
+      const nodeModulesComplete =
+        fs.existsSync(`${APP_DIR}/node_modules/.bin/next`) &&
+        fs.existsSync(`${APP_DIR}/node_modules/.bin/prisma`) &&
+        fs.existsSync(`${APP_DIR}/node_modules/@tailwindcss/postcss`)
+      if (packagesChanged || !nodeModulesComplete) {
+        const reason = !nodeModulesComplete ? 'node_modules fehlt/unvollständig — erzwinge Installation' : 'Pakete geändert'
         send('Cache leeren', reason)
         await run('Cache leeren', 'rm -rf .next node_modules/.cache tsconfig.tsbuildinfo')
         await run('node_modules entfernen', 'rm -rf node_modules')
