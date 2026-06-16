@@ -50,13 +50,28 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
         token.role = user.role
         token.customerId = user.customerId
         token.customerName = user.customerName ?? null
         token.mustChangePassword = user.mustChangePassword
+      } else if (trigger === 'update' && token.id) {
+        // Re-sync mutable fields from the DB when the client calls
+        // useSession().update() — e.g. after the forced first-login password
+        // change clears mustChangePassword. We read the authoritative DB value
+        // instead of trusting client-supplied data so the forced change can't
+        // be skipped without actually changing the password.
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true, customerId: true, mustChangePassword: true },
+        })
+        if (dbUser) {
+          token.role = dbUser.role
+          token.customerId = dbUser.customerId
+          token.mustChangePassword = dbUser.mustChangePassword
+        }
       }
       return token
     },
