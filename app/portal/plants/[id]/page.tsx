@@ -56,8 +56,10 @@ function Field({ label, value }: { label: string; value: string | number | null 
 export default async function PortalPlantPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
+
   const session = await getServerSession(authOptions)
   if (!session?.user) redirect('/login')
 
@@ -68,7 +70,7 @@ export default async function PortalPlantPage({
 
   // Load plant — must belong to this user's customer
   const plant = await prisma.plant.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       customer: { select: { id: true, name: true } },
       _count: { select: { jobPlants: true } },
