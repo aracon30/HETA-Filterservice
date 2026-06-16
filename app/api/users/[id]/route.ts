@@ -52,6 +52,23 @@ export async function PUT(
     return NextResponse.json({ error: 'Nur Administratoren können diese Rolle vergeben' }, { status: 403 })
   }
 
+  // Protect privileged accounts: only ADMIN may modify existing ADMIN/SERVICE_MANAGER
+  // users (prevents a SERVICE_MANAGER from resetting an admin's password, email or
+  // active flag and thereby escalating privileges).
+  if (role !== 'ADMIN') {
+    const target = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { role: true },
+    })
+    if (!target) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
+    if (target.role === 'ADMIN' || target.role === 'SERVICE_MANAGER') {
+      return NextResponse.json(
+        { error: 'Nur Administratoren können privilegierte Konten bearbeiten' },
+        { status: 403 }
+      )
+    }
+  }
+
   const updateData: Record<string, unknown> = {}
   if (name !== undefined) updateData.name = name
   if (email !== undefined) updateData.email = email
