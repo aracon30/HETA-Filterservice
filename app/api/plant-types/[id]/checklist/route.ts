@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 
@@ -16,7 +17,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 // Replace all checklist items for this plant type
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 

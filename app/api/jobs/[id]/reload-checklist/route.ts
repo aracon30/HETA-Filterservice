@@ -9,8 +9,9 @@ import { getChecklistForPlantType } from '@/lib/plant-types'
 // Only allowed for ADMIN and SERVICE_MANAGER on PLANNED jobs.
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 

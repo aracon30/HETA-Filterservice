@@ -11,8 +11,9 @@ const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'offers')
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })

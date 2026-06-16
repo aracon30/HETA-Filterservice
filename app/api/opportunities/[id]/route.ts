@@ -5,7 +5,8 @@ import { checkPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { OpportunityStage } from '@prisma/client'
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
   if (!(await checkPermission(session, 'opportunities', 'edit')))
@@ -35,7 +36,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return NextResponse.json(opportunity)
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const params = await ctx.params
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
   if (!(await checkPermission(session, 'opportunities', 'delete')))
