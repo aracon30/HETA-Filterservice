@@ -38,9 +38,21 @@ export default function ChangePasswordPage() {
         return
       }
       setStatus('success')
-      // Refresh session so mustChangePassword is cleared
-      await update({ mustChangePassword: false })
-      setTimeout(() => router.push('/'), 1500)
+      // Refresh the session so the JWT cookie reflects the cleared
+      // mustChangePassword flag (the server jwt callback re-reads it from the DB).
+      try {
+        await update({ mustChangePassword: false })
+      } catch {
+        // Ignore — we navigate with a full reload below regardless, which picks
+        // up the refreshed cookie and re-evaluates the middleware redirect.
+      }
+      // Use a full document navigation (not router.push) so the browser sends a
+      // fresh request with the updated session cookie through the middleware.
+      // A soft client navigation could still carry the stale token and bounce
+      // the user back to this page.
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1200)
     } catch {
       setErrorMsg('Verbindungsfehler. Bitte versuchen Sie es erneut.')
       setStatus('error')
