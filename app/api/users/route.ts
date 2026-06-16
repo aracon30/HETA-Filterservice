@@ -4,6 +4,27 @@ import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@prisma/client'
+import { ROLE_LABELS } from '@/lib/permissions-config'
+
+// Builds a 409 error that names the account already using the email, so an admin
+// can find it even when it sits inside a collapsed customer group in the UI.
+async function emailTakenResponse(email: string) {
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    include: { customer: { select: { name: true } } },
+  })
+  if (!existing) {
+    return NextResponse.json({ error: 'Diese E-Mail-Adresse ist bereits vergeben.' }, { status: 409 })
+  }
+  const roleLabel = ROLE_LABELS[existing.role] ?? existing.role
+  const customerPart = existing.customer ? `, ${existing.customer.name}` : ''
+  return NextResponse.json(
+    {
+      error: `Diese E-Mail-Adresse ist bereits vergeben: ${existing.name} (${roleLabel}${customerPart}).`,
+    },
+    { status: 409 }
+  )
+}
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -43,7 +64,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { name, email, password, userRole, customerId, phone } = body
+  const { name, password, userRole, customerId, phone } = body
+  // Normalize email so case/whitespace variants don't slip past the unique
+  // constraint (PostgreSQL @unique is case-sensitive) and create near-duplicates.
+  const email = typeof body.email === 'string' ? body.email.trim() : ''
+
+  if (!email) {
+    return NextResponse.json({ error: 'E-Mail-Adresse ist erforderlich' }, { status: 400 })
+  }
 
   // Only ADMIN can create ADMIN or SERVICE_MANAGER users
   if (
@@ -51,6 +79,16 @@ export async function POST(request: NextRequest) {
     role !== 'ADMIN'
   ) {
     return NextResponse.json({ error: 'Nur Administratoren können diese Rolle vergeben' }, { status: 403 })
+  }
+
+  // Case-insensitive duplicate check with a message that identifies the existing
+  // account (it may be hidden inside a collapsed customer group in the UI).
+  const duplicate = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    select: { id: true },
+  })
+  if (duplicate) {
+    return emailTakenResponse(email)
   }
 
   const hashedPassword = await bcrypt.hash(password, 12)
@@ -74,7 +112,8 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const e = err as { code?: string }
     if (e.code === 'P2002') {
-      return NextResponse.json({ error: 'Diese E-Mail-Adresse ist bereits vergeben.' }, { status: 409 })
+      // Race condition between the check above and the insert.
+      return emailTakenResponse(email)
     }
     throw err
   }

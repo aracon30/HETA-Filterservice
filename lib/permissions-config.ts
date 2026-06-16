@@ -69,3 +69,13 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     requests:      { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, scope: 'own_company' },
   },
 }
+
+// German role labels for UI and error messages
+export const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrator',
+  SERVICE_MANAGER: 'Service Manager',
+  SERVICE_TECHNICIAN: 'Service Techniker',
+  MAINTENANCE_MANAGER: 'Instandhaltungsleiter',
+  MAINTENANCE_TECHNICIAN: 'Instandhaltungstechniker',
+  BUYER: 'Einkäufer',
+}
