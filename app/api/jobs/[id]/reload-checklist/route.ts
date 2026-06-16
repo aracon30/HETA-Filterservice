@@ -62,6 +62,19 @@ export async function POST(
   let newItems: ChecklistEntry[] = []
 
   if (job.plants.length > 0) {
+    // Batch-load all needed plant types in a single query (avoids N+1 in the loop)
+    const typesNeeded = Array.from(new Set(
+      job.plants.filter(jp => jp.plant.checklistOverrides.length === 0).map(jp => jp.plant.type)
+    ))
+    const plantTypesMap: Record<string, { items: { label: string; section: string | null }[] }> = typesNeeded.length > 0
+      ? Object.fromEntries(
+          (await prisma.plantType.findMany({
+            where: { value: { in: typesNeeded } },
+            include: { items: { orderBy: { order: 'asc' } } },
+          })).map(pt => [pt.value, pt])
+        )
+      : {}
+
     for (const jp of job.plants) {
       const plant = jp.plant
       let items: { label: string; section?: string }[] = []
@@ -69,12 +82,9 @@ export async function POST(
       if (plant.checklistOverrides.length > 0) {
         items = plant.checklistOverrides.map(o => ({ label: o.label, section: o.section }))
       } else {
-        const plantType = await prisma.plantType.findUnique({
-          where: { value: plant.type },
-          include: { items: { orderBy: { order: 'asc' } } },
-        })
+        const plantType = plantTypesMap[plant.type]
         if (plantType && plantType.items.length > 0) {
-          items = plantType.items.map(i => ({ label: i.label, section: i.section }))
+          items = plantType.items.map(i => ({ label: i.label, section: i.section ?? undefined }))
         } else {
           const legacy = getChecklistForPlantType(plant.type)
           if (legacy.length > 0) items = legacy

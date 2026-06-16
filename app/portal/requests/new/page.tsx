@@ -26,6 +26,14 @@ export default function NewRequestPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    fetch('/api/plants')
+      .then(r => r.json())
+      .then(data => setPlants(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
+  // Hooks must run unconditionally; the permission guard comes after all hooks.
   const role = session?.user?.role as string | undefined
   if (session && role && !CAN_CREATE_ROLES.includes(role)) {
     return (
@@ -34,13 +42,6 @@ export default function NewRequestPage() {
       </div>
     )
   }
-
-  useEffect(() => {
-    fetch('/api/plants')
-      .then(r => r.json())
-      .then(data => setPlants(Array.isArray(data) ? data : []))
-      .catch(() => {})
-  }, [])
 
   const togglePlant = (id: string) => {
     setSelectedPlantIds(prev =>

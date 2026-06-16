@@ -53,6 +53,14 @@ export default function UpdatePage() {
     return () => clearInterval(timer)
   }, [running])
 
+  // Redirect after success once stream closed
+  useEffect(() => {
+    if (done === true) {
+      const t = setTimeout(() => window.location.replace('/'), 4000)
+      return () => clearTimeout(t)
+    }
+  }, [done])
+
   if (status === 'loading') return null
   if (!session || session.user.role !== 'ADMIN') {
     router.replace('/')
@@ -103,14 +111,6 @@ export default function UpdatePage() {
       // done state already set via stream; redirect on success
     }
   }
-
-  // Redirect after success once stream closed
-  useEffect(() => {
-    if (done === true) {
-      const t = setTimeout(() => window.location.replace('/'), 4000)
-      return () => clearTimeout(t)
-    }
-  }, [done])
 
   const successCount = steps.filter(s => !s.error).length
   const errorCount = steps.filter(s => s.error).length

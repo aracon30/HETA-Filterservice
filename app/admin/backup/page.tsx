@@ -31,16 +31,17 @@ export default function BackupPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
 
-  if (status === 'loading') return null
-  if (!session || session.user.role !== 'ADMIN') { router.replace('/'); return null }
-
   const loadBackups = async () => {
     const res = await fetch('/api/admin/backup')
     const data = await res.json()
     setBackups(data.backups ?? [])
   }
 
+  // Hooks must run unconditionally; the admin guard comes after all hooks.
   useEffect(() => { loadBackups() }, [])
+
+  if (status === 'loading') return null
+  if (!session || session.user.role !== 'ADMIN') { router.replace('/'); return null }
 
   const showMsg = (text: string, error = false) => {
     setMessage({ text, error })
