@@ -33,6 +33,9 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Search
+  const [search, setSearch] = useState('')
+
   // New customer modal
   const [showModal, setShowModal] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -51,16 +54,22 @@ export default function CustomersPage() {
   const role = session?.user?.role ?? ''
   const canEditDelete = ['ADMIN', 'SERVICE_MANAGER'].includes(role)
 
-  const fetchCustomers = async () => {
-    const res = await fetch('/api/customers')
+  const fetchCustomers = async (query = '') => {
+    const url = query.trim() ? `/api/customers?q=${encodeURIComponent(query.trim())}` : '/api/customers'
+    const res = await fetch(url)
     const data = await res.json()
     setCustomers(data)
     setLoading(false)
   }
 
+  // Live-Suche mit kurzem Debounce, damit nicht bei jedem Tastendruck eine
+  // Anfrage rausgeht.
   useEffect(() => {
-    fetchCustomers()
-  }, [])
+    const handle = setTimeout(() => {
+      fetchCustomers(search)
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [search])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
@@ -137,6 +146,30 @@ export default function CustomersPage() {
         </button>
       </div>
 
+      <div className="mb-4 relative max-w-md">
+        <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+        </svg>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Kunden oder Anlagen durchsuchen..."
+          className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            title="Suche zurücksetzen"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[560px]">
           <thead>
@@ -158,7 +191,7 @@ export default function CustomersPage() {
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={canEditDelete ? 7 : 6} className="px-4 sm:px-6 py-12 text-center text-sm text-gray-400">Keine Kunden vorhanden</td>
+                <td colSpan={canEditDelete ? 7 : 6} className="px-4 sm:px-6 py-12 text-center text-sm text-gray-400">{search ? 'Keine Treffer' : 'Keine Kunden vorhanden'}</td>
               </tr>
             ) : (
               customers.map((c) => (
