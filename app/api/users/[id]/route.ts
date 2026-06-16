@@ -4,6 +4,28 @@ import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@prisma/client'
+import { ROLE_LABELS } from '@/lib/permissions-config'
+
+// Builds a 409 error that names the account already using the email, so an admin
+// can find it even when it sits inside a collapsed customer group in the UI.
+// `excludeId` omits the user being edited from the lookup.
+async function emailTakenResponse(email: string, excludeId?: string) {
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' }, NOT: { id: excludeId } },
+    include: { customer: { select: { name: true } } },
+  })
+  if (!existing) {
+    return NextResponse.json({ error: 'Diese E-Mail-Adresse ist bereits vergeben.' }, { status: 409 })
+  }
+  const roleLabel = ROLE_LABELS[existing.role] ?? existing.role
+  const customerPart = existing.customer ? `, ${existing.customer.name}` : ''
+  return NextResponse.json(
+    {
+      error: `Diese E-Mail-Adresse ist bereits vergeben: ${existing.name} (${roleLabel}${customerPart}).`,
+    },
+    { status: 409 }
+  )
+}
 
 export async function GET(
   _request: NextRequest,
@@ -44,7 +66,10 @@ export async function PUT(
   }
 
   const body = await request.json()
-  const { name, email, password, userRole, customerId, active, phone } = body
+  const { name, password, userRole, customerId, active, phone } = body
+  // Normalize email so case/whitespace variants don't slip past the unique
+  // constraint (PostgreSQL @unique is case-sensitive) and create near-duplicates.
+  const email = body.email !== undefined ? String(body.email).trim() : undefined
 
   // Only ADMIN can set privileged roles
   if (
@@ -71,6 +96,22 @@ export async function PUT(
     }
   }
 
+  if (email !== undefined && !email) {
+    return NextResponse.json({ error: 'E-Mail-Adresse ist erforderlich' }, { status: 400 })
+  }
+
+  // Case-insensitive duplicate check (excluding the user being edited) with a
+  // message that identifies the existing account holding the email.
+  if (email !== undefined) {
+    const duplicate = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' }, NOT: { id: params.id } },
+      select: { id: true },
+    })
+    if (duplicate) {
+      return emailTakenResponse(email, params.id)
+    }
+  }
+
   const updateData: Record<string, unknown> = {}
   if (name !== undefined) updateData.name = name
   if (email !== undefined) updateData.email = email
@@ -94,7 +135,8 @@ export async function PUT(
   } catch (err) {
     const e = err as { code?: string }
     if (e.code === 'P2002') {
-      return NextResponse.json({ error: 'Diese E-Mail-Adresse ist bereits vergeben.' }, { status: 409 })
+      // Race condition between the check above and the update.
+      return emailTakenResponse(email ?? '', params.id)
     }
     throw err
   }
