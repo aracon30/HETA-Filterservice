@@ -97,7 +97,7 @@ export async function POST() {
         send('Cache leeren', reason)
         await run('Cache leeren', 'rm -rf .next node_modules/.cache tsconfig.tsbuildinfo')
         await run('node_modules entfernen', 'rm -rf node_modules')
-        const installed = await run('npm ci', 'npm ci --prefer-offline')
+        const installed = await run('npm ci', 'npm ci --include=dev --prefer-offline')
         if (!installed) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: false })}\n\n`))
           controller.close()
