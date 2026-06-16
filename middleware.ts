@@ -6,10 +6,12 @@ export default withAuth(
     const { pathname } = req.nextUrl
     const token = req.nextauth.token
 
-    // Force password change on first login
+    // Force password change on first login (but still allow loading of uploaded
+    // files so images/documents keep rendering during the forced-change flow)
     if (
       token?.mustChangePassword &&
       pathname !== '/settings/password' &&
+      !pathname.startsWith('/uploads/') &&
       !pathname.startsWith('/api/auth/change-password') &&
       !pathname.startsWith('/api/auth/signout')
     ) {
@@ -42,5 +44,8 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|uploads/).*)'],
+  // Note: `uploads/` is intentionally NOT excluded so that statically served
+  // files under public/uploads/ require a valid session (prevents anonymous
+  // access to invoices, plant documents and other uploads via their URL).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
