@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkPermission, getScopeFilter } from '@/lib/permissions'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
@@ -15,8 +15,36 @@ export async function GET() {
 
   const scopeFilter = await getScopeFilter(session, 'customers')
 
+  const q = request.nextUrl.searchParams.get('q')?.trim()
+  const searchFilter = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' as const } },
+          { contactName: { contains: q, mode: 'insensitive' as const } },
+          { email: { contains: q, mode: 'insensitive' as const } },
+          { phone: { contains: q, mode: 'insensitive' as const } },
+          { address: { contains: q, mode: 'insensitive' as const } },
+          // Suche auch in den dahinterliegenden Anlagen
+          {
+            plants: {
+              some: {
+                OR: [
+                  { name: { contains: q, mode: 'insensitive' as const } },
+                  { type: { contains: q, mode: 'insensitive' as const } },
+                  { serialNumber: { contains: q, mode: 'insensitive' as const } },
+                  { location: { contains: q, mode: 'insensitive' as const } },
+                  { manufacturer: { contains: q, mode: 'insensitive' as const } },
+                  { model: { contains: q, mode: 'insensitive' as const } },
+                ],
+              },
+            },
+          },
+        ],
+      }
+    : {}
+
   const customers = await prisma.customer.findMany({
-    where: scopeFilter,
+    where: { AND: [scopeFilter, searchFilter] },
     include: {
       plants: { select: { id: true } },
       jobs: {
