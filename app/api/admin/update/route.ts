@@ -42,16 +42,16 @@ export async function POST() {
         .catch(() => ({ stdout: 'unbekannt' }))
       send('Version vor Update', hashBefore.trim())
 
-      // Prüfen ob package.json / package-lock.json sich ändern — BEVOR git reset
+      // Git fetch
+      await run('Git Fetch', 'git fetch origin main')
+
+      // Prüfen ob package.json / package-lock.json sich ändern — NACH git fetch
       const { stdout: pkgDiff } = await execAsync(
         'git diff HEAD origin/main -- package.json package-lock.json',
         { cwd: APP_DIR }
       ).catch(() => ({ stdout: '' }))
       const packagesChanged = pkgDiff.trim().length > 0
       send('Pakete geändert?', packagesChanged ? 'Ja — node_modules wird neu installiert' : 'Nein — Installation wird übersprungen')
-
-      // Git fetch
-      await run('Git Fetch', 'git fetch origin main')
 
       // skip-worktree / assume-unchanged zurücksetzen
       await run(
