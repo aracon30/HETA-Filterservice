@@ -712,7 +712,7 @@ export default function UsersPage() {
             })}
             {filteredCustomers.length === 0 && q && (
               <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-sm text-gray-400">
-                Keine Ergebnisse für „{search}"
+                Keine Ergebnisse für „{search}&ldquo;
               </div>
             )}
             {/* External users without customer */}

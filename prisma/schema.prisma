@@ -35,6 +35,8 @@ model User {
   userPermissions UserPermission[]
   defaultForPlants    Plant[]           @relation("PlantDefaultTechnician")
   externalPlants      PlantExternalUser[]
+
+  @@index([customerId])
 }
 
 model UserPermission {
@@ -89,6 +91,8 @@ model Hotel {
   note       String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
 }
 
 model Invoice {
@@ -104,6 +108,9 @@ model Invoice {
   fileName      String
   uploadedById  String
   createdAt     DateTime    @default(now())
+
+  @@index([customerId])
+  @@index([jobId])
 }
 
 model PlantType {
@@ -124,6 +131,8 @@ model PartTypeItem {
   partNumber  String?
   quantity    Int       @default(1)
   order       Int       @default(0)
+
+  @@index([plantTypeId])
 }
 
 model PlantTypeChecklistItem {
@@ -133,6 +142,8 @@ model PlantTypeChecklistItem {
   section     String
   label       String
   order       Int       @default(0)
+
+  @@index([plantTypeId])
 }
 
 model PlantChecklistOverride {
@@ -142,6 +153,8 @@ model PlantChecklistOverride {
   section String
   label   String
   order   Int     @default(0)
+
+  @@index([plantId])
 }
 
 model Plant {
@@ -170,6 +183,9 @@ model Plant {
   defaultTechnician   User?             @relation("PlantDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: SetNull)
   externalUsers       PlantExternalUser[]
   requestPlants       PlantRequestPlant[]
+
+  @@index([customerId])
+  @@index([defaultTechnicianId])
 }
 
 enum DocumentType {
@@ -198,6 +214,10 @@ model PlantDocument {
   uploadedById   String
   uploadedByName String
   createdAt      DateTime     @default(now())
+
+  @@index([plantId])
+  @@index([customerId])
+  @@index([jobId])
 }
 
 model ServiceJobTechnician {
@@ -210,6 +230,7 @@ model ServiceJobTechnician {
   order    Int        @default(0)
 
   @@unique([jobId, userId])
+  @@index([userId])
 }
 
 model ServiceJobPlant {
@@ -221,6 +242,7 @@ model ServiceJobPlant {
   order   Int        @default(0)
 
   @@unique([jobId, plantId])
+  @@index([plantId])
 }
 
 model ServiceJob {
@@ -248,6 +270,9 @@ model ServiceJob {
   plantDocuments  PlantDocument[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+
+  @@index([customerId])
+  @@index([status, scheduledAt])
 }
 
 model PlantMaterial {
@@ -261,6 +286,8 @@ model PlantMaterial {
   deliveryDate DateTime?
   notes        String?
   order        Int      @default(0)
+
+  @@index([plantId])
 }
 
 model JobMaterial {
@@ -276,6 +303,8 @@ model JobMaterial {
   deliveryDate DateTime?
   notes        String?
   order        Int        @default(0)
+
+  @@index([jobId])
 }
 
 model ChecklistItem {
@@ -290,6 +319,9 @@ model ChecklistItem {
   jobId    String
   plantId  String?
   plant    Plant?     @relation(fields: [plantId], references: [id])
+
+  @@index([jobId])
+  @@index([plantId])
 }
 
 model Opportunity {
@@ -310,6 +342,9 @@ model Opportunity {
   plant            Plant?            @relation(fields: [plantId], references: [id])
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+
+  @@index([customerId])
+  @@index([stage])
 }
 
 enum JobStatus {
@@ -383,6 +418,9 @@ model PlantRequest {
   serviceJobNumber String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+
+  @@index([customerId])
+  @@index([status])
 }
 
 model PlantRequestPlant {
@@ -407,6 +445,8 @@ model PlantRequestMessage {
   statusChange      String?
   readByRequester   Boolean      @default(false)
   createdAt         DateTime     @default(now())
+
+  @@index([requestId])
 }
 
 model PlantRequestOffer {
@@ -419,4 +459,6 @@ model PlantRequestOffer {
   uploadedById   String
   uploadedByName String
   createdAt   DateTime     @default(now())
+
+  @@index([requestId])
 }

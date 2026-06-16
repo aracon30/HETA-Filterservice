@@ -33,7 +33,7 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
-  eslint: { ignoreDuringBuilds: true },
+  // ESLint runs during `next build` and fails on errors (quality gate).
   // Next.js 14.1 uses experimental.serverComponentsExternalPackages (renamed
   // to serverExternalPackages in Next.js 14.2+). Keep @react-pdf external so
   // webpack doesn't try to bundle the ESM-only package.
