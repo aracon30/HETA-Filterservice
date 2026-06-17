@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Optionales, idempotentes Migrationsskript.
  *
@@ -9,7 +10,7 @@
  * Gefahrlos mehrfach ausführbar — bereits zugeordnete Datensätze bleiben unberührt.
  *
  * Aufruf:
- *   npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/scripts/assign-default-sites.ts
+ *   npx ts-node --transpile-only --compiler-options '{"module":"CommonJS"}' prisma/scripts/assign-default-sites.ts
  */
 import { PrismaClient } from '@prisma/client'
 
