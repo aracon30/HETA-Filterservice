@@ -63,6 +63,16 @@ export default async function PortalPage() {
       })
     : []
 
+  // Standorte der sichtbaren Anlagen — zur besseren Orientierung im Portal
+  const visibleSiteIds = Array.from(new Set(plants.map(p => p.siteId).filter((x): x is string => !!x)))
+  const sites = visibleSiteIds.length > 0
+    ? await prisma.site.findMany({
+        where: { id: { in: visibleSiteIds } },
+        orderBy: { name: 'asc' },
+      })
+    : []
+  const plantsWithoutSite = plants.filter(p => !p.siteId)
+
   // Load jobs if permitted
   const jobPlantFilter = ext.all
     ? {}
@@ -95,6 +105,51 @@ export default async function PortalPage() {
   // Role-specific detail level
   const showReportLink = role === 'MAINTENANCE_MANAGER' || role === 'BUYER'
   const showInvoices = role === 'BUYER'
+
+  const renderPlantCard = (plant: typeof plants[number]) => (
+    <Link
+      key={plant.id}
+      href={`/portal/plants/${plant.id}`}
+      className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-blue-300 hover:shadow-md transition-all group"
+    >
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
+          <svg className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-blue-700 transition-colors">{plant.name}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{plant.type}</p>
+          {plant.location && (
+            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {plant.location}
+            </p>
+          )}
+          {(plant.manufacturer || plant.model) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {[plant.manufacturer, plant.model].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {plant.serialNumber && (
+            <p className="text-xs text-gray-300 mt-0.5">S/N: {plant.serialNumber}</p>
+          )}
+          {plant.buildYear && (
+            <p className="text-xs text-gray-400 mt-0.5">Baujahr {plant.buildYear}</p>
+          )}
+        </div>
+        <svg className="w-4 h-4 text-gray-300 group-hover:text-blue-400 flex-shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </Link>
+  )
 
   return (
     <div className="max-w-5xl mx-auto pb-12">
@@ -178,51 +233,42 @@ export default async function PortalPage() {
               Keine Anlagen hinterlegt.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {plants.map(plant => (
-                <Link
-                  key={plant.id}
-                  href={`/portal/plants/${plant.id}`}
-                  className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-blue-300 hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
-                      <svg className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <div className="space-y-6">
+              {sites.map(site => {
+                const sitePlants = plants.filter(p => p.siteId === site.id)
+                if (sitePlants.length === 0) return null
+                const siteLocation = [site.address, [site.zip, site.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+                return (
+                  <div key={site.id}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
+                      <h3 className="text-sm font-bold text-gray-800">{site.name}</h3>
+                      {siteLocation && <span className="text-xs text-gray-400">· {siteLocation}</span>}
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full ml-auto">{sitePlants.length}</span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-blue-700 transition-colors">{plant.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{plant.type}</p>
-                      {plant.location && (
-                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          {plant.location}
-                        </p>
-                      )}
-                      {(plant.manufacturer || plant.model) && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {[plant.manufacturer, plant.model].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
-                      {plant.serialNumber && (
-                        <p className="text-xs text-gray-300 mt-0.5">S/N: {plant.serialNumber}</p>
-                      )}
-                      {plant.buildYear && (
-                        <p className="text-xs text-gray-400 mt-0.5">Baujahr {plant.buildYear}</p>
-                      )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {sitePlants.map(renderPlantCard)}
                     </div>
-                    <svg className="w-4 h-4 text-gray-300 group-hover:text-blue-400 flex-shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
                   </div>
-                </Link>
-              ))}
+                )
+              })}
+
+              {plantsWithoutSite.length > 0 && (
+                <div>
+                  {sites.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-sm font-bold text-gray-500">Ohne Standort</h3>
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{plantsWithoutSite.length}</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {plantsWithoutSite.map(renderPlantCard)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
