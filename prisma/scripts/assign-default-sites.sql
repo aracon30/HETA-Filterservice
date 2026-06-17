@@ -6,8 +6,8 @@
 --
 -- Gefahrlos mehrfach ausführbar (NOT EXISTS-Guard + "siteId IS NULL"-Filter).
 --
--- Ausführen:
---   npx prisma db execute --schema prisma/schema.prisma --file prisma/scripts/assign-default-sites.sql
+-- Ausführen (Prisma 7 liest die DB-URL aus prisma.config.ts):
+--   npx prisma db execute --file prisma/scripts/assign-default-sites.sql
 
 -- 1. Hauptstandort je Kunde anlegen, der einen braucht und noch keinen hat
 INSERT INTO "Site" (id, "customerId", name, address, "createdAt", "updatedAt")
