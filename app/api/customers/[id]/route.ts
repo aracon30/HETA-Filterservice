@@ -40,7 +40,28 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
           _count: { select: { jobPlants: true } },
           defaultTechnician: { select: { id: true, name: true } },
           externalUsers: { include: { user: { select: { id: true, name: true } } } },
+          contacts: {
+            orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+            include: { user: { select: { id: true, name: true } } },
+          },
         },
+      },
+      sites: {
+        orderBy: { name: 'asc' },
+        include: {
+          contacts: {
+            orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+            include: { user: { select: { id: true, name: true } } },
+          },
+          hotels: { orderBy: { name: 'asc' } },
+          _count: { select: { plants: true } },
+        },
+      },
+      // Company-wide contacts (not bound to a site or plant)
+      contacts: {
+        where: { siteId: null, plantId: null },
+        orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+        include: { user: { select: { id: true, name: true } } },
       },
       users: {
         where: { active: true },

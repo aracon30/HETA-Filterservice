@@ -74,6 +74,8 @@ export async function getScopeFilter(
   if (scope === 'own_company') {
     if (resource === 'customers') return { id: customerId }
     if (resource === 'plants') return { customerId }
+    if (resource === 'sites') return { customerId }
+    if (resource === 'contacts') return { customerId }
     if (resource === 'jobs') return { customerId }
     if (resource === 'opportunities') return { customerId }
     if (resource === 'requests') return { customerId }
@@ -95,6 +97,16 @@ export async function getScopeFilter(
     if (resource === 'plants') return { id: { in: plantIds } }
     if (resource === 'jobs') return { plants: { some: { plantId: { in: plantIds } } } }
     if (resource === 'customers') return { id: customerId }
+    // Sites that contain at least one of the technician's assigned plants
+    if (resource === 'sites') return { plants: { some: { id: { in: plantIds } } } }
+    // Contacts at the technician's plant, at the site of that plant, or company-wide
+    if (resource === 'contacts') return {
+      OR: [
+        { plantId: { in: plantIds } },
+        { site: { plants: { some: { id: { in: plantIds } } } } },
+        { customerId, siteId: null, plantId: null },
+      ],
+    }
     return {}
   }
 

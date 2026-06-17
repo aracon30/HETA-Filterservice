@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const customerId = searchParams.get('customerId')
+  const siteId = searchParams.get('siteId')
 
   const scopeFilter = await getScopeFilter(session, 'plants')
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     // Merge customerId with scope filter (scope already restricts to own company)
     where.customerId = customerId
   }
+  if (siteId) where.siteId = siteId
 
   const plants = await prisma.plant.findMany({
     where,
@@ -45,11 +47,20 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
+
+  // Validate the referenced site belongs to the given customer
+  if (body.siteId) {
+    const site = await prisma.site.findUnique({ where: { id: body.siteId }, select: { customerId: true } })
+    if (!site || site.customerId !== body.customerId)
+      return NextResponse.json({ error: 'Ungültiger Standort' }, { status: 400 })
+  }
+
   const plant = await prisma.plant.create({
     data: {
       name: body.name,
       type: body.type,
       customerId: body.customerId,
+      siteId: body.siteId || null,
       serialNumber: body.serialNumber || null,
       location: body.location || null,
       installedAt: body.installedAt ? new Date(body.installedAt) : null,

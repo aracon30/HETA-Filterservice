@@ -2,28 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkPermission, getScopeFilter } from '@/lib/permissions'
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  if (!(await checkPermission(session, 'sites', 'view')))
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   const customerId = request.nextUrl.searchParams.get('customerId')
-  const siteId = request.nextUrl.searchParams.get('siteId')
   if (!customerId) return NextResponse.json({ error: 'customerId fehlt' }, { status: 400 })
 
-  // External users may only see their own customer's hotels
+  // External users may only see their own customer's sites
   if (session.user.customerId && session.user.customerId !== customerId)
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
-  const where: Record<string, unknown> = { customerId }
-  if (siteId) where.siteId = siteId
+  const scopeFilter = await getScopeFilter(session, 'sites')
 
-  const hotels = await prisma.hotel.findMany({
-    where,
+  const sites = await prisma.site.findMany({
+    where: { ...scopeFilter, customerId },
     orderBy: { name: 'asc' },
+    include: {
+      _count: { select: { plants: true, contacts: true, hotels: true } },
+    },
   })
 
-  return NextResponse.json(hotels)
+  return NextResponse.json(sites)
 }
 
 export async function POST(request: NextRequest) {
@@ -38,23 +42,16 @@ export async function POST(request: NextRequest) {
   if (!body.customerId || !body.name?.trim())
     return NextResponse.json({ error: 'customerId und name sind erforderlich' }, { status: 400 })
 
-  // Validate the referenced site belongs to the given customer
-  if (body.siteId) {
-    const site = await prisma.site.findUnique({ where: { id: body.siteId }, select: { customerId: true } })
-    if (!site || site.customerId !== body.customerId)
-      return NextResponse.json({ error: 'Ungültiger Standort' }, { status: 400 })
-  }
-
-  const hotel = await prisma.hotel.create({
+  const site = await prisma.site.create({
     data: {
       customerId: body.customerId,
-      siteId: body.siteId || null,
       name: body.name.trim(),
       address: body.address?.trim() || null,
-      phone: body.phone?.trim() || null,
+      zip: body.zip?.trim() || null,
+      city: body.city?.trim() || null,
       note: body.note?.trim() || null,
     },
   })
 
-  return NextResponse.json(hotel, { status: 201 })
+  return NextResponse.json(site, { status: 201 })
 }
