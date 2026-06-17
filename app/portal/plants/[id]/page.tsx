@@ -74,6 +74,7 @@ export default async function PortalPlantPage({
     where: { id },
     include: {
       customer: { select: { id: true, name: true } },
+      site: { select: { name: true, address: true, zip: true, city: true } },
       _count: { select: { jobPlants: true } },
     },
   })
@@ -129,6 +130,12 @@ export default async function PortalPlantPage({
           </svg>
           {plant.customer.name}
         </Link>
+        {plant.site && (
+          <>
+            <span className="text-gray-300">/</span>
+            <span className="text-gray-600 truncate">{plant.site.name}</span>
+          </>
+        )}
         <span className="text-gray-300">/</span>
         <span className="text-gray-700 font-medium truncate">{plant.name}</span>
       </div>
@@ -174,7 +181,8 @@ export default async function PortalPlantPage({
           <Field label="Seriennummer"    value={plant.serialNumber} />
           <Field label="Baujahr"         value={plant.buildYear} />
           <Field label="In Betrieb seit" value={plant.installedAt ? fmtDate(plant.installedAt) : null} />
-          <Field label="Standort"        value={plant.location} />
+          <Field label="Standort"        value={plant.site ? [plant.site.name, [plant.site.zip, plant.site.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : null} />
+          <Field label="Position"        value={plant.location} />
           <Field label="Ansprechperson"  value={plant.contactPerson} />
           {plant.description && (
             <div className="col-span-2 sm:col-span-3">
