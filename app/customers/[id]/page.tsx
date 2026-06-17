@@ -890,17 +890,30 @@ export default function CustomerDetailPage() {
                 {c.sites.length}
               </span>
             </div>
-            {canEditDelete && (
-              <button
-                onClick={openAddSite}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Standort hinzufügen
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePlants && (
+                <button
+                  onClick={() => openAddPlant('')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Anlage hinzufügen
+                </button>
+              )}
+              {canEditDelete && (
+                <button
+                  onClick={openAddSite}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Standort hinzufügen
+                </button>
+              )}
+            </div>
           </div>
 
           {c.sites.length === 0 ? (
