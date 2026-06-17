@@ -8,6 +8,7 @@ import InvoicePanel from '@/components/InvoicePanel'
 import PlantDocuments from '@/components/PlantDocuments'
 import PlantArchivedRequests from '@/components/PlantArchivedRequests'
 import CustomerArchivedRequests from '@/components/CustomerArchivedRequests'
+import { ROLE_LABELS } from '@/lib/permissions-config'
 
 interface Contact {
   id: string
@@ -133,17 +134,13 @@ const emptyPlantForm: PlantForm = {
 type ContactLevel = 'company' | 'site' | 'plant'
 
 interface ContactForm {
-  name: string
-  role: string
-  email: string
-  phone: string
+  userId: string
   isPrimary: boolean
   note: string
-  userId: string
 }
 
 const emptyContactForm: ContactForm = {
-  name: '', role: '', email: '', phone: '', isPrimary: false, note: '', userId: '',
+  userId: '', isPrimary: false, note: '',
 }
 
 export default function CustomerDetailPage() {
@@ -402,25 +399,31 @@ export default function CustomerDetailPage() {
     setContactLevel(contact.plantId ? 'plant' : contact.siteId ? 'site' : 'company')
     setContactTargetId(contact.plantId ?? contact.siteId ?? null)
     setContactForm({
-      name: contact.name,
-      role: contact.role ?? '',
-      email: contact.email ?? '',
-      phone: contact.phone ?? '',
+      userId: contact.userId ?? '',
       isPrimary: contact.isPrimary,
       note: contact.note ?? '',
-      userId: contact.userId ?? '',
     })
     setShowContactModal(true)
   }
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!customer) return
+    const person = customer.users.find(u => u.id === contactForm.userId)
+    if (!person) return
     setSavingContact(true)
+    // Name/Rolle/E-Mail/Telefon werden aus der gewählten Person übernommen
     const payload: Record<string, unknown> = {
-      ...contactForm,
       customerId: id,
       siteId: contactLevel === 'site' ? contactTargetId : null,
       plantId: contactLevel === 'plant' ? contactTargetId : null,
+      userId: person.id,
+      name: person.name,
+      role: ROLE_LABELS[person.role] ?? person.role,
+      email: person.email,
+      phone: person.phone,
+      isPrimary: contactForm.isPrimary,
+      note: contactForm.note,
     }
     const url = editingContact ? `/api/contacts/${editingContact.id}` : '/api/contacts'
     const method = editingContact ? 'PUT' : 'POST'
@@ -560,6 +563,7 @@ export default function CustomerDetailPage() {
   }
 
   const c = customer
+  const selectedContactPerson = c.users.find(u => u.id === contactForm.userId)
   const showSiteSection = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN'].includes(role)
   const plantsBySite = (siteId: string | null) => c.plants.filter(p => (p.siteId ?? null) === siteId)
   const hotelsBySite = (siteId: string | null) => hotels.filter(h => (h.siteId ?? null) === siteId)
@@ -577,11 +581,6 @@ export default function CustomerDetailPage() {
           )}
           <span className="font-medium text-gray-900 text-sm">{contact.name}</span>
           {contact.role && <span className="text-xs text-gray-500">· {contact.role}</span>}
-          {contact.userId && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full" title="Mit Portal-Zugang verknüpft">
-              Portal
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-3 mt-0.5 text-xs">
           {contact.email && <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">{contact.email}</a>}
@@ -1608,60 +1607,34 @@ export default function CustomerDetailPage() {
               </button>
             </div>
             <form onSubmit={handleContactSubmit} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={contactForm.name}
-                  onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
-                  required
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rolle / Funktion</label>
-                <input
-                  type="text"
-                  value={contactForm.role}
-                  onChange={e => setContactForm(f => ({ ...f, role: e.target.value }))}
-                  placeholder="z.B. Instandhaltungsleiter"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
-                  <input
-                    type="email"
-                    value={contactForm.email}
-                    onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+              {customer.users.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                  Für diesen Kunden sind noch keine Personen angelegt. Bitte zuerst in der Benutzerverwaltung eine Person anlegen — diese kann hier dann als Ansprechpartner ausgewählt werden.
                 </div>
+              ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                  <input
-                    type="tel"
-                    value={contactForm.phone}
-                    onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              {customer.users.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mit Portal-User verknüpfen</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Person <span className="text-red-500">*</span></label>
                   <select
                     value={contactForm.userId}
                     onChange={e => setContactForm(f => ({ ...f, userId: e.target.value }))}
+                    required
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">— Keine Verknüpfung —</option>
+                    <option value="">Person auswählen...</option>
                     {customer.users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}{u.email ? ` (${u.email})` : ''}</option>
+                      <option key={u.id} value={u.id}>
+                        {u.name} · {ROLE_LABELS[u.role] ?? u.role}
+                      </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-400">Optional: Kennzeichnet, dass dieser Kontakt einen Portal-Zugang hat.</p>
+                  {selectedContactPerson && (
+                    <div className="mt-2 p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm space-y-0.5">
+                      <div className="text-gray-700">{ROLE_LABELS[selectedContactPerson.role] ?? selectedContactPerson.role}</div>
+                      {selectedContactPerson.email && <div className="text-gray-500">{selectedContactPerson.email}</div>}
+                      {selectedContactPerson.phone && <div className="text-gray-500">{selectedContactPerson.phone}</div>}
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-gray-400">Personen werden in der Benutzerverwaltung gepflegt. Name, Rolle und Kontaktdaten werden automatisch übernommen.</p>
                 </div>
               )}
               <div>
@@ -1683,7 +1656,7 @@ export default function CustomerDetailPage() {
                 <span className="text-sm text-gray-700">Als Hauptansprechpartner markieren</span>
               </label>
               <div className="flex gap-3 pt-1">
-                <button type="submit" disabled={savingContact} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                <button type="submit" disabled={savingContact || !contactForm.userId} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
                   {savingContact ? 'Speichern...' : 'Speichern'}
                 </button>
                 <button type="button" onClick={() => setShowContactModal(false)} className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
