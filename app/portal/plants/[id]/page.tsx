@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import PlantDocuments from '@/components/PlantDocuments'
+import { getExternalPlantScope } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,6 +79,12 @@ export default async function PortalPlantPage({
   })
 
   if (!plant || plant.customerId !== customerId) notFound()
+
+  // Enforce contact-based visibility: the user must be allowed to see this plant
+  const ext = session.user.id
+    ? await getExternalPlantScope(session.user.id, customerId, role)
+    : { all: false, plantIds: [] as string[] }
+  if (!ext.all && !ext.plantIds.includes(plant.id)) notFound()
 
   // Archived requests for this plant
   const archivedRequests = await prisma.plantRequest.findMany({

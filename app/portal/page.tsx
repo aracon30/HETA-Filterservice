@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
-import { checkPermission } from '@/lib/permissions'
+import { checkPermission, getExternalPlantScope } from '@/lib/permissions'
 import InvoicePanel from '@/components/InvoicePanel'
 
 export const dynamic = 'force-dynamic'
@@ -41,32 +41,19 @@ export default async function PortalPage() {
   // Load company data
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
-    include: {
-      _count: { select: { plants: true, jobs: true } },
-    },
   })
   if (!customer) redirect('/')
 
-  // For own_plant scope (MAINTENANCE_TECHNICIAN), restrict to assigned plants only.
-  // If no assignments exist, plantIdFilter stays [] — no plants/jobs are shown.
-  let plantIdFilter: string[] | null = null
-  if (role === 'MAINTENANCE_TECHNICIAN') {
-    const userId = session.user.id
-    if (userId) {
-      const assignments = await prisma.plantExternalUser.findMany({
-        where: { userId },
-        select: { plantId: true },
-      })
-      plantIdFilter = assignments.map(a => a.plantId)
-    } else {
-      // No user ID in session — deny access to all plants/jobs
-      plantIdFilter = []
-    }
-  }
+  // Visibility is driven by how the user is linked (company / site / plant
+  // contact, or plant assignment). Company-wide → all; site → that site's
+  // plants; technician → assigned plants only.
+  const ext = session.user.id
+    ? await getExternalPlantScope(session.user.id, customerId, role)
+    : { all: false, plantIds: [] as string[] }
 
-  const plantWhere = plantIdFilter !== null
-    ? { customerId, id: { in: plantIdFilter.length > 0 ? plantIdFilter : ['__none__'] } }
-    : { customerId }
+  const plantWhere = ext.all
+    ? { customerId }
+    : { customerId, id: { in: ext.plantIds.length > 0 ? ext.plantIds : ['__none__'] } }
 
   // Load plants if permitted
   const plants = canViewPlants
@@ -77,9 +64,9 @@ export default async function PortalPage() {
     : []
 
   // Load jobs if permitted
-  const jobPlantFilter = plantIdFilter !== null
-    ? { plants: { some: { plantId: { in: plantIdFilter.length > 0 ? plantIdFilter : ['__none__'] } } } }
-    : {}
+  const jobPlantFilter = ext.all
+    ? {}
+    : { plants: { some: { plantId: { in: ext.plantIds.length > 0 ? ext.plantIds : ['__none__'] } } } }
 
   const plannedJobs = (canViewJobs && role !== 'BUYER')
     ? await prisma.serviceJob.findMany({
@@ -129,11 +116,11 @@ export default async function PortalPage() {
           </div>
           <div className="flex gap-4 text-center text-sm flex-shrink-0">
             <div>
-              <p className="text-2xl font-bold text-gray-900">{customer._count.plants}</p>
+              <p className="text-2xl font-bold text-gray-900">{plants.length}</p>
               <p className="text-xs text-gray-500">Anlagen</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{customer._count.jobs}</p>
+              <p className="text-2xl font-bold text-gray-900">{plannedJobs.length + completedJobs.length}</p>
               <p className="text-xs text-gray-500">Einsätze</p>
             </div>
           </div>
