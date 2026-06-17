@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { ROLE_PERMISSIONS } from '@/lib/permissions-config'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -496,6 +497,7 @@ function CustomerGroup({
 export default function UsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const confirm = useConfirm()
   const [users, setUsers] = useState<User[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
@@ -603,7 +605,10 @@ export default function UsersPage() {
   }
 
   async function deleteUser(user: User) {
-    if (!confirm(`Benutzer "${user.name}" wirklich löschen?`)) return
+    if (!(await confirm({
+      title: 'Benutzer löschen',
+      message: `Soll der Benutzer „${user.name}“ wirklich gelöscht werden?`,
+    }))) return
     await fetch(`/api/users/${user.id}`, { method: 'DELETE' })
     await loadAll()
   }

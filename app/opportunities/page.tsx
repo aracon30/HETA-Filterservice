@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/ConfirmDialog'
 import {
   TrendingUp, Plus, BarChart2, List, Lightbulb,
   X, Calendar,
@@ -259,6 +260,7 @@ function SuggestionCard({ s, onConvert }: { s: Suggestion; onConvert: (s: Sugges
 }
 
 export default function VertriebPage() {
+  const confirm = useConfirm()
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -311,7 +313,10 @@ export default function VertriebPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Vertriebschance löschen?')) return
+    if (!(await confirm({
+      title: 'Vertriebschance löschen',
+      message: 'Soll diese Vertriebschance wirklich gelöscht werden?',
+    }))) return
     await fetch(`/api/opportunities/${id}`, { method: 'DELETE' })
     setOpportunities(os => os.filter(o => o.id !== id))
     setModal({ open: false, opp: null })

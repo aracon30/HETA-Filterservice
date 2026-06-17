@@ -9,6 +9,7 @@ import PlantDocuments from '@/components/PlantDocuments'
 import PlantArchivedRequests from '@/components/PlantArchivedRequests'
 import CustomerArchivedRequests from '@/components/CustomerArchivedRequests'
 import { ROLE_LABELS } from '@/lib/permissions-config'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Contact {
   id: string
@@ -147,6 +148,7 @@ export default function CustomerDetailPage() {
   const { data: session } = useSession()
   const params = useParams()
   const router = useRouter()
+  const confirm = useConfirm()
   const id = params.id as string
 
   const [customer, setCustomer] = useState<Customer | null>(null)
@@ -280,7 +282,11 @@ export default function CustomerDetailPage() {
 
   async function resetOverride() {
     if (!checklistPlant) return
-    if (!confirm('Angepasste Checkliste löschen und Typ-Standard wiederherstellen?')) return
+    if (!(await confirm({
+      title: 'Checkliste zurücksetzen',
+      message: 'Angepasste Checkliste löschen und Typ-Standard wiederherstellen?',
+      confirmLabel: 'Zurücksetzen',
+    }))) return
     await fetch(`/api/plants/${checklistPlant.id}/checklist`, { method: 'DELETE' })
     const pt = plantTypes.find(p => p.value === checklistPlant.type)
     setOverrideItems((pt?.items ?? []).map((item, idx) => ({ section: item.section, label: item.label, order: idx })))
@@ -337,7 +343,10 @@ export default function CustomerDetailPage() {
   }
 
   const handleDeleteHotel = async (hotel: Hotel) => {
-    if (!confirm(`Hotel "${hotel.name}" wirklich löschen?`)) return
+    if (!(await confirm({
+      title: 'Hotel löschen',
+      message: `Soll das Hotel „${hotel.name}“ wirklich gelöscht werden?`,
+    }))) return
     await fetch(`/api/hotels/${hotel.id}`, { method: 'DELETE' })
     await fetchHotels()
   }
@@ -377,7 +386,10 @@ export default function CustomerDetailPage() {
   }
 
   const handleDeleteSite = async (site: Site) => {
-    if (!confirm(`Standort "${site.name}" wirklich löschen? Anlagen werden zu „Nicht zugeordnet", Kontakte und Hotels dieses Standorts werden gelöscht.`)) return
+    if (!(await confirm({
+      title: 'Standort löschen',
+      message: `Soll der Standort „${site.name}“ wirklich gelöscht werden? Anlagen werden zu „Nicht zugeordnet“, Kontakte und Hotels dieses Standorts werden gelöscht.`,
+    }))) return
     await fetch(`/api/sites/${site.id}`, { method: 'DELETE' })
     await Promise.all([fetchCustomer(), fetchHotels()])
   }
@@ -438,7 +450,10 @@ export default function CustomerDetailPage() {
   }
 
   const handleDeleteContact = async (contact: Contact) => {
-    if (!confirm(`Ansprechpartner "${contact.name}" wirklich löschen?`)) return
+    if (!(await confirm({
+      title: 'Ansprechpartner löschen',
+      message: `Soll der Ansprechpartner „${contact.name}“ wirklich gelöscht werden?`,
+    }))) return
     await fetch(`/api/contacts/${contact.id}`, { method: 'DELETE' })
     await fetchCustomer()
   }
