@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface ChecklistItem {
   id?: string
@@ -30,6 +31,7 @@ interface PlantType {
 export default function PlantTypesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const confirm = useConfirm()
   const [plantTypes, setPlantTypes] = useState<PlantType[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedType, setSelectedType] = useState<PlantType | null>(null)
@@ -107,7 +109,10 @@ export default function PlantTypesPage() {
   }
 
   async function deleteType(id: string) {
-    if (!confirm('Anlagentyp wirklich löschen? Bestehende Anlagen behalten ihren Typ-Wert.')) return
+    if (!(await confirm({
+      title: 'Anlagentyp löschen',
+      message: 'Soll dieser Anlagentyp wirklich gelöscht werden? Bestehende Anlagen behalten ihren Typ-Wert.',
+    }))) return
     const res = await fetch(`/api/plant-types/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setPlantTypes(pts => pts.filter(pt => pt.id !== id))

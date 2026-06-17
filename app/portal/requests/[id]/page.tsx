@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import {
@@ -110,6 +111,7 @@ function StatusTracker({ status }: { status: string }) {
 export default function PortalRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const confirm = useConfirm()
   const [req, setReq] = useState<RequestDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -126,7 +128,12 @@ export default function PortalRequestDetailPage() {
   useEffect(() => { loadRequest() }, [id])
 
   const handleAccept = async () => {
-    if (!confirm('Angebot annehmen? Diese Bestätigung ist verbindlich.')) return
+    if (!(await confirm({
+      title: 'Angebot annehmen',
+      message: 'Angebot annehmen? Diese Bestätigung ist verbindlich.',
+      confirmLabel: 'Annehmen',
+      danger: false,
+    }))) return
     setActionLoading(true)
     await fetch(`/api/requests/${id}`, {
       method: 'PATCH',

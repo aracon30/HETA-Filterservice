@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import {
@@ -71,6 +72,7 @@ export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { data: session } = useSession()
+  const confirm = useConfirm()
   const [req, setReq] = useState<RequestDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -128,7 +130,12 @@ export default function RequestDetailPage() {
   }
 
   const handleArchive = async () => {
-    if (!confirm('Anfrage archivieren?')) return
+    if (!(await confirm({
+      title: 'Anfrage archivieren',
+      message: 'Soll diese Anfrage archiviert werden?',
+      confirmLabel: 'Archivieren',
+      danger: false,
+    }))) return
     const res = await fetch(`/api/requests/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -138,7 +145,10 @@ export default function RequestDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Anfrage unwiderruflich löschen?')) return
+    if (!(await confirm({
+      title: 'Anfrage löschen',
+      message: 'Soll diese Anfrage unwiderruflich gelöscht werden?',
+    }))) return
     const res = await fetch(`/api/requests/${id}`, { method: 'DELETE' })
     if (res.ok) router.push('/requests')
   }

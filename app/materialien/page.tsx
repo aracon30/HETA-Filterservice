@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
 
@@ -50,6 +51,7 @@ function StatusDot({ materials }: { materials: Material[] }) {
 export default function MaterialienPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const confirm = useConfirm()
   const role = session?.user?.role as string | undefined
 
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -162,7 +164,12 @@ export default function MaterialienPage() {
 
   const initFromTemplate = async () => {
     if (!selectedPlant) return
-    if (!confirm('Materialliste aus Anlagentyp-Vorlage laden? Bestehende Einträge werden überschrieben.')) return
+    if (!(await confirm({
+      title: 'Vorlage laden',
+      message: 'Materialliste aus Anlagentyp-Vorlage laden? Bestehende Einträge werden überschrieben.',
+      confirmLabel: 'Laden',
+      danger: false,
+    }))) return
     setInitializing(true)
     const res = await fetch(`/api/plants/${selectedPlant.id}/materials`, { method: 'POST' })
     if (res.ok) {
