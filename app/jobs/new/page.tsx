@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 interface Customer { id: string; name: string }
+interface Site { id: string; name: string; city: string | null; _count?: { plants: number } }
 interface Plant { id: string; name: string; type: string; defaultTechnicianId: string | null }
 interface Technician { id: string; name: string; role: string }
 interface Hotel { id: string; name: string; address: string | null; phone: string | null; note: string | null }
@@ -57,6 +58,7 @@ function NewJobPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [plants, setPlants] = useState<Plant[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [hotels, setHotels] = useState<Hotel[]>([])
@@ -84,6 +86,7 @@ function NewJobPage() {
   const [form, setForm] = useState({
     orderNumber: '',
     customerId: '',
+    siteId: '',
     scheduledAt: defaultScheduledAt,
     description: '',
     duration: 480,
@@ -96,14 +99,32 @@ function NewJobPage() {
     })
   }, [])
 
+  // On customer change: load the customer's sites and reset downstream selections
   useEffect(() => {
-    if (!form.customerId) { setPlants([]); setSelectedPlantIds([]); setHotels([]); return }
-    fetch(`/api/plants?customerId=${form.customerId}`).then(r => r.json()).then(setPlants)
-    fetch(`/api/hotels?customerId=${form.customerId}`).then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setHotels(data)
-    }).catch(() => {})
+    setForm(f => ({ ...f, siteId: '' }))
     setSelectedPlantIds([])
+    setPlants([])
+    setHotels([])
+    if (!form.customerId) { setSites([]); return }
+    fetch(`/api/sites?customerId=${form.customerId}`).then(r => r.json()).then(data => {
+      setSites(Array.isArray(data) ? data : [])
+    }).catch(() => setSites([]))
   }, [form.customerId])
+
+  // On site change (or customer without sites): load plants + hotels for the location
+  useEffect(() => {
+    if (!form.customerId) return
+    // If the customer has sites, wait until one is selected
+    if (sites.length > 0 && !form.siteId) { setPlants([]); setHotels([]); return }
+    const siteParam = form.siteId ? `&siteId=${form.siteId}` : ''
+    fetch(`/api/plants?customerId=${form.customerId}${siteParam}`).then(r => r.json()).then(data => {
+      setPlants(Array.isArray(data) ? data : [])
+    }).catch(() => setPlants([]))
+    fetch(`/api/hotels?customerId=${form.customerId}${siteParam}`).then(r => r.json()).then(data => {
+      setHotels(Array.isArray(data) ? data : [])
+    }).catch(() => setHotels([]))
+    setSelectedPlantIds([])
+  }, [form.customerId, form.siteId, sites.length])
 
   // Suggest default technician when plant selection changes
   useEffect(() => {
@@ -229,6 +250,29 @@ function NewJobPage() {
             </select>
           </div>
 
+          {/* Standort */}
+          {form.customerId && sites.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Standort <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.siteId}
+                onChange={e => setField('siteId', e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Standort auswählen...</option>
+                {sites.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.city ? ` (${s.city})` : ''}{s._count ? ` · ${s._count.plants} Anlagen` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">Anlagen und Hotel richten sich nach dem gewählten Standort.</p>
+            </div>
+          )}
+
           {/* Hotel-Info */}
           {form.customerId && hotels.length > 0 && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -260,8 +304,10 @@ function NewJobPage() {
             </label>
             {!form.customerId ? (
               <p className="text-sm text-gray-400 py-2">Zuerst Kunde auswählen.</p>
+            ) : sites.length > 0 && !form.siteId ? (
+              <p className="text-sm text-gray-400 py-2">Zuerst Standort auswählen.</p>
             ) : plants.length === 0 ? (
-              <p className="text-sm text-gray-400 py-2">Keine Anlagen für diesen Kunden vorhanden.</p>
+              <p className="text-sm text-gray-400 py-2">Keine Anlagen an diesem Standort vorhanden.</p>
             ) : (
               <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
                 {plants.map(p => {

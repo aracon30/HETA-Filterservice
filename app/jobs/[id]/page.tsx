@@ -73,6 +73,14 @@ interface Job {
   recommendations: string | null
   workTimeEntries: { date: string; startTime: string; endTime: string }[] | null
   customer: { id: string; name: string; address: string | null; contactName: string | null }
+  site: {
+    id: string
+    name: string
+    address: string | null
+    zip: string | null
+    city: string | null
+    hotels: { id: string; name: string; address: string | null; phone: string | null; note: string | null }[]
+  } | null
   plants: { plant: PlantInfo }[]
   technicians: { userId: string; userName: string }[]
   vehicles: string[]
@@ -1215,6 +1223,35 @@ export default function JobInspectionPage() {
               {job.customer.address && <p className="text-gray-600">{job.customer.address}</p>}
             </div>
           </div>
+
+          {job.site && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Standort</h3>
+              <div className="space-y-1 text-sm">
+                <p className="font-semibold text-gray-900 text-base">{job.site.name}</p>
+                {(job.site.address || job.site.zip || job.site.city) && (
+                  <p className="text-gray-600">
+                    {[job.site.address, [job.site.zip, job.site.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
+              {job.site.hotels.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Hotel</p>
+                  <div className="space-y-2">
+                    {job.site.hotels.map(hotel => (
+                      <div key={hotel.id} className="text-sm">
+                        <span className="font-medium text-gray-900">{hotel.name}</span>
+                        {hotel.address && <span className="text-gray-500"> · {hotel.address}</span>}
+                        {hotel.phone && <a href={`tel:${hotel.phone}`} className="text-blue-600 hover:underline ml-1">· {hotel.phone}</a>}
+                        {hotel.note && <div className="text-xs text-gray-400 italic mt-0.5">{hotel.note}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {job.plants.length === 0 ? (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
