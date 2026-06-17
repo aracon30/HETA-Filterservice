@@ -18,6 +18,7 @@ export async function GET(
     where: { id: params.id },
     include: {
       customer: true,
+      site: { include: { hotels: { orderBy: { name: 'asc' } } } },
       plants: {
         include: {
           plant: {
@@ -146,7 +147,7 @@ export async function PUT(
 
     return tx.serviceJob.findUnique({
       where: { id: params.id },
-      include: { customer: true, plants: { include: { plant: true }, orderBy: { order: 'asc' } }, checklistItems: { orderBy: { id: 'asc' } } },
+      include: { customer: true, site: { include: { hotels: { orderBy: { name: 'asc' } } } }, plants: { include: { plant: true }, orderBy: { order: 'asc' } }, checklistItems: { orderBy: { id: 'asc' } } },
     })
   })
 

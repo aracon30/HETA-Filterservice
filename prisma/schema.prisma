@@ -34,6 +34,7 @@ model User {
   userPermissions UserPermission[]
   defaultForPlants    Plant[]           @relation("PlantDefaultTechnician")
   externalPlants      PlantExternalUser[]
+  contactLinks        Contact[]
 
   @@index([customerId])
 }
@@ -78,12 +79,60 @@ model Customer {
   invoices      Invoice[]
   requests      PlantRequest[]
   hotels        Hotel[]
+  sites         Site[]
+  contacts      Contact[]
+}
+
+model Site {
+  id         String    @id @default(cuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  address    String?
+  zip        String?
+  city       String?
+  note       String?
+  plants     Plant[]
+  contacts   Contact[]
+  hotels     Hotel[]
+  jobs       ServiceJob[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([customerId])
+}
+
+model Contact {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  siteId     String?
+  site       Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  plantId    String?
+  plant      Plant?   @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name       String
+  role       String?
+  email      String?
+  phone      String?
+  isPrimary  Boolean  @default(false)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([siteId])
+  @@index([plantId])
+  @@index([userId])
 }
 
 model Hotel {
   id         String   @id @default(cuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  siteId     String?
+  site       Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade)
   name       String
   address    String?
   phone      String?
@@ -92,6 +141,7 @@ model Hotel {
   updatedAt  DateTime @updatedAt
 
   @@index([customerId])
+  @@index([siteId])
 }
 
 model Invoice {
@@ -172,6 +222,9 @@ model Plant {
   updatedAt         DateTime                 @updatedAt
   customer          Customer                 @relation(fields: [customerId], references: [id])
   customerId        String
+  site              Site?                    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteId            String?
+  contacts          Contact[]
   jobPlants         ServiceJobPlant[]
   checklistOverrides PlantChecklistOverride[]
   checklistItems    ChecklistItem[]
@@ -185,6 +238,7 @@ model Plant {
 
   @@index([customerId])
   @@index([defaultTechnicianId])
+  @@index([siteId])
 }
 
 enum DocumentType {
@@ -252,6 +306,8 @@ model ServiceJob {
   completedAt     DateTime?
   customer        Customer          @relation(fields: [customerId], references: [id])
   customerId      String
+  site            Site?             @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteId          String?
   plants          ServiceJobPlant[]
   technicians     ServiceJobTechnician[]
   vehicles        String[]
@@ -272,6 +328,7 @@ model ServiceJob {
 
   @@index([customerId])
   @@index([status, scheduledAt])
+  @@index([siteId])
 }
 
 model PlantMaterial {

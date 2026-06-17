@@ -12,6 +12,11 @@ export interface ReportData {
     email: string | null
     phone: string | null
   }
+  site: {
+    name: string
+    address: string | null
+    hotel: string | null
+  } | null
   plants: {
     name: string
     type: string
@@ -261,6 +266,18 @@ export async function renderServiceReportPDF(data: ReportData): Promise<Buffer> 
               <View style={s.infoRow}>
                 <Text style={s.infoLabel}>Adresse</Text>
                 <Text style={s.infoValue}>{data.customer.address}</Text>
+              </View>
+            )}
+            {data.site && (
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Standort</Text>
+                <Text style={s.infoValue}>{[data.site.name, data.site.address].filter(Boolean).join(', ')}</Text>
+              </View>
+            )}
+            {data.site?.hotel && (
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Hotel</Text>
+                <Text style={s.infoValue}>{data.site.hotel}</Text>
               </View>
             )}
           </View>

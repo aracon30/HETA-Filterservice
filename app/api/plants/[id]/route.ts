@@ -50,11 +50,22 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     }
   }
 
+  // Validate the referenced site belongs to the same customer as the plant
+  if (body.siteId) {
+    const [site, current] = await Promise.all([
+      prisma.site.findUnique({ where: { id: body.siteId }, select: { customerId: true } }),
+      prisma.plant.findUnique({ where: { id: params.id }, select: { customerId: true } }),
+    ])
+    if (!site || !current || site.customerId !== current.customerId)
+      return NextResponse.json({ error: 'Ungültiger Standort' }, { status: 400 })
+  }
+
   const plant = await prisma.plant.update({
     where: { id: params.id },
     data: {
       name: body.name,
       type: body.type,
+      siteId: body.siteId === undefined ? undefined : (body.siteId || null),
       serialNumber: body.serialNumber || null,
       location: body.location || null,
       installedAt: body.installedAt ? new Date(body.installedAt) : null,

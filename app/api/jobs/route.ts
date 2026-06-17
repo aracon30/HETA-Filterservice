@@ -65,10 +65,17 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { customerId, plantIds, technicianIds, vehicles, scheduledAt, description, duration, orderNumber } = body
+  const { customerId, siteId, plantIds, technicianIds, vehicles, scheduledAt, description, duration, orderNumber } = body
 
   if (!orderNumber) {
     return NextResponse.json({ error: 'Auftragsnummer ist erforderlich' }, { status: 400 })
+  }
+
+  // A job happens at exactly one site — validate it belongs to the customer
+  if (siteId) {
+    const site = await prisma.site.findUnique({ where: { id: siteId }, select: { customerId: true } })
+    if (!site || site.customerId !== customerId)
+      return NextResponse.json({ error: 'Ungültiger Standort' }, { status: 400 })
   }
 
   const selectedPlantIds: string[] = Array.isArray(plantIds) ? plantIds : []
@@ -150,6 +157,7 @@ export async function POST(request: NextRequest) {
     data: {
       orderNumber,
       customerId,
+      siteId: siteId || null,
       scheduledAt: new Date(scheduledAt),
       description,
       duration: duration ? Number(duration) : 480,
@@ -167,6 +175,7 @@ export async function POST(request: NextRequest) {
     },
     include: {
       customer: true,
+      site: { include: { hotels: { orderBy: { name: 'asc' } } } },
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
       checklistItems: true,

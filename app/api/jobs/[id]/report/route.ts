@@ -17,6 +17,7 @@ export async function GET(
     where: { id: params.id },
     include: {
       customer: true,
+      site: { include: { hotels: { orderBy: { name: 'asc' } } } },
       plants: { include: { plant: true }, orderBy: { order: 'asc' } },
       technicians: { orderBy: { order: 'asc' } },
       checklistItems: { orderBy: { id: 'asc' } },
@@ -42,6 +43,15 @@ export async function GET(
       email: job.customer.email ?? null,
       phone: job.customer.phone ?? null,
     },
+    site: job.site
+      ? {
+          name: job.site.name,
+          address: [job.site.address, [job.site.zip, job.site.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null,
+          hotel: job.site.hotels.length > 0
+            ? job.site.hotels.map(h => [h.name, h.phone].filter(Boolean).join(', ')).join(' · ')
+            : null,
+        }
+      : null,
     plants: job.plants.map(jp => ({
       name: jp.plant.name,
       type: jp.plant.type,
