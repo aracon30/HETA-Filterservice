@@ -25,12 +25,9 @@ export async function GET(
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 
   const { path: segments } = await params
-  // Prevent path traversal
-  const fileName = segments.join('/')
-  if (fileName.includes('..') || fileName.includes('/')) {
-    if (segments.length !== 1) {
-      return NextResponse.json({ error: 'Ungültiger Pfad' }, { status: 400 })
-    }
+  // Prevent path traversal — no segment may be ".."
+  if (segments.some((s) => s === '..' || s.includes('\0'))) {
+    return NextResponse.json({ error: 'Ungültiger Pfad' }, { status: 400 })
   }
 
   const filePath = path.join(process.cwd(), 'public', 'uploads', ...segments)
