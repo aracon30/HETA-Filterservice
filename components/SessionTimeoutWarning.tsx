@@ -36,6 +36,7 @@ export default function SessionTimeoutWarning() {
 
   function doLogout() {
     clearAllTimers()
+    try { localStorage.removeItem('heta_session_heartbeat') } catch { /* ignorieren */ }
     signOut({ callbackUrl: '/login' })
   }
 
