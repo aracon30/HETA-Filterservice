@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ACQUISITION_PLANT_TYPES,
@@ -187,7 +187,7 @@ const PLANT_COUNT_OPTIONS = [
   { value: 11, label: 'Mehr als 10 Anlagen' },
 ]
 
-export default function AcquisitionWizardPage() {
+function AcquisitionWizard() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedCustomerId = searchParams.get('customerId')
@@ -752,5 +752,13 @@ export default function AcquisitionWizardPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AcquisitionWizardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-100 flex items-center justify-center text-slate-400">Lädt...</div>}>
+      <AcquisitionWizard />
+    </Suspense>
   )
 }
