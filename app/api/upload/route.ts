@@ -30,5 +30,5 @@ export async function POST(req: NextRequest) {
   await writeFile(filePath, buffer)
   console.log('[upload] saved to', filePath)
 
-  return NextResponse.json({ url: `/uploads/${fileName}` })
+  return NextResponse.json({ url: `/api/uploads/${fileName}` })
 }
