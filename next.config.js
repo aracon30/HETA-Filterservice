@@ -36,6 +36,12 @@ const nextConfig = {
   // The `@/*` import alias is resolved automatically from tsconfig paths
   // (works under Turbopack, the default bundler in Next.js 16).
   serverExternalPackages: ['@react-pdf/renderer'],
+  async rewrites() {
+    return [
+      // Redirect legacy /uploads/* URLs (stored in DB) to the auth-protected API route
+      { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
+    ]
+  },
   async headers() {
     return [
       {
