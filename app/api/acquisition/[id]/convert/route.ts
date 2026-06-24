@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Ungültiger Standort' }, { status: 400 })
   }
 
-  const acquisitionPlants = check.plants as AcquisitionPlant[]
+  const acquisitionPlants = check.plants as unknown as AcquisitionPlant[]
 
   const created = await prisma.$transaction(
     acquisitionPlants.map((plant, i) => {
