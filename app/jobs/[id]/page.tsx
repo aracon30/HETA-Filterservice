@@ -813,8 +813,8 @@ export default function JobInspectionPage() {
                       {item.comment && <p className="text-xs text-gray-500 mt-0.5 italic">{item.comment}</p>}
                     </div>
                     {item.photoUrl && (
-                      <a href={item.photoUrl} target="_blank" rel="noopener noreferrer">
-                        <img src={item.photoUrl} className="w-10 h-10 object-cover rounded border" alt="" />
+                      <a href={toFileUrl(item.photoUrl)} target="_blank" rel="noopener noreferrer">
+                        <img src={toFileUrl(item.photoUrl)} className="w-10 h-10 object-cover rounded border" alt="" />
                       </a>
                     )}
                   </div>
