@@ -1,5 +1,6 @@
 import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
+import { sessionCookieName } from '@/lib/auth-cookie'
 
 const INACTIVITY_TIMEOUT = 30 * 60 // 30 Minuten in Sekunden
 
@@ -48,6 +49,9 @@ export default withAuth(
 
         return true
       },
+    },
+    cookies: {
+      sessionToken: { name: sessionCookieName },
     },
     pages: {
       signIn: '/login',
