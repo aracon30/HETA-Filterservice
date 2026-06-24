@@ -28,13 +28,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
 
   const body = await request.json()
-  const { customerId, plants, mood, nextStep, note } = body
+  const { customerId, siteId, plants, mood, nextStep, note } = body
 
   if (!customerId) return NextResponse.json({ error: 'Kunden-ID fehlt' }, { status: 400 })
 
   const check = await prisma.acquisitionCheck.create({
     data: {
       customerId,
+      siteId: siteId || null,
       plants: plants ?? [],
       mood,
       nextStep,

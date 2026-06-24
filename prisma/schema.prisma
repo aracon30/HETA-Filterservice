@@ -456,6 +456,7 @@ model AcquisitionCheck {
   id            String   @id @default(cuid())
   customerId    String
   customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  siteId        String?
   plants        Json     @default("[]")
   mood          String?
   nextStep      String?

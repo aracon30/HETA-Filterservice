@@ -87,6 +87,28 @@ export function getProblemsForTypes(types: string[]): { value: string; label: st
   return result
 }
 
+export const YES_NO_UNKNOWN = [
+  { value: 'yes', label: 'Ja' },
+  { value: 'no', label: 'Nein' },
+  { value: 'unknown', label: 'Unbekannt' },
+]
+
+export const INSTALLATION_TYPE_OPTIONS = [
+  { value: 'indoor', label: 'Innenaufstellung' },
+  { value: 'outdoor', label: 'Außenaufstellung' },
+  { value: 'unknown', label: 'Unbekannt' },
+]
+
+export const ENVIRONMENTAL_CONDITIONS = [
+  { value: 'heat', label: 'Hohe Temperaturen' },
+  { value: 'humidity', label: 'Feuchtigkeit' },
+  { value: 'dust', label: 'Staub / Schmutz' },
+  { value: 'ex_zone', label: 'Ex-Bereich (Explosionsschutz)' },
+  { value: 'chemicals', label: 'Chemische Einwirkung' },
+  { value: 'vibration', label: 'Starke Vibrationen' },
+  { value: 'frost', label: 'Frost / Kälte' },
+]
+
 export const LAST_SERVICE_OPTIONS = [
   { value: 'never', label: 'Noch nie gewartet' },
   { value: 'lt1year', label: 'Vor weniger als 1 Jahr' },
@@ -134,17 +156,38 @@ export const NEXT_STEP_OPTIONS = [
 
 export interface AcquisitionPlant {
   types: string[]
+  // Basisdaten
   manufacturer: string
   buildYear: string
   serialNumber: string
+  modelDesignation: string
+  // Technische Daten
+  nominalPower: string
+  operatingPressure: string
+  flowRate: string
+  medium: string
+  operatingHours: string
+  // Zustand & Historie
+  wasModified: string
+  hasDocumentation: string
+  sparePartsAvailable: string
+  // Aufstellort
+  installationType: string
+  environmentalConditions: string[]
+  // Service
   lastServiceAge: string
   maintainedBy: string
+  // Zustand & Probleme
   condition: number
   problems: string[]
   problemNote: string
+  // Kundenstimme
   priorities: string[]
   urgency: string
   customerNote: string
+  // Zusatzinfos & Fotos
+  additionalInfo: string
+  photos: string[]
 }
 
 export interface AcquisitionCheckData {
