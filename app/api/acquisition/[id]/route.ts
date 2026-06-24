@@ -22,6 +22,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return NextResponse.json(check)
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+  if (!(await checkPermission(session, 'customers', 'view')))
+    return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
+
+  const { id } = await params
+  const body = await request.json()
+
+  const check = await prisma.acquisitionCheck.update({
+    where: { id },
+    data: {
+      siteId: body.siteId ?? undefined,
+      plants: body.plants ?? undefined,
+      mood: body.mood ?? undefined,
+      nextStep: body.nextStep ?? undefined,
+      note: body.note ?? undefined,
+    },
+  })
+
+  return NextResponse.json(check)
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
