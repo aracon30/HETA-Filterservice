@@ -20,6 +20,8 @@ import {
   type AcquisitionPlant,
 } from '@/lib/acquisition-types'
 import { useConfirm } from '@/components/ConfirmDialog'
+import ImageLightbox from '@/components/ImageLightbox'
+import { toFileUrl } from '@/lib/file-url'
 
 interface AcquisitionCheck {
   id: string
@@ -35,6 +37,38 @@ interface AcquisitionCheck {
 
 const CONDITION_LABELS = ['', 'Kritisch ★', 'Schlecht ★★', 'Mittel ★★★', 'Gut ★★★★', 'Sehr gut ★★★★★']
 const CONDITION_COLORS = ['', 'text-red-600', 'text-orange-600', 'text-yellow-600', 'text-blue-600', 'text-green-600']
+
+function AcquisePhotoGrid({ photos }: { photos: string[] }) {
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+  return (
+    <div>
+      <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Fotos</p>
+      <div className="grid grid-cols-3 gap-2">
+        {photos.map((url, idx) => (
+          <button
+            key={url}
+            onClick={() => setLightboxIdx(idx)}
+            className="rounded-lg overflow-hidden aspect-square bg-slate-100 block hover:opacity-90 transition-opacity"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={toFileUrl(url)}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </button>
+        ))}
+      </div>
+      {lightboxIdx !== null && (
+        <ImageLightbox
+          src={toFileUrl(photos[lightboxIdx])}
+          onClose={() => setLightboxIdx(null)}
+        />
+      )}
+    </div>
+  )
+}
 
 export default function AcquisitionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -346,32 +380,7 @@ export default function AcquisitionDetailPage() {
             )}
 
             {plant.photos?.length > 0 && (
-              <div>
-                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Fotos</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {plant.photos.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="rounded-lg overflow-hidden aspect-square bg-slate-100 block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt=""
-                        className="w-full h-full object-cover hover:opacity-90 transition-opacity"
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          t.style.display = 'none'
-                          const parent = t.parentElement
-                          if (parent && !parent.querySelector('.img-error')) {
-                            const el = document.createElement('div')
-                            el.className = 'img-error w-full h-full flex items-center justify-center text-slate-400 text-xs text-center p-2'
-                            el.textContent = 'Foto nicht verfügbar'
-                            parent.appendChild(el)
-                          }
-                        }}
-                      />
-                    </a>
-                  ))}
-                </div>
-              </div>
+              <AcquisePhotoGrid photos={plant.photos} />
             )}
           </div>
         )

@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import ImageLightbox from './ImageLightbox'
+import { toFileUrl, isImageFile, downloadFile } from '@/lib/file-url'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -357,10 +359,10 @@ export default function PlantDocuments({ plantId, customerId, role }: Props) {
               <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50 group transition-colors">
 
                 {/* Thumbnail or icon */}
-                {isImage(doc.mimeType) ? (
+                {isImageFile(doc.fileUrl, doc.mimeType) ? (
                   <button onClick={() => setPreviewDoc(doc)} className="flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={doc.fileUrl} alt={doc.title} className="w-10 h-10 object-cover rounded border" />
+                    <img src={toFileUrl(doc.fileUrl)} alt={doc.title} className="w-10 h-10 object-cover rounded border hover:opacity-80 transition-opacity" />
                   </button>
                 ) : (
                   <span className="flex-shrink-0 text-xl leading-none">{typeIcon(doc.type)}</span>
@@ -382,18 +384,15 @@ export default function PlantDocuments({ plantId, customerId, role }: Props) {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <a
-                    href={doc.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download={doc.fileName}
+                  <button
+                    onClick={() => downloadFile(doc.fileUrl, doc.fileName)}
                     className="p-1.5 text-gray-300 hover:text-blue-600 rounded transition-colors"
                     title="Herunterladen"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                  </a>
+                  </button>
                   {canDelete && (
                     <button
                       onClick={() => setDeleteTarget(doc)}
@@ -452,34 +451,14 @@ export default function PlantDocuments({ plantId, customerId, role }: Props) {
         </div>
       )}
 
-      {/* Image preview */}
+      {/* Image lightbox */}
       {previewDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setPreviewDoc(null)}>
-          <div className="absolute inset-0 bg-black/70" />
-          <div className="relative max-w-4xl max-h-[90vh] mx-4" onClick={e => e.stopPropagation()}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewDoc.fileUrl} alt={previewDoc.title} className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl" />
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/50 rounded-b-lg flex items-center justify-between">
-              <p className="text-white text-sm font-medium truncate">{previewDoc.title}</p>
-              <div className="flex gap-2 flex-shrink-0 ml-3">
-                <a
-                  href={previewDoc.fileUrl}
-                  download={previewDoc.fileName}
-                  className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-xs rounded-lg transition-colors"
-                  onClick={e => e.stopPropagation()}
-                >
-                  Herunterladen
-                </a>
-                <button
-                  onClick={() => setPreviewDoc(null)}
-                  className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-xs rounded-lg transition-colors"
-                >
-                  Schließen
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ImageLightbox
+          src={toFileUrl(previewDoc.fileUrl)}
+          fileName={previewDoc.fileName}
+          alt={previewDoc.title}
+          onClose={() => setPreviewDoc(null)}
+        />
       )}
     </div>
   )

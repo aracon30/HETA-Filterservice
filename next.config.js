@@ -38,8 +38,8 @@ const nextConfig = {
   serverExternalPackages: ['@react-pdf/renderer'],
   async rewrites() {
     return [
-      // Redirect legacy /uploads/* URLs (stored in DB) to the auth-protected API route
-      { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
+      // Rewrite /uploads/* to the auth-protected file-serving route
+      { source: '/uploads/:path*', destination: '/api/files/:path*' },
     ]
   },
   async headers() {

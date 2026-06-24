@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { downloadFile } from '@/lib/file-url'
 
 interface JobOption {
   id: string
@@ -296,18 +297,15 @@ export default function InvoicePanel({
                   <td className="px-4 py-3 text-gray-500">{formatDate(inv.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <a
-                        href={inv.fileUrl}
-                        download={inv.fileName}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => downloadFile(inv.fileUrl, inv.fileName)}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         PDF
-                      </a>
+                      </button>
                       {canUpload && (
                         confirmDelete === inv.id ? (
                           <span className="flex items-center gap-1">
