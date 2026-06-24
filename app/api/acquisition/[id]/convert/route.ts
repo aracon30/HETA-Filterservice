@@ -21,7 +21,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!check) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })
 
   const body = await request.json()
-  const siteId: string | null = body.siteId ?? check.siteId ?? null
+  const checkWithSite = check as typeof check & { siteId?: string | null }
+  const siteId: string | null = body.siteId ?? checkWithSite.siteId ?? null
 
   // Validate site belongs to customer
   if (siteId) {
