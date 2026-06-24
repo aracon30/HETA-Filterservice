@@ -13,7 +13,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const check = await prisma.acquisitionCheck.findUnique({
     where: { id },
-    include: { customer: { select: { id: true, name: true, address: true } } },
+    include: {
+      customer: { select: { id: true, name: true, address: true } },
+    },
   })
 
   if (!check) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 })

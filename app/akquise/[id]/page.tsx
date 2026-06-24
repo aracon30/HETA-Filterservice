@@ -24,6 +24,7 @@ import { useConfirm } from '@/components/ConfirmDialog'
 interface AcquisitionCheck {
   id: string
   customer: { id: string; name: string; address: string | null }
+  siteId: string | null
   plants: AcquisitionPlant[]
   mood: string | null
   nextStep: string | null
@@ -40,6 +41,8 @@ export default function AcquisitionDetailPage() {
   const router = useRouter()
   const [check, setCheck] = useState<AcquisitionCheck | null>(null)
   const [loading, setLoading] = useState(true)
+  const [converting, setConverting] = useState(false)
+  const [converted, setConverted] = useState(false)
   const confirm = useConfirm()
 
   useEffect(() => {
@@ -47,6 +50,29 @@ export default function AcquisitionDetailPage() {
       .then((r) => r.json())
       .then((data) => { setCheck(data); setLoading(false) })
   }, [id])
+
+  const handleConvert = async () => {
+    if (!check) return
+    const ok = await confirm({
+      title: 'Anlagen in Kundenstamm übernehmen',
+      message: `Es werden ${check.plants.length} Anlage(n) als echte Kundenanlagen bei „${check.customer.name}" angelegt. Fortfahren?`,
+      confirmLabel: 'Übernehmen',
+      danger: false,
+    })
+    if (!ok) return
+    setConverting(true)
+    try {
+      const res = await fetch(`/api/acquisition/${id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId: check.siteId }),
+      })
+      if (!res.ok) throw new Error()
+      setConverted(true)
+    } finally {
+      setConverting(false)
+    }
+  }
 
   const handleDelete = async () => {
     const ok = await confirm({
@@ -79,13 +105,26 @@ export default function AcquisitionDetailPage() {
             Akquise-Check vom {format(new Date(check.createdAt), 'dd. MMMM yyyy', { locale: de })} · {check.createdByName}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link
             href={`/customers/${check.customer.id}`}
             className="text-sm text-slate-600 border border-slate-300 hover:border-slate-400 px-3 py-2 rounded-lg transition-colors"
           >
             Zum Kunden
           </Link>
+          {converted ? (
+            <span className="text-sm text-green-700 border border-green-300 bg-green-50 px-3 py-2 rounded-lg">
+              ✓ Anlagen übernommen
+            </span>
+          ) : (
+            <button
+              onClick={handleConvert}
+              disabled={converting}
+              className="text-sm text-blue-700 border border-blue-300 hover:border-blue-500 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {converting ? 'Wird übernommen...' : 'Anlagen übernehmen'}
+            </button>
+          )}
           <button
             onClick={handleDelete}
             className="text-sm text-red-600 border border-red-200 hover:border-red-400 px-3 py-2 rounded-lg transition-colors"

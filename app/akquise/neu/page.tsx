@@ -23,6 +23,13 @@ interface Customer {
   address: string | null
 }
 
+interface Site {
+  id: string
+  name: string
+  address: string | null
+  city: string | null
+}
+
 const emptyPlant = (): AcquisitionPlant => ({
   types: [],
   manufacturer: '',
@@ -53,6 +60,7 @@ const emptyPlant = (): AcquisitionPlant => ({
 
 type WizardStep =
   | { kind: 'customer' }
+  | { kind: 'site_select' }
   | { kind: 'plant_count' }
   | { kind: 'plant_types' }
   | { kind: 'plant_base'; plantIndex: number }
@@ -64,6 +72,7 @@ type WizardStep =
 function buildSteps(plantCount: number): WizardStep[] {
   const steps: WizardStep[] = [
     { kind: 'customer' },
+    { kind: 'site_select' },
     { kind: 'plant_count' },
     { kind: 'plant_types' },
   ]
@@ -281,6 +290,8 @@ function AcquisitionWizard() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [sites, setSites] = useState<Site[]>([])
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
 
   const [plantCount, setPlantCount] = useState(0)
   const [plants, setPlants] = useState<AcquisitionPlant[]>([])
@@ -309,6 +320,13 @@ function AcquisitionWizard() {
         }
       })
   }, [preselectedCustomerId])
+
+  useEffect(() => {
+    if (!selectedCustomer) { setSites([]); setSelectedSiteId(null); return }
+    fetch(`/api/sites?customerId=${selectedCustomer.id}`)
+      .then((r) => r.json())
+      .then((data) => setSites(Array.isArray(data) ? data : []))
+  }, [selectedCustomer])
 
   const updatePlant = useCallback((index: number, patch: Partial<AcquisitionPlant>) => {
     setPlants((prev) => {
@@ -357,6 +375,7 @@ function AcquisitionWizard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: selectedCustomer.id,
+          siteId: selectedSiteId,
           plants,
           mood,
           nextStep,
@@ -421,6 +440,61 @@ function AcquisitionWizard() {
               <p className="text-sm text-slate-400 text-center py-4">Keine Kunden gefunden.</p>
             )}
           </div>
+        </div>
+      )
+    }
+
+    if (currentStep.kind === 'site_select') {
+      return (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Standort</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Wähle den Standort bei <strong>{selectedCustomer?.name}</strong> — oder überspringe diesen Schritt.
+            </p>
+          </div>
+
+          {sites.length === 0 ? (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-5 text-center">
+              <p className="text-sm text-slate-500">Für diesen Kunden sind keine Standorte angelegt.</p>
+              <p className="text-xs text-slate-400 mt-1">Kann nach dem Check im Kundenprofil ergänzt werden.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setSelectedSiteId(null)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-all ${
+                  selectedSiteId === null
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${selectedSiteId === null ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`} />
+                <span className="text-sm text-slate-500 italic">Kein Standort gewählt</span>
+              </button>
+              {sites.map((site) => (
+                <button
+                  key={site.id}
+                  type="button"
+                  onClick={() => setSelectedSiteId(site.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-all ${
+                    selectedSiteId === site.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${selectedSiteId === site.id ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`} />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-800">{site.name}</span>
+                    {(site.address || site.city) && (
+                      <span className="text-xs text-slate-500">{[site.address, site.city].filter(Boolean).join(', ')}</span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )
     }
