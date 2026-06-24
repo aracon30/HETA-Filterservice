@@ -11,18 +11,6 @@ export const authOptions: NextAuthOptions = {
     maxAge: 8 * 60 * 60,  // 8 Stunden absolutes Maximum
     updateAge: 5 * 60,     // Token alle 5 Minuten neu signieren
   },
-  cookies: {
-    sessionToken: {
-      name: 'next-auth.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        // Kein maxAge → Session-Cookie, wird beim Schließen des Browsers gelöscht
-      },
-    },
-  },
   pages: {
     signIn: '/login',
   },
