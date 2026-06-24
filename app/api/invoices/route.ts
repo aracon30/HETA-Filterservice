@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { writeFile } from 'fs/promises'
+import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
 const UPLOAD_ROLES = ['ADMIN', 'SERVICE_MANAGER']
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
   const safeOriginal = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeOriginal}`
   const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'invoices')
+  await mkdir(uploadDir, { recursive: true })
   await writeFile(path.join(uploadDir, fileName), buffer)
 
   const invoice = await prisma.invoice.create({
