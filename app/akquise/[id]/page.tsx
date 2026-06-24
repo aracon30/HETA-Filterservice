@@ -352,7 +352,22 @@ export default function AcquisitionDetailPage() {
                   {plant.photos.map((url) => (
                     <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="rounded-lg overflow-hidden aspect-square bg-slate-100 block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="w-full h-full object-cover hover:opacity-90 transition-opacity" />
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                        onError={(e) => {
+                          const t = e.currentTarget
+                          t.style.display = 'none'
+                          const parent = t.parentElement
+                          if (parent && !parent.querySelector('.img-error')) {
+                            const el = document.createElement('div')
+                            el.className = 'img-error w-full h-full flex items-center justify-center text-slate-400 text-xs text-center p-2'
+                            el.textContent = 'Foto nicht verfügbar'
+                            parent.appendChild(el)
+                          }
+                        }}
+                      />
                     </a>
                   ))}
                 </div>
