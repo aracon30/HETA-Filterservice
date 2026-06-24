@@ -3,10 +3,25 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 
+const INACTIVITY_TIMEOUT = 30 * 60 // 30 Minuten in Sekunden
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60,  // 8 Stunden absolutes Maximum
+    updateAge: 5 * 60,     // Token alle 5 Minuten neu signieren
+  },
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        // Kein maxAge → Session-Cookie, wird beim Schließen des Browsers gelöscht
+      },
+    },
   },
   pages: {
     signIn: '/login',
@@ -50,29 +65,37 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session }) {
+      const now = Math.floor(Date.now() / 1000)
+
       if (user) {
+        // Frischer Login: alle Felder setzen + Aktivitätszeitstempel
         token.id = user.id
         token.role = user.role
         token.customerId = user.customerId
         token.customerName = user.customerName ?? null
         token.mustChangePassword = user.mustChangePassword
+        token.lastActivity = now
       } else if (trigger === 'update' && token.id) {
-        // Re-sync mutable fields from the DB when the client calls
-        // useSession().update() — e.g. after the forced first-login password
-        // change clears mustChangePassword. We read the authoritative DB value
-        // instead of trusting client-supplied data so the forced change can't
-        // be skipped without actually changing the password.
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { role: true, customerId: true, mustChangePassword: true },
-        })
-        if (dbUser) {
-          token.role = dbUser.role
-          token.customerId = dbUser.customerId
-          token.mustChangePassword = dbUser.mustChangePassword
+        if ((session as { activityPing?: boolean } | null)?.activityPing) {
+          // Aktivitäts-Ping vom Client: nur lastActivity aktualisieren, kein DB-Sync
+          token.lastActivity = now
+        } else {
+          // Vollständiger DB-Sync (z.B. nach Passwortänderung)
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: { role: true, customerId: true, mustChangePassword: true },
+          })
+          if (dbUser) {
+            token.role = dbUser.role
+            token.customerId = dbUser.customerId
+            token.mustChangePassword = dbUser.mustChangePassword
+          }
+          token.lastActivity = now
         }
       }
+      // Bei regulären Token-Lesevorgängen (API-Polling etc.) wird lastActivity
+      // bewusst NICHT aktualisiert – nur explizite Nutzerinteraktionen zählen.
       return token
     },
     async session({ session, token }) {

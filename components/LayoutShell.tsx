@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import SessionTimeoutWarning from '@/components/SessionTimeoutWarning'
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -14,6 +15,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   }
 
   return (
+    <>
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -54,5 +56,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         </main>
       </div>
     </div>
+    <SessionTimeoutWarning />
+    </>
   )
 }

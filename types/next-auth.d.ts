@@ -28,5 +28,6 @@ declare module 'next-auth/jwt' {
     customerId: string | null
     customerName: string | null
     mustChangePassword: boolean
+    lastActivity?: number
   }
 }

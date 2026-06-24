@@ -1,6 +1,8 @@
 import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
 
+const INACTIVITY_TIMEOUT = 30 * 60 // 30 Minuten in Sekunden
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl
@@ -33,8 +35,18 @@ export default withAuth(
         ) {
           return true
         }
-        // Everything else requires a token
-        return !!token
+
+        if (!token) return false
+
+        // Inaktivitäts-Check: nur wenn lastActivity bereits gesetzt (neue Sessions)
+        if (token.lastActivity !== undefined) {
+          const now = Math.floor(Date.now() / 1000)
+          if (now - token.lastActivity > INACTIVITY_TIMEOUT) {
+            return false
+          }
+        }
+
+        return true
       },
     },
     pages: {
