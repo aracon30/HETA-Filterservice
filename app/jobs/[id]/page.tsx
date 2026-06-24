@@ -6,15 +6,10 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import InvoicePanel from '@/components/InvoicePanel'
+import ImageLightbox from '@/components/ImageLightbox'
+import { toFileUrl, downloadFile } from '@/lib/file-url'
 
 const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
-
-// Normalize legacy /uploads/ URLs to the auth-protected /api/files/ route
-function toFileUrl(url: string): string {
-  if (!url) return url
-  if (url.startsWith('/uploads/')) return `/api/files/${url.slice('/uploads/'.length)}`
-  return url
-}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -315,6 +310,19 @@ function SignatureCanvas({ label, value, onChange }: {
 
 // ─── Checklist Item Row ───────────────────────────────────────────────────────
 
+function SummaryPhoto({ url }: { url: string }) {
+  const [lightbox, setLightbox] = useState(false)
+  return (
+    <>
+      <button onClick={() => setLightbox(true)} className="flex-shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={toFileUrl(url)} className="w-10 h-10 object-cover rounded border hover:opacity-80 transition-opacity" alt="" />
+      </button>
+      {lightbox && <ImageLightbox src={toFileUrl(url)} onClose={() => setLightbox(false)} />}
+    </>
+  )
+}
+
 function InspectionItemRow({ item, onChange, onPhotoUpload, uploading, onDelete }: {
   item: ChecklistItem
   onChange: (update: Partial<ChecklistItem>) => void
@@ -322,6 +330,7 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading, onDelete 
   uploading: string | null
   onDelete?: () => void
 }) {
+  const [lightbox, setLightbox] = useState(false)
   return (
     <div className={`p-4 rounded-lg border transition-colors ${
       item.status === 'io'  ? 'bg-green-50 border-green-200' :
@@ -410,7 +419,8 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading, onDelete 
           />
         </label>
         {item.photoUrl && (
-          <a href={toFileUrl(item.photoUrl)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+          <button onClick={() => setLightbox(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={toFileUrl(item.photoUrl)}
               className="w-8 h-8 object-cover rounded border"
@@ -418,9 +428,12 @@ function InspectionItemRow({ item, onChange, onPhotoUpload, uploading, onDelete 
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
             Foto ansehen
-          </a>
+          </button>
         )}
       </div>
+      {lightbox && item.photoUrl && (
+        <ImageLightbox src={toFileUrl(item.photoUrl)} onClose={() => setLightbox(false)} />
+      )}
     </div>
   )
 }
@@ -812,11 +825,7 @@ export default function JobInspectionPage() {
                       <p className={item.status === 'nio' ? 'text-red-800 font-medium' : 'text-gray-700'}>{item.label}</p>
                       {item.comment && <p className="text-xs text-gray-500 mt-0.5 italic">{item.comment}</p>}
                     </div>
-                    {item.photoUrl && (
-                      <a href={toFileUrl(item.photoUrl)} target="_blank" rel="noopener noreferrer">
-                        <img src={toFileUrl(item.photoUrl)} className="w-10 h-10 object-cover rounded border" alt="" />
-                      </a>
-                    )}
+                    {item.photoUrl && <SummaryPhoto url={item.photoUrl} />}
                   </div>
                 ))}
               </div>

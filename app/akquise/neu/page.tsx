@@ -16,6 +16,8 @@ import {
   getProblemsForTypes,
   type AcquisitionPlant,
 } from '@/lib/acquisition-types'
+import ImageLightbox from '@/components/ImageLightbox'
+import { toFileUrl } from '@/lib/file-url'
 
 interface Customer { id: string; name: string; address: string | null }
 interface Site { id: string; name: string; address: string | null; city: string | null }
@@ -141,6 +143,7 @@ function ConditionStars({ value, onChange }: { value: number; onChange: (v: numb
 
 function PhotoUpload({ photos, onChange }: { photos: string[]; onChange: (p: string[]) => void }) {
   const [uploading, setUploading] = useState(false)
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setUploading(true)
@@ -161,15 +164,20 @@ function PhotoUpload({ photos, onChange }: { photos: string[]; onChange: (p: str
       <label className="block text-sm font-medium text-slate-700">Fotos <span className="font-normal text-slate-400">(optional)</span></label>
       {photos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {photos.map((url) => (
+          {photos.map((url, idx) => (
             <div key={url} className="relative rounded-xl overflow-hidden aspect-square bg-slate-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => setLightboxIdx(idx)} className="w-full h-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={toFileUrl(url)} alt="" className="w-full h-full object-cover hover:opacity-90 transition-opacity" />
+              </button>
               <button type="button" onClick={() => onChange(photos.filter((p) => p !== url))}
                 className="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow">×</button>
             </div>
           ))}
         </div>
+      )}
+      {lightboxIdx !== null && (
+        <ImageLightbox src={toFileUrl(photos[lightboxIdx])} onClose={() => setLightboxIdx(null)} />
       )}
       <label className={`flex items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-5 cursor-pointer transition-colors ${uploading ? 'border-slate-200 bg-slate-50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'}`}>
         <input type="file" accept="image/*" multiple capture="environment" className="sr-only"

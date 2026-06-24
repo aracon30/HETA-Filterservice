@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { downloadFile } from '@/lib/file-url'
 import {
   REQUEST_STATUS_LABELS,
   REQUEST_STATUS_COLORS,
@@ -218,24 +219,22 @@ export default function PortalRequestDetailPage() {
           {/* PDF Links */}
           <div className="space-y-2 mb-4">
             {req.offerPdfs.map(offer => (
-              <a
+              <button
                 key={offer.id}
-                href={offer.fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-3 bg-white rounded-lg border border-purple-200 px-4 py-3 hover:border-purple-400 transition-colors group"
+                onClick={() => downloadFile(offer.fileUrl, offer.fileName)}
+                className="w-full flex items-center justify-between gap-3 bg-white rounded-lg border border-purple-200 px-4 py-3 hover:border-purple-400 transition-colors group"
               >
-                <div>
+                <div className="text-left">
                   <p className="text-sm font-semibold text-gray-900">Angebot {offer.offerNumber}</p>
                   <p className="text-xs text-gray-400">{offer.fileName} · {format(new Date(offer.createdAt), 'dd.MM.yyyy', { locale: de })}</p>
                 </div>
-                <div className="flex items-center gap-1.5 text-purple-600 group-hover:text-purple-800 text-xs font-medium">
+                <div className="flex items-center gap-1.5 text-purple-600 group-hover:text-purple-800 text-xs font-medium flex-shrink-0">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  PDF öffnen
+                  Herunterladen
                 </div>
-              </a>
+              </button>
             ))}
           </div>
 
@@ -329,21 +328,19 @@ export default function PortalRequestDetailPage() {
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Angebote</h2>
           <div className="space-y-2">
             {req.offerPdfs.map(offer => (
-              <a
+              <button
                 key={offer.id}
-                href={offer.fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 hover:bg-gray-100 transition-colors"
+                onClick={() => downloadFile(offer.fileUrl, offer.fileName)}
+                className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 hover:bg-gray-100 transition-colors"
               >
-                <div>
+                <div className="text-left">
                   <p className="text-sm font-medium text-gray-800">Angebot {offer.offerNumber}</p>
                   <p className="text-xs text-gray-400">{offer.fileName}</p>
                 </div>
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-              </a>
+              </button>
             ))}
           </div>
         </div>

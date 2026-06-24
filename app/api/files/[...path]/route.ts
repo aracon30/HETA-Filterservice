@@ -34,10 +34,15 @@ export async function GET(
     const buffer = await readFile(filePath)
     const ext = (filePath.split('.').pop() ?? '').toLowerCase()
     const contentType = MIME_TYPES[ext] ?? 'application/octet-stream'
+    const forceDownload = req.nextUrl.searchParams.get('download') === '1'
+    const rawName = segments[segments.length - 1]
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'private, max-age=86400',
+        ...(forceDownload
+          ? { 'Content-Disposition': `attachment; filename="${rawName}"` }
+          : {}),
       },
     })
   } catch {

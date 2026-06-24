@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { downloadFile } from '@/lib/file-url'
 import {
   REQUEST_STATUS_LABELS,
   REQUEST_STATUS_COLORS,
@@ -466,17 +467,15 @@ export default function RequestDetailPage() {
                       <p className="text-xs text-gray-500 truncate">{offer.fileName}</p>
                       <p className="text-xs text-gray-400">{format(new Date(offer.createdAt), 'dd.MM.yy', { locale: de })}</p>
                     </div>
-                    <a
-                      href={offer.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => downloadFile(offer.fileUrl, offer.fileName)}
                       className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-purple-200 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
                       PDF
-                    </a>
+                    </button>
                   </div>
                 ))}
               </div>
