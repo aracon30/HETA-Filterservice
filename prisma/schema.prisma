@@ -78,6 +78,7 @@ model Customer {
   users         User[]
   invoices      Invoice[]
   requests      PlantRequest[]
+  acquisitions  AcquisitionCheck[]
   hotels        Hotel[]
   sites         Site[]
   contacts      Contact[]
@@ -449,6 +450,22 @@ enum RequestStatus {
   REJECTED
   CLOSED
   ARCHIVED
+}
+
+model AcquisitionCheck {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  plants        Json     @default("[]")
+  mood          String?
+  nextStep      String?
+  note          String?
+  createdById   String
+  createdByName String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([customerId])
 }
 
 model PlantRequest {
