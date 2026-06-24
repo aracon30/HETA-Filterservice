@@ -618,7 +618,7 @@ function AcquisitionWizard() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">{label} <span className="font-normal text-slate-400">(optional)</span></label>
                 <input
                   type="text"
-                  value={(plant as Record<string, string>)[key] ?? ''}
+                  value={(plant as unknown as Record<string, string>)[key] ?? ''}
                   onChange={(e) => updatePlant(i, { [key]: e.target.value } as Partial<AcquisitionPlant>)}
                   className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder={placeholder}
@@ -641,7 +641,7 @@ function AcquisitionWizard() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">{label} <span className="font-normal text-slate-400">(optional)</span></label>
                 <input
                   type="text"
-                  value={(plant as Record<string, string>)[key] ?? ''}
+                  value={(plant as unknown as Record<string, string>)[key] ?? ''}
                   onChange={(e) => updatePlant(i, { [key]: e.target.value } as Partial<AcquisitionPlant>)}
                   className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder={placeholder}
@@ -662,7 +662,7 @@ function AcquisitionWizard() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
                 <RadioGroup
                   options={YES_NO_UNKNOWN}
-                  value={(plant as Record<string, string>)[key] ?? ''}
+                  value={(plant as unknown as Record<string, string>)[key] ?? ''}
                   onChange={(v) => updatePlant(i, { [key]: v } as Partial<AcquisitionPlant>)}
                 />
               </div>
