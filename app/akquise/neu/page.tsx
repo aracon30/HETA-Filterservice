@@ -10,6 +10,9 @@ import {
   URGENCY_OPTIONS,
   MOOD_OPTIONS,
   NEXT_STEP_OPTIONS,
+  YES_NO_UNKNOWN,
+  INSTALLATION_TYPE_OPTIONS,
+  ENVIRONMENTAL_CONDITIONS,
   getProblemsForTypes,
   type AcquisitionPlant,
 } from '@/lib/acquisition-types'
@@ -25,6 +28,17 @@ const emptyPlant = (): AcquisitionPlant => ({
   manufacturer: '',
   buildYear: '',
   serialNumber: '',
+  modelDesignation: '',
+  nominalPower: '',
+  operatingPressure: '',
+  flowRate: '',
+  medium: '',
+  operatingHours: '',
+  wasModified: '',
+  hasDocumentation: '',
+  sparePartsAvailable: '',
+  installationType: '',
+  environmentalConditions: [],
   lastServiceAge: '',
   maintainedBy: '',
   condition: 0,
@@ -33,6 +47,8 @@ const emptyPlant = (): AcquisitionPlant => ({
   priorities: [],
   urgency: '',
   customerNote: '',
+  additionalInfo: '',
+  photos: [],
 })
 
 type WizardStep =
@@ -173,6 +189,76 @@ function CheckboxGroup({
           <span className="text-sm text-slate-700">{opt.label}</span>
         </button>
       ))}
+    </div>
+  )
+}
+
+function PhotoUpload({ photos, onChange }: { photos: string[]; onChange: (p: string[]) => void }) {
+  const [uploading, setUploading] = useState(false)
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    const newUrls: string[] = []
+    for (const file of Array.from(files)) {
+      const form = new FormData()
+      form.append('file', file)
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form })
+        if (res.ok) {
+          const data = await res.json()
+          newUrls.push(data.url)
+        }
+      } catch { /* skip failed uploads */ }
+    }
+    onChange([...photos, ...newUrls])
+    setUploading(false)
+  }
+
+  const removePhoto = (url: string) => onChange(photos.filter((p) => p !== url))
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-slate-700">Fotos <span className="font-normal text-slate-400">(optional)</span></label>
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {photos.map((url) => (
+            <div key={url} className="relative rounded-lg overflow-hidden aspect-square bg-slate-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removePhoto(url)}
+                className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <label className={`flex items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-4 cursor-pointer transition-colors ${uploading ? 'border-slate-200 bg-slate-50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'}`}>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          capture="environment"
+          className="sr-only"
+          onChange={(e) => handleFiles(e.target.files)}
+          disabled={uploading}
+        />
+        {uploading ? (
+          <span className="text-sm text-slate-400">Wird hochgeladen...</span>
+        ) : (
+          <>
+            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-sm text-slate-500">Foto aufnehmen oder auswählen</span>
+          </>
+        )}
+      </label>
     </div>
   )
 }
@@ -437,44 +523,104 @@ function AcquisitionWizard() {
         plant.lastServiceAge && plant.lastServiceAge !== 'never' && plant.lastServiceAge !== 'unknown'
 
       return (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
               Anlage {i + 1} — {plantTypeLabel(plant.types) || 'Unbekannt'}
             </p>
             <h2 className="text-xl font-bold text-slate-800 mt-0.5">Basisdaten</h2>
           </div>
+
+          {/* Identifikation */}
           <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Identifikation</p>
+            {[
+              { label: 'Hersteller', key: 'manufacturer', placeholder: 'z.B. Mann+Hummel' },
+              { label: 'Modellbezeichnung / Typ', key: 'modelDesignation', placeholder: 'z.B. HF-3000' },
+              { label: 'Baujahr', key: 'buildYear', placeholder: 'z.B. 2015' },
+              { label: 'Seriennummer', key: 'serialNumber', placeholder: 'z.B. SN-12345' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{label} <span className="font-normal text-slate-400">(optional)</span></label>
+                <input
+                  type="text"
+                  value={(plant as Record<string, string>)[key] ?? ''}
+                  onChange={(e) => updatePlant(i, { [key]: e.target.value } as Partial<AcquisitionPlant>)}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Technische Daten */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Technische Daten</p>
+            {[
+              { label: 'Nennleistung / Motorleistung', key: 'nominalPower', placeholder: 'z.B. 7,5 kW' },
+              { label: 'Betriebsdruck', key: 'operatingPressure', placeholder: 'z.B. 6 bar' },
+              { label: 'Durchflussrate', key: 'flowRate', placeholder: 'z.B. 50 m³/h' },
+              { label: 'Medium', key: 'medium', placeholder: 'z.B. Wasser, Öl, Druckluft...' },
+              { label: 'Betriebsstunden', key: 'operatingHours', placeholder: 'z.B. 12.000 h' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{label} <span className="font-normal text-slate-400">(optional)</span></label>
+                <input
+                  type="text"
+                  value={(plant as Record<string, string>)[key] ?? ''}
+                  onChange={(e) => updatePlant(i, { [key]: e.target.value } as Partial<AcquisitionPlant>)}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Zustand & Historie */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Zustand & Historie</p>
+            {[
+              { label: 'Anlage jemals umgebaut / modifiziert?', key: 'wasModified' },
+              { label: 'Originaldokumentation / Handbuch vorhanden?', key: 'hasDocumentation' },
+              { label: 'Ersatzteile noch beschaffbar?', key: 'sparePartsAvailable' },
+            ].map(({ label, key }) => (
+              <div key={key}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+                <RadioGroup
+                  options={YES_NO_UNKNOWN}
+                  value={(plant as Record<string, string>)[key] ?? ''}
+                  onChange={(v) => updatePlant(i, { [key]: v } as Partial<AcquisitionPlant>)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Aufstellort */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Aufstellort</p>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Hersteller (optional)</label>
-              <input
-                type="text"
-                value={plant.manufacturer}
-                onChange={(e) => updatePlant(i, { manufacturer: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="z.B. Mann+Hummel"
+              <label className="block text-sm font-medium text-slate-700 mb-1">Aufstellungsart</label>
+              <RadioGroup
+                options={INSTALLATION_TYPE_OPTIONS}
+                value={plant.installationType}
+                onChange={(v) => updatePlant(i, { installationType: v })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Baujahr (optional)</label>
-              <input
-                type="text"
-                value={plant.buildYear}
-                onChange={(e) => updatePlant(i, { buildYear: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="z.B. 2015"
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Besondere Umgebungsbedingungen <span className="font-normal text-slate-400">(Mehrfachauswahl)</span>
+              </label>
+              <CheckboxGroup
+                options={ENVIRONMENTAL_CONDITIONS}
+                values={plant.environmentalConditions}
+                onChange={(v) => updatePlant(i, { environmentalConditions: v })}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Seriennummer (optional)</label>
-              <input
-                type="text"
-                value={plant.serialNumber}
-                onChange={(e) => updatePlant(i, { serialNumber: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="z.B. SN-12345"
-              />
-            </div>
+          </div>
+
+          {/* Service */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Servicehistorie</p>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Letzter bekannter Service</label>
               <RadioGroup
@@ -493,6 +639,25 @@ function AcquisitionWizard() {
                 />
               </div>
             )}
+          </div>
+
+          {/* Zusatzinfos & Fotos */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Zusatzinformationen & Fotos</p>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Weitere Informationen <span className="font-normal text-slate-400">(optional)</span></label>
+              <textarea
+                value={plant.additionalInfo}
+                onChange={(e) => updatePlant(i, { additionalInfo: e.target.value })}
+                rows={3}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Besonderheiten, Auffälligkeiten, sonstige Beobachtungen..."
+              />
+            </div>
+            <PhotoUpload
+              photos={plant.photos}
+              onChange={(photos) => updatePlant(i, { photos })}
+            />
           </div>
         </div>
       )

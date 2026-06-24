@@ -13,6 +13,9 @@ import {
   URGENCY_OPTIONS,
   MOOD_OPTIONS,
   NEXT_STEP_OPTIONS,
+  YES_NO_UNKNOWN,
+  INSTALLATION_TYPE_OPTIONS,
+  ENVIRONMENTAL_CONDITIONS,
   getProblemsForTypes,
   type AcquisitionPlant,
 } from '@/lib/acquisition-types'
@@ -143,44 +146,118 @@ export default function AcquisitionDetailPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              {plant.manufacturer && (
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Hersteller</p>
-                  <p className="text-slate-800 mt-0.5">{plant.manufacturer}</p>
+            {/* Identifikation */}
+            {[
+              { label: 'Hersteller', val: plant.manufacturer },
+              { label: 'Modell / Typ', val: plant.modelDesignation },
+              { label: 'Baujahr', val: plant.buildYear },
+              { label: 'Seriennummer', val: plant.serialNumber },
+            ].some((f) => f.val) && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Identifikation</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  {[
+                    { label: 'Hersteller', val: plant.manufacturer },
+                    { label: 'Modell / Typ', val: plant.modelDesignation },
+                    { label: 'Baujahr', val: plant.buildYear },
+                    { label: 'Seriennummer', val: plant.serialNumber },
+                  ].filter((f) => f.val).map(({ label, val }) => (
+                    <div key={label}>
+                      <p className="text-xs text-slate-500">{label}</p>
+                      <p className="text-slate-800">{val}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {plant.buildYear && (
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Baujahr</p>
-                  <p className="text-slate-800 mt-0.5">{plant.buildYear}</p>
+              </div>
+            )}
+
+            {/* Technische Daten */}
+            {[plant.nominalPower, plant.operatingPressure, plant.flowRate, plant.medium, plant.operatingHours].some(Boolean) && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Technische Daten</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  {[
+                    { label: 'Nennleistung', val: plant.nominalPower },
+                    { label: 'Betriebsdruck', val: plant.operatingPressure },
+                    { label: 'Durchflussrate', val: plant.flowRate },
+                    { label: 'Medium', val: plant.medium },
+                    { label: 'Betriebsstunden', val: plant.operatingHours },
+                  ].filter((f) => f.val).map(({ label, val }) => (
+                    <div key={label}>
+                      <p className="text-xs text-slate-500">{label}</p>
+                      <p className="text-slate-800">{val}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {plant.serialNumber && (
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Seriennummer</p>
-                  <p className="text-slate-800 mt-0.5">{plant.serialNumber}</p>
+              </div>
+            )}
+
+            {/* Zustand & Historie */}
+            {[plant.wasModified, plant.hasDocumentation, plant.sparePartsAvailable].some(Boolean) && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Zustand & Historie</p>
+                <div className="grid grid-cols-1 gap-y-2 text-sm">
+                  {[
+                    { label: 'Umgebaut / modifiziert', val: plant.wasModified },
+                    { label: 'Dokumentation vorhanden', val: plant.hasDocumentation },
+                    { label: 'Ersatzteile beschaffbar', val: plant.sparePartsAvailable },
+                  ].filter((f) => f.val).map(({ label, val }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <span className="text-slate-500">{label}</span>
+                      <span className="text-slate-800">{YES_NO_UNKNOWN.find((o) => o.value === val)?.label ?? val}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {lastServiceLabel && (
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Letzter Service</p>
-                  <p className="text-slate-800 mt-0.5">{lastServiceLabel}</p>
+              </div>
+            )}
+
+            {/* Aufstellort */}
+            {(plant.installationType || plant.environmentalConditions?.length > 0) && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Aufstellort</p>
+                <div className="text-sm space-y-1">
+                  {plant.installationType && (
+                    <p className="text-slate-800">{INSTALLATION_TYPE_OPTIONS.find((o) => o.value === plant.installationType)?.label}</p>
+                  )}
+                  {plant.environmentalConditions?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {plant.environmentalConditions.map((c) => (
+                        <span key={c} className="text-xs bg-yellow-50 text-yellow-800 border border-yellow-200 px-2.5 py-1 rounded-full">
+                          {ENVIRONMENTAL_CONDITIONS.find((o) => o.value === c)?.label ?? c}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              {maintainedByLabel && (
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Gewartet durch</p>
-                  <p className="text-slate-800 mt-0.5">{maintainedByLabel}</p>
+              </div>
+            )}
+
+            {/* Service */}
+            {(lastServiceLabel || maintainedByLabel || urgencyLabel) && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Servicehistorie & Dringlichkeit</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  {lastServiceLabel && (
+                    <div>
+                      <p className="text-xs text-slate-500">Letzter Service</p>
+                      <p className="text-slate-800">{lastServiceLabel}</p>
+                    </div>
+                  )}
+                  {maintainedByLabel && (
+                    <div>
+                      <p className="text-xs text-slate-500">Gewartet durch</p>
+                      <p className="text-slate-800">{maintainedByLabel}</p>
+                    </div>
+                  )}
+                  {urgencyLabel && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-slate-500">Dringlichkeit</p>
+                      <p className="text-slate-800">{urgencyLabel}</p>
+                    </div>
+                  )}
                 </div>
-              )}
-              {urgencyLabel && (
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Dringlichkeit</p>
-                  <p className="text-slate-800 mt-0.5">{urgencyLabel}</p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {problemLabels.length > 0 && (
               <div>
@@ -219,6 +296,27 @@ export default function AcquisitionDetailPage() {
               <div>
                 <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Gesprächsnotiz</p>
                 <p className="text-sm text-slate-700 italic bg-slate-50 rounded-lg px-3 py-2">„{plant.customerNote}"</p>
+              </div>
+            )}
+
+            {plant.additionalInfo && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Weitere Informationen</p>
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2">{plant.additionalInfo}</p>
+              </div>
+            )}
+
+            {plant.photos?.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Fotos</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {plant.photos.map((url) => (
+                    <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="rounded-lg overflow-hidden aspect-square bg-slate-100 block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="w-full h-full object-cover hover:opacity-90 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
           </div>
