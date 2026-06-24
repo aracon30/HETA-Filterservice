@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { useSecureCookies, sessionCookieName } from '@/lib/auth-cookie'
 
 const INACTIVITY_TIMEOUT = 30 * 60 // 30 Minuten in Sekunden
 
@@ -10,6 +11,18 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 8 * 60 * 60,  // 8 Stunden absolutes Maximum
     updateAge: 5 * 60,     // Token alle 5 Minuten neu signieren
+  },
+  cookies: {
+    sessionToken: {
+      name: sessionCookieName,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+        // Kein maxAge → Session-Cookie: wird beim Schließen von Browser/Tab gelöscht
+      },
+    },
   },
   pages: {
     signIn: '/login',
