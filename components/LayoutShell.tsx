@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import SessionTimeoutWarning from '@/components/SessionTimeoutWarning'
+import SessionGuard from '@/components/SessionGuard'
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -56,6 +57,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         </main>
       </div>
     </div>
+    <SessionGuard />
     <SessionTimeoutWarning />
     </>
   )
