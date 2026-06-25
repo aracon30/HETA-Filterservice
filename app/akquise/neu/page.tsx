@@ -721,7 +721,7 @@ function AcquisitionWizard() {
   const isSummary = currentStep?.kind === 'summary'
 
   return (
-    <div className="flex flex-col h-screen bg-slate-100">
+    <div className="flex flex-col fixed inset-0 bg-slate-100">
       {/* Sticky Header */}
       <header className="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-3 shadow-sm">
         <div className="max-w-2xl mx-auto">
