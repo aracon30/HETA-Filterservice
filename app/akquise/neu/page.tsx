@@ -211,6 +211,7 @@ function AcquisitionWizard() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedCustomerId = searchParams.get('customerId')
+  const urlCheckId = searchParams.get('checkId')
   const contentRef = useRef<HTMLDivElement>(null)
 
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -224,22 +225,47 @@ function AcquisitionWizard() {
   const [nextStep, setNextStep] = useState('')
   const [note, setNote] = useState('')
   const [stepIndex, setStepIndex] = useState(0)
-  const [checkId, setCheckId] = useState<string | null>(null)
+  const [checkId, setCheckId] = useState<string | null>(urlCheckId)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [submitting, setSubmitting] = useState(false)
+  // Minimum plant count when editing an existing check — existing plants must not be removed
+  const [minPlantCount, setMinPlantCount] = useState(0)
+  const [loadingExisting, setLoadingExisting] = useState(!!urlCheckId)
 
   const steps = buildSteps(plantCount)
   const currentStep = steps[stepIndex]
 
+  // Load existing check when editing
+  useEffect(() => {
+    if (!urlCheckId) return
+    fetch(`/api/acquisition/${urlCheckId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.customer) setSelectedCustomer(data.customer)
+        if (data.siteId) setSelectedSiteId(data.siteId)
+        const existingPlants: AcquisitionPlant[] = Array.isArray(data.plants) ? data.plants : []
+        setPlants(existingPlants)
+        setPlantCount(existingPlants.length)
+        setMinPlantCount(existingPlants.length)
+        if (data.mood) setMood(data.mood)
+        if (data.nextStep) setNextStep(data.nextStep)
+        if (data.note) setNote(data.note)
+        // Start at plant_count step so user can add more plants
+        setStepIndex(2)
+        setLoadingExisting(false)
+      })
+      .catch(() => setLoadingExisting(false))
+  }, [urlCheckId])
+
   useEffect(() => {
     fetch('/api/customers').then((r) => r.json()).then((data) => {
       setCustomers(data)
-      if (preselectedCustomerId) {
+      if (preselectedCustomerId && !urlCheckId) {
         const found = data.find((c: Customer) => c.id === preselectedCustomerId)
         if (found) { setSelectedCustomer(found); setStepIndex(1) }
       }
     })
-  }, [preselectedCustomerId])
+  }, [preselectedCustomerId, urlCheckId])
 
   useEffect(() => {
     if (!selectedCustomer) { setSites([]); setSelectedSiteId(null); return }
@@ -252,8 +278,14 @@ function AcquisitionWizard() {
   }, [])
 
   const handlePlantCountSelect = (count: number) => {
+    if (count < minPlantCount) return  // never reduce below existing plants
     setPlantCount(count)
-    setPlants(Array.from({ length: count }, () => emptyPlant()))
+    setPlants(prev => {
+      const existing = prev.slice(0, minPlantCount)
+      const toKeep = prev.slice(minPlantCount, count)
+      const newPlants = Array.from({ length: Math.max(0, count - prev.length) }, () => emptyPlant())
+      return [...existing, ...toKeep, ...newPlants]
+    })
   }
 
   const getPayload = useCallback(() => ({
@@ -343,6 +375,10 @@ function AcquisitionWizard() {
     c.name.toLowerCase().includes(customerSearch.toLowerCase())
   )
 
+  if (loadingExisting) {
+    return <div className="flex items-center justify-center h-screen text-slate-400">Lädt...</div>
+  }
+
   // --- Schritte rendern ---
 
   const renderStep = () => {
@@ -408,16 +444,29 @@ function AcquisitionWizard() {
     if (currentStep.kind === 'plant_count') return (
       <div className="space-y-3">
         <p className="text-sm text-slate-500">Wie viele Anlagen gibt es bei <strong>{selectedCustomer?.name}</strong>?</p>
-        {PLANT_COUNT_OPTIONS.map((opt) => (
-          <button key={opt.value} type="button"
-            onClick={() => handlePlantCountSelect(opt.value > 10 ? 10 : opt.value)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-              (opt.value > 10 ? plantCount >= 10 : plantCount === opt.value) ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300 bg-white'
-            }`}>
-            <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${(opt.value > 10 ? plantCount >= 10 : plantCount === opt.value) ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`} />
-            <span className="text-sm text-slate-700">{opt.label}</span>
-          </button>
-        ))}
+        {minPlantCount > 0 && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Bereits {minPlantCount} Anlage(n) gespeichert — Anzahl kann nur erhöht werden.
+          </p>
+        )}
+        {PLANT_COUNT_OPTIONS.map((opt) => {
+          const val = opt.value > 10 ? 10 : opt.value
+          const isSelected = opt.value > 10 ? plantCount >= 10 : plantCount === val
+          const isDisabled = val < minPlantCount
+          return (
+            <button key={opt.value} type="button"
+              disabled={isDisabled}
+              onClick={() => handlePlantCountSelect(val)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                isDisabled ? 'border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed'
+                : isSelected ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}>
+              <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`} />
+              <span className="text-sm text-slate-700">{opt.label}</span>
+            </button>
+          )
+        })}
       </div>
     )
 
