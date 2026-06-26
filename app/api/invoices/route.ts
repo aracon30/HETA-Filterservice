@@ -6,7 +6,8 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
 const UPLOAD_ROLES = ['ADMIN', 'SERVICE_MANAGER']
-const VIEW_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'BUYER']
+// MAINTENANCE_MANAGER added: same view rights as BUYER (own company only)
+const VIEW_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'BUYER', 'MAINTENANCE_MANAGER']
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -25,12 +26,12 @@ export async function GET(req: NextRequest) {
     job: { select: { id: true, orderNumber: true, scheduledAt: true } },
   }
 
-  if (role === 'BUYER') {
-    const buyerCustomerId = session.user.customerId
-    if (!buyerCustomerId || (customerId && customerId !== buyerCustomerId)) {
+  if (role === 'BUYER' || role === 'MAINTENANCE_MANAGER') {
+    const ownCustomerId = session.user.customerId
+    if (!ownCustomerId || (customerId && customerId !== ownCustomerId)) {
       return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
     }
-    const where: Record<string, unknown> = { customerId: buyerCustomerId }
+    const where: Record<string, unknown> = { customerId: ownCustomerId }
     if (jobId) where.jobId = jobId
     const invoices = await prisma.invoice.findMany({ where, include, orderBy: { createdAt: 'desc' } })
     return NextResponse.json(invoices)

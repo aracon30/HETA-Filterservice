@@ -145,7 +145,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       {/* Anfragen-Link — nur für externe Nutzer mit Anfrage-Berechtigung */}
-      {role && ['MAINTENANCE_MANAGER', 'BUYER'].includes(role) && (
+      {role && ['MAINTENANCE_MANAGER', 'BUYER'].includes(role) && (  /* MAINTENANCE_TECHNICIAN hat kein Anfrage-Recht */
         <Link
           href="/portal/requests"
           onClick={onClose}

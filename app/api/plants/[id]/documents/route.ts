@@ -6,25 +6,33 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { DocumentType } from '@prisma/client'
 
-// Roles that can upload restricted document types (INVOICE, SERVICE_REPORT, MANUAL, DRAWING, OTHER)
+// Roles with full upload rights (all document types)
 const RESTRICTED_UPLOAD_ROLES = ['ADMIN', 'SERVICE_MANAGER']
-
-// Roles that can upload any document type including IMAGE
-const ALL_UPLOAD_ROLES = [
-  'ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN',
-  'MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER',
-]
 
 // External customer roles — can only access their own customer's plants
 const EXTERNAL_ROLES = ['MAINTENANCE_MANAGER', 'MAINTENANCE_TECHNICIAN', 'BUYER']
 
+// Which DocumentTypes each external role may upload
+const EXTERNAL_UPLOAD_ALLOWED: Record<string, DocumentType[]> = {
+  MAINTENANCE_MANAGER: ['IMAGE', 'OTHER'],
+  SERVICE_TECHNICIAN:  ['IMAGE'],
+  // MAINTENANCE_TECHNICIAN and BUYER: no upload
+}
+
+// Strict file extension whitelist (mirrors /api/upload)
+const ALLOWED_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff',
+  'pdf', 'docx', 'xlsx', 'txt', 'csv',
+  'dwg', 'dxf', 'svg',
+])
+
 const ALLOWED_MIME: Record<DocumentType, string[]> = {
-  INVOICE:        ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+  INVOICE:        ['application/pdf'],
   SERVICE_REPORT: ['application/pdf'],
-  MANUAL:         ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  DRAWING:        ['application/pdf', 'image/png', 'image/jpeg', 'image/svg+xml'],
-  IMAGE:          ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  OTHER:          [], // any
+  MANUAL:         ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  DRAWING:        ['application/pdf', 'image/png', 'image/jpeg', 'image/svg+xml', 'image/vnd.dwg', 'image/x-dwg'],
+  IMAGE:          ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/tiff'],
+  OTHER:          [], // any allowed extension
 }
 
 export async function GET(
@@ -70,10 +78,6 @@ export async function POST(
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
-  if (!ALL_UPLOAD_ROLES.includes(role)) {
-    return NextResponse.json({ error: 'Keine Upload-Berechtigung' }, { status: 403 })
-  }
-
   const formData = await req.formData()
   const file = formData.get('file') as File | null
   const type = formData.get('type') as DocumentType | null
@@ -85,9 +89,21 @@ export async function POST(
     return NextResponse.json({ error: 'Datei, Typ und Titel sind erforderlich' }, { status: 400 })
   }
 
-  // Permission: restricted types require ADMIN or SERVICE_MANAGER
-  if (type !== 'IMAGE' && !RESTRICTED_UPLOAD_ROLES.includes(role)) {
-    return NextResponse.json({ error: `Nur Administratoren und Servicemanager können Dokumente vom Typ "${type}" hochladen` }, { status: 403 })
+  // Extension whitelist (server-side security)
+  const ext = (file.name.split('.').pop() ?? '').toLowerCase()
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    return NextResponse.json({ error: `Dateityp ".${ext}" ist nicht erlaubt` }, { status: 400 })
+  }
+
+  // Role-based type restriction
+  if (RESTRICTED_UPLOAD_ROLES.includes(role)) {
+    // full access — all types allowed
+  } else if (EXTERNAL_UPLOAD_ALLOWED[role]) {
+    if (!EXTERNAL_UPLOAD_ALLOWED[role].includes(type)) {
+      return NextResponse.json({ error: `Ihre Rolle darf nur Fotos und sonstige Dokumente hochladen` }, { status: 403 })
+    }
+  } else {
+    return NextResponse.json({ error: 'Keine Upload-Berechtigung' }, { status: 403 })
   }
 
   // Mime type validation (skip for OTHER type)
@@ -111,8 +127,8 @@ export async function POST(
   }
 
   // Save file
-  const ext = path.extname(file.name) || ''
-  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`
+  const fileExt = path.extname(file.name) || ''
+  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}${fileExt}`
   const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'plant-docs')
   await mkdir(uploadDir, { recursive: true })
   const filePath = path.join(uploadDir, safeName)
