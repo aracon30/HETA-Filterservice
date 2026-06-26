@@ -32,6 +32,7 @@ export default async function PortalPage() {
   const role = session.user.role as string
   const customerId = session.user.customerId as string | undefined
 
+  // MAINTENANCE_TECHNICIAN gets portal access when linked to a customer
   if (!EXTERNAL_ROLES.includes(role) || !customerId) redirect('/')
 
   // Permissions
@@ -104,7 +105,7 @@ export default async function PortalPage() {
 
   // Role-specific detail level
   const showReportLink = role === 'MAINTENANCE_MANAGER' || role === 'BUYER'
-  const showInvoices = role === 'BUYER'
+  const showInvoices = role === 'BUYER' || role === 'MAINTENANCE_MANAGER'
 
   const renderPlantCard = (plant: typeof plants[number]) => (
     <Link

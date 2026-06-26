@@ -5,7 +5,15 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 
-const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'])
+// Strict whitelist — no executables, scripts, or archives
+const ALLOWED_EXTENSIONS = new Set([
+  // Images
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff',
+  // Documents
+  'pdf', 'docx', 'xlsx', 'txt', 'csv',
+  // CAD / Drawing formats
+  'dwg', 'dxf', 'svg',
+])
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
