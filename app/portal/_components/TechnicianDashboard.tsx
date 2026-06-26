@@ -80,7 +80,8 @@ export default async function TechnicianDashboard({
   const nextJob = plannedJobs[0]
 
   // Group plants by site
-  type SiteGroup = { id: string | null; name: string; city: string | null; plants: typeof plants }
+  type PlantItem = (typeof plants)[number]
+  type SiteGroup = { id: string | null; name: string; city: string | null; plants: PlantItem[] }
   const siteGroupMap = new Map<string | null, SiteGroup>()
   for (const plant of plants) {
     const key = plant.siteId ?? null
