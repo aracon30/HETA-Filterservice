@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 
@@ -25,6 +26,8 @@ export default async function DashboardPage() {
   const role = session?.user?.role as string | undefined
   const isExternal = role ? EXTERNAL_ROLES.includes(role) : false
   const customerId = session?.user?.customerId as string | undefined
+
+  if (isExternal && customerId) redirect('/portal')
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
