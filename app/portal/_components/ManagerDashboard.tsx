@@ -47,7 +47,7 @@ export default async function ManagerDashboard({
     prisma.customer.findUnique({ where: { id: customerId } }),
     prisma.plant.findMany({
       where: plantWhere,
-      include: { site: { select: { name: true } } },
+      include: { site: { select: { id: true, name: true, city: true } } },
       orderBy: { name: 'asc' },
     }),
     prisma.serviceJob.findMany({
@@ -103,6 +103,27 @@ export default async function ManagerDashboard({
   const hasAlerts = redCount > 0 || totalNio > 0
 
   const nextJob = plannedJobs[0]
+
+  // Group plants by site
+  type SiteGroup = { id: string | null; name: string; city: string | null; plants: typeof plants }
+  const siteGroupMap = new Map<string | null, SiteGroup>()
+  for (const plant of plants) {
+    const key = plant.siteId ?? null
+    if (!siteGroupMap.has(key)) {
+      siteGroupMap.set(key, {
+        id: key,
+        name: plant.site?.name ?? 'Ohne Standort',
+        city: plant.site?.city ?? null,
+        plants: [],
+      })
+    }
+    siteGroupMap.get(key)!.plants.push(plant)
+  }
+  const siteGroups = Array.from(siteGroupMap.values()).sort((a, b) => {
+    if (a.id === null) return 1
+    if (b.id === null) return -1
+    return a.name.localeCompare(b.name)
+  })
 
   return (
     <div className="max-w-5xl mx-auto pb-12 space-y-5">
@@ -218,52 +239,70 @@ export default async function ManagerDashboard({
             Keine Anlagen sichtbar.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {plants.map(plant => {
-              const entry = plantHealthMap.get(plant.id)
-              const health = plantHealth(entry?.date ?? null, entry?.nioCount ?? 0)
-              const cfg = HEALTH_CONFIG[health]
-              return (
-                <Link
-                  key={plant.id}
-                  href={`/portal/plants/${plant.id}`}
-                  className="bg-white border border-gray-200 border-l-4 rounded-xl shadow-sm hover:shadow-md transition-all group flex items-start gap-0 overflow-hidden"
-                  style={{ borderLeftColor: health === 'green' ? '#4ade80' : health === 'yellow' ? '#facc15' : '#f87171' }}
-                >
-                  <div className="flex-1 min-w-0 px-4 py-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-blue-700 transition-colors truncate">
-                          {plant.name}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">{plant.type}</p>
-                        {plant.site && <p className="text-xs text-gray-400">{plant.site.name}</p>}
-                      </div>
-                      <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.pill}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                      <p className="text-xs text-gray-400">
-                        {entry?.date
-                          ? <>Letzter Service <span className="text-gray-600 font-medium">{fmtDate(entry.date)}</span></>
-                          : <span className="text-red-400">Kein Service dokumentiert</span>
-                        }
-                      </p>
-                      {(entry?.nioCount ?? 0) > 0 && (
-                        <span className="text-xs text-red-600 font-medium">{entry!.nioCount} Mangel{entry!.nioCount !== 1 ? 'punkte' : 'punkt'}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center self-stretch px-3 text-gray-200 group-hover:text-blue-400 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              )
-            })}
+          <div className="space-y-4">
+            {siteGroups.map(group => (
+              <div key={group.id ?? '__none__'}>
+                {/* Site header */}
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {group.name}
+                    {group.city && <span className="font-normal text-gray-400 normal-case tracking-normal ml-1">· {group.city}</span>}
+                  </span>
+                  <span className="text-xs text-gray-300 bg-gray-100 px-1.5 py-0.5 rounded-full">{group.plants.length}</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {group.plants.map(plant => {
+                    const entry = plantHealthMap.get(plant.id)
+                    const health = plantHealth(entry?.date ?? null, entry?.nioCount ?? 0)
+                    const cfg = HEALTH_CONFIG[health]
+                    return (
+                      <Link
+                        key={plant.id}
+                        href={`/portal/plants/${plant.id}`}
+                        className="bg-white border border-gray-200 border-l-4 rounded-xl shadow-sm hover:shadow-md transition-all group flex items-start gap-0 overflow-hidden"
+                        style={{ borderLeftColor: health === 'green' ? '#4ade80' : health === 'yellow' ? '#facc15' : '#f87171' }}
+                      >
+                        <div className="flex-1 min-w-0 px-4 py-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-blue-700 transition-colors truncate">
+                                {plant.name}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">{plant.type}</p>
+                            </div>
+                            <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.pill}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                            <p className="text-xs text-gray-400">
+                              {entry?.date
+                                ? <>Letzter Service <span className="text-gray-600 font-medium">{fmtDate(entry.date)}</span></>
+                                : <span className="text-red-400">Kein Service dokumentiert</span>
+                              }
+                            </p>
+                            {(entry?.nioCount ?? 0) > 0 && (
+                              <span className="text-xs text-red-600 font-medium">{entry!.nioCount} Mängel</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center self-stretch px-3 text-gray-200 group-hover:text-blue-400 transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>
