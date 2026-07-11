@@ -32,7 +32,8 @@ export default withAuth(
           pathname.startsWith('/api/auth') ||
           pathname === '/login' ||
           pathname === '/forgot-password' ||
-          pathname.startsWith('/reset-password')
+          pathname.startsWith('/reset-password') ||
+          pathname === '/robots.txt'
         ) {
           return true
         }
