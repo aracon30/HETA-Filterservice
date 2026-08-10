@@ -16,10 +16,11 @@ vorhanden ist, und schlägt ein konkretes Datenmodell sowie einen Umsetzungsweg 
 
 1. Darstellung als **2D-Zeichnung mit klickbaren Positionsmarkierungen (Hotspots)** —
    kein interaktives 3D-Modell. 3D bleibt eine mögliche, aber unverbindliche spätere Ausbaustufe.
-2. Digitale Explosionszeichnungen/Ersatzteillisten liegen **aktuell noch nicht vor** — sie müssen
-   pro Anlagentyp aus dem CAD-System (**Autodesk Inventor**) exportiert und hochgeladen werden.
-   Es soll kein Sonderaufwand in Digitalisierung/Aufbereitung gesteckt werden — einfache,
-   bereits vorhandene Inventor-Exporte reichen (siehe Abschnitt 4.6).
+2. Zeichnungen liegen als Inventor-Export vor, sind aber noch nicht ins Portal hochgeladen.
+   Ersatzteillisten existieren bereits **pro Auftrag/Anlage** als kuratierte
+   „Empfohlene Ersatzteile"-Excel-Tabelle (nicht die volle Fertigungsstückliste) — genau diese
+   Tabelle wird die Datenquelle für den Katalog (siehe Abschnitt 4.3 „Katalogtiefe" und
+   Abschnitt 4.6).
 3. Ersatzteilanfragen laufen über **denselben Prozess** wie heutige Wartungsanfragen
    (`PlantRequest`), nur mit neuer Kategorie „Ersatzteil" — kein getrennter Bereich.
 4. **Keine Preise im Portal sichtbar**, da Kunden unterschiedliche Konditionen haben. Der Kunde
@@ -39,7 +40,7 @@ Ersatzteil-Anwendungsfall im Portal nutzbar gemacht:
 | Auftragsnummern je Kunde | ✅ | `ServiceJob.orderNumber` (`prisma/schema.prisma:304`) | Nichts zu tun |
 | Kundenportal mit Rollen/Scope | ✅ | `app/portal/**`, `lib/permissions.ts` | Basis für Ersatzteilportal nutzbar |
 | Anlagendokumentation im Portal | ✅ (Basis) | `PlantDocument`-Modell, `components/PlantDocuments.tsx`, eingebunden in `app/portal/plants/[id]/page.tsx:205` | Typen `MANUAL`, `DRAWING`, `IMAGE`, `OTHER` bereits vorhanden — deckt "Dokumentenversand erleichtern" schon weitgehend ab |
-| Ersatzteil-Stammdaten je Anlagentyp | ✅ (intern) | `PartTypeItem` (Vorlage je `PlantType`) | Nur Label/Teilenummer/Menge, keine Zeichnung/Position |
+| Ersatzteil-Stammdaten je Anlagentyp | ✅ (intern) | `PartTypeItem` (Vorlage je `PlantType`) | Nur Label/Teilenummer/Menge, keine Zeichnung/Position. Begrenzt nützlich, da Anlagen auftragsbezogen individuell konstruiert werden (eigene Auslegung je Kunde/Auftrag) — Katalog gehört primär an die einzelne Anlage, nicht an den generischen Typ |
 | Ersatzteilliste je Anlage | ✅ (intern) | `PlantMaterial`, API `app/api/plants/[id]/materials/route.ts` | Nur für internes Personal (`ADMIN`, `SERVICE_MANAGER`, `SERVICE_TECHNICIAN`) lesbar/schreibbar — **nicht** im Kundenportal sichtbar, keine Bestellfunktion für Kunden |
 | Ersatzteile je Auftrag | ✅ (intern) | `JobMaterial` | Wie oben, intern |
 | Anfrage-/Bestellworkflow mit Kunde | ✅ | `PlantRequest`, `PlantRequestMessage`, `PlantRequestOffer` inkl. Status-Pipeline (`OPEN` → … → `JOB_PLANNED`/`CLOSED`) | Bereits generischer Workflow für Kundenanfragen (Störung, Wartung, Angebot, Information, Sonstiges) — kann für Ersatzteilbestellungen wiederverwendet werden |
@@ -54,10 +55,12 @@ Positions-/Bildreferenzen und eine Bestellstrecke, die auf `PlantRequest` aufset
 
 1. Jeder externe Portal-Nutzer sieht — abhängig von Rolle/Scope wie bisher (`getExternalPlantScope`,
    `getScopeFilter`) — den Ersatzteilkatalog der Anlagen, für die er berechtigt ist.
-2. Pro Anlage(-ntyp) existiert eine Liste von Ersatzteilen mit mindestens: Bezeichnung,
-   Teilenummer, Menge/Einheit, optional Preis, optional Verfügbarkeit.
-3. Ersatzteile können optional visuell verortet werden (Position auf einer Zeichnung/einem Bild,
-   perspektivisch auf einem 3D-Modell).
+2. Pro Anlage existiert eine Liste von Ersatzteilen mit mindestens: Positionsnummer (wie auf der
+   Zeichnung/Stückliste, z. B. „3.2"), Bezeichnung, Abmessungen/Material, empfohlene Menge,
+   optional Artikelnummer. Keine Preise (siehe Eckpunkt 4).
+3. Ersatzteile können optional visuell verortet werden — auf einer oder, falls sinnvoll, auch auf
+   **mehreren** Zeichnungen gleichzeitig (z. B. Übersichtszeichnung und zugehörige
+   Detailzeichnung), perspektivisch auch auf einem 3D-Modell.
 4. Aus dem Katalog heraus kann der Kunde eine Bestellung/Anfrage auslösen (Warenkorb-artig,
    mehrere Positionen, ein `PlantRequest`).
 5. Die komplette Anlagendokumentation (Handbücher, Zeichnungen, Berichte, Bilder) ist zentral im
@@ -85,15 +88,36 @@ Ergänzungen, um "Dokumentenversand erleichtern" vollständig abzudecken:
 
 ### 4.3 Ersatzteilkatalog je Anlage
 
+**Katalogtiefe — Empfohlene-Ersatzteile-Liste statt volle Fertigungsstückliste.**
+
+Anhand realer Beispiele (Auftrag K-04532-24) zeigt sich: Die volle Inventor-Stückliste (40+
+Positionen inkl. Schrauben, Muttern, Unterlegscheiben) ist für den Kunden zu granular und
+teilweise gar nicht separat bestellbar. HETA erstellt bereits heute pro Auftrag/Anlage eine
+**kuratierte „Empfohlene Ersatzteile"-Liste** (im Beispiel 13 Zeilen) als Excel-Tabelle —
+gemischt aus Top-Level-Positionen (z. B. „18") und Unterbaugruppen-Positionen in Punktnotation
+(z. B. „3.2", „6.12", entsprechend der in Inventor bereits genutzten hierarchischen
+Positionsnummerierung von Baugruppen). **Diese bereits vorhandene, von Ingenieuren
+vorselektierte Liste ist die Datenquelle für den Portal-Katalog — nicht die volle Stückliste.**
+Damit erübrigt sich eine eigene, generische Baugruppen-Navigation in der App: Die Hierarchie
+steckt bereits als Text in der Positionsnummer, die App muss sie nicht selbst abbilden oder
+verwalten.
+
 **Datenmodell-Erweiterung** (Vorschlag, siehe Abschnitt 5 für Details):
 
-- `PartTypeItem` (Vorlage je Anlagentyp) und `PlantMaterial` (konkrete Anlage) werden um
-  optionale Felder `unit`, `price`, `drawingId`, `positionX`, `positionY` ergänzt — statt eines
-  neuen Parallel-Modells. Das vermeidet Datenduplikation zwischen "interner Materialliste" und
-  "Kundenkatalog": es ist dieselbe Datenquelle, nur mit unterschiedlicher Sichtbarkeit/Aktion je
-  Rolle.
-- Neues Modell `PlantDrawing` (oder Wiederverwendung von `PlantDocument` mit `type: DRAWING` plus
-  Bild-Maßen) als Referenzbild für Positionsmarkierungen.
+- `PlantMaterial` (konkrete Anlage) wird um Felder `positionLabel` (Positionsnummer wie auf der
+  Zeichnung, z. B. „3.2") und `specification` (Abmessungen/Material als Freitext) ergänzt — die
+  Spalten der „Empfohlene Ersatzteile"-Tabelle bilden sich damit 1:1 ab
+  (`label`=Bezeichnung, `partNumber`=Artikelnummer falls vorhanden, `quantity`=Empf. Menge).
+  `PartTypeItem` bleibt unverändert als optionale Vorlage, ist aber wegen der auftragsindividuellen
+  Konstruktion (Abschnitt 2) nicht die primäre Datenquelle.
+- **Kein** neues `PlantDrawing`-Modell — stattdessen Wiederverwendung von `PlantDocument`
+  (`type: DRAWING`) plus optionalen Bild-Maßen (`width`/`height`).
+- **Neues Verknüpfungsmodell `PlantMaterialPosition`** (n:m zwischen Ersatzteil und Zeichnung):
+  Da eine Position — wie besprochen — theoretisch auf **mehreren** Zeichnungen markiert sein kann
+  (z. B. auf der Übersichtszeichnung und zusätzlich auf einer Detailzeichnung), reicht ein
+  einzelnes `drawingId`/`positionX`/`positionY`-Feld direkt an `PlantMaterial` nicht aus. Jede
+  Zeile in `PlantMaterialPosition` verknüpft ein `PlantMaterial` mit einem `PlantDocument` und
+  einer X/Y-Koordinate darauf.
 - Kunden-Sichtbarkeit wird über eine neue Ressource `parts-catalog` in `lib/permissions.ts` /
   `permissions-config.ts` gesteuert (view für externe Rollen, create/edit nur intern).
 
@@ -149,31 +173,37 @@ Anfragearten — Ersatzteilanfragen sind lediglich eine weitere Kategorie darin.
   Dokumente/Checklisten, kein separates Berechtigungsmodell nötig).
 - API-Routen folgen dem Standardmuster aus `.claude/CLAUDE.md` Abschnitt 6 (`getServerSession` →
   `checkPermission` → `getScopeFilter`).
-- Katalogdaten (`PlantMaterial`, `PlantDrawing`) sind über `plantId` an die Anlage und damit
-  transitiv an `customerId` gebunden — bestehende Scope-Filter greifen ohne Sonderfall.
+- Katalogdaten (`PlantMaterial`, `PlantMaterialPosition`, referenzierte `PlantDocument`) sind
+  über `plantId` an die Anlage und damit transitiv an `customerId` gebunden — bestehende
+  Scope-Filter greifen ohne Sonderfall.
 
 ### 4.6 CAD-Datenpflege — Übernahme aus Autodesk Inventor
 
-Zeichnungen und Ersatzteillisten entstehen im CAD-System **Autodesk Inventor**. Damit die
-Pflege im Portal möglichst wenig Aufwand macht, wird bewusst **keine** direkte
-API-/Cloud-Integration mit Inventor gebaut, sondern der einfachste funktionierende Weg genutzt
-("Stufe 0"):
+Zeichnungen entstehen im CAD-System **Autodesk Inventor**, die „Empfohlene Ersatzteile"-Liste
+liegt bereits **als Excel-Tabelle pro Auftrag/Anlage** vor. Damit die Pflege im Portal möglichst
+wenig Aufwand macht, wird bewusst **keine** direkte API-/Cloud-Integration mit Inventor gebaut,
+sondern der einfachste funktionierende Weg genutzt ("Stufe 0"):
 
-- **Zeichnung:** Inventor exportiert eine 2D-Ansicht direkt als PNG/JPG/PDF (Bordmittel,
-  „Speichern unter"/„Veröffentlichen") — dieser Export wird wie jedes andere Anlagendokument über
-  den bestehenden Upload (`PlantDocument`/`PlantDrawing`) hochgeladen.
-- **Stückliste (BOM):** Inventor kann die Stückliste direkt als **CSV/Excel** exportieren
-  (Positionsnummer, Teilenummer, Bezeichnung, Menge) — ebenfalls Bordmittel, kein Skript/Add-in
-  nötig.
-- **Import auf unserer Seite:** Eine kleine, neu zu bauende CSV-Import-Funktion auf der
-  internen Materialpflegeseite liest die exportierte Stückliste ein und legt/aktualisiert
-  `PlantMaterial`-Zeilen daraus (Spalten → Felder: Bezeichnung, Teilenummer, Menge). Das ersetzt
-  manuelles Abtippen der Teileliste.
-- **Praktische Erleichterung für Hotspots:** Inventor nummeriert Bauteile auf der Zeichnung
-  bereits automatisch mit denselben Positionsnummern wie in der Stückliste ("Positionsballons").
-  Die Positionsmarkierungen im Portal können sich an dieser bereits vorhandenen Nummerierung
-  orientieren — die Pflegekraft muss beim Setzen der Hotspots nur die schon sichtbaren Nummern
-  auf der Zeichnung mit den (bereits importierten) Tabellenzeilen verknüpfen, nicht neu erfinden.
+- **Zeichnung(en):** Die relevanten Zeichnungsblätter (Übersicht + ausgewählte Detailzeichnungen —
+  wie bisher wird nicht jedes Blatt angehängt, nur die für den Katalog relevanten) werden als
+  PNG/JPG/PDF exportiert und wie jedes andere Anlagendokument über den bestehenden Upload
+  (`PlantDocument`, `type: DRAWING`) hochgeladen. Pro Anlage können mehrere Zeichnungen hinterlegt
+  werden.
+- **Ersatzteilliste:** Die vorhandene „Empfohlene Ersatzteile"-Excel-Tabelle wird direkt
+  importiert — **kein Umweg über CSV-Konvertierung nötig**, ein XLSX-Import genügt. Die Spalten
+  „Pos. Stückliste", „Bezeichnung", „Abmessungen/Material", „Empf. Menge" werden 1:1 auf
+  `positionLabel`, `label`, `specification`, `quantity` gemappt (Artikelnummer, falls in einer
+  Spalte vorhanden, auf `partNumber`).
+- **Import auf unserer Seite:** Eine kleine, neu zu bauende Excel-Import-Funktion auf der internen
+  Materialpflegeseite liest die Tabelle ein und legt/aktualisiert `PlantMaterial`-Zeilen daraus.
+  Das ersetzt manuelles Abtippen — bei typischerweise 10–20 Zeilen pro Anlage ohnehin ein kleiner
+  Datensatz.
+- **Hotspots setzen (manueller Restschritt):** Die Excel-Liste enthält keine Bildkoordinaten. Nach
+  dem Import platziert die Pflegekraft einmalig pro Zeichnung die Positionsmarkierungen
+  (Klick-auf-Bild-Editor, Abschnitt 6) — erleichtert dadurch, dass Inventor die Bauteile auf der
+  Zeichnung bereits mit denselben Positionsnummern („Positionsballons") beschriftet, die auch in
+  der importierten Tabelle stehen. Eine Position kann dabei auf mehr als einer Zeichnung markiert
+  werden (`PlantMaterialPosition` ist n:m, Abschnitt 4.3).
 - **Bewusst nicht umgesetzt (höherer Aufwand, aktuell nicht nötig):** ein Inventor-Makro
   (iLogic/VBA) für automatischen Export bei Freigabe, oder eine Anbindung an Autodesk Platform
   Services (Model Derivative/Design Automation API) für vollautomatische Cloud-Konvertierung.
@@ -184,31 +214,30 @@ API-/Cloud-Integration mit Inventor gebaut, sondern der einfachste funktionieren
 ## 5. Datenmodell-Vorschlag (Skizze)
 
 ```prisma
-model PlantDrawing {
-  id          String   @id @default(cuid())
-  plantId     String?
-  plant       Plant?   @relation(fields: [plantId], references: [id], onDelete: Cascade)
-  plantTypeId String?
-  plantType   PlantType? @relation(fields: [plantTypeId], references: [id], onDelete: Cascade)
-  title       String
-  imageUrl    String
-  width       Int
-  height      Int
-  createdAt   DateTime @default(now())
+// Ergänzungen an PlantDocument (nicht neu, nur zusätzliche Felder — kein eigenes Zeichnungsmodell):
+// PlantDocument + width Int? + height Int?   // Bildmaße, nötig für das Hotspot-Overlay
 
-  parts       PlantMaterial[]  @relation("DrawingPositions")
-  partItems   PartTypeItem[]   @relation("DrawingPositionsTemplate")
-
-  @@index([plantId])
-  @@index([plantTypeId])
-}
-
-// Ergänzungen an bestehenden Modellen (nicht neu, nur zusätzliche Felder):
-// PartTypeItem  + unit String? + drawingId String? + positionX Float? + positionY Float?
-// PlantMaterial + unit String? + drawingId String? + positionX Float? + positionY Float?
-//               + orderable Boolean @default(true)  // ob Kunde dieses Teil anfragen darf
+// Ergänzungen an PlantMaterial (bestehendes Modell):
+// PlantMaterial + positionLabel String?   // Positionsnummer wie auf Zeichnung/Stückliste, z.B. "3.2"
+//               + specification String?   // Abmessungen/Material als Freitext
+//               + orderable    Boolean @default(true)  // ob Kunde dieses Teil anfragen darf
 // Bewusst KEIN price-Feld — Preise sind kundenindividuell und werden nicht im Portal angezeigt,
 // sondern erst im Angebot (PlantRequestOffer) genannt.
+
+// Neu: n:m zwischen Ersatzteil und Zeichnung — eine Position kann auf mehreren Zeichnungen
+// markiert sein (z.B. Übersicht + Detailzeichnung), daher kein einzelnes drawingId-Feld an PlantMaterial.
+model PlantMaterialPosition {
+  id         String        @id @default(cuid())
+  materialId String
+  material   PlantMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  documentId String
+  document   PlantDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  positionX  Float         // relative Koordinate 0–1
+  positionY  Float         // relative Koordinate 0–1
+
+  @@unique([materialId, documentId])
+  @@index([documentId])
+}
 
 enum RequestType {
   STOERUNG
@@ -233,18 +262,23 @@ model PlantRequestPart {
 }
 ```
 
-`positionX`/`positionY` als relative Koordinaten (0–1) auf der referenzierten Zeichnung,
-geräte-/auflösungsunabhängig für das Hotspot-Overlay im Frontend.
+`positionX`/`positionY` als relative Koordinaten (0–1) auf dem jeweils referenzierten
+`PlantDocument`, geräte-/auflösungsunabhängig für das Hotspot-Overlay im Frontend.
 
 ## 6. Technische Umsetzung Hotspot-Overlay (Phase 1)
 
-- Client-Komponente, die `PlantDrawing.imageUrl` als `<img>` rendert und pro Teil mit
-  `positionX/positionY` einen absolut positionierten Marker-Button overlayt
-  (`style={{ left: `${x*100}%`, top: `${y*100}%` }}`).
+- Pro Zeichnung (`PlantDocument` mit `type: DRAWING`): Client-Komponente rendert das Bild als
+  `<img>` und overlayt für jede zugehörige `PlantMaterialPosition` einen absolut positionierten
+  Marker-Button (`style={{ left: `${x*100}%`, top: `${y*100}%` }}`), beschriftet mit der
+  `positionLabel` des zugehörigen `PlantMaterial` (z. B. „3.2").
 - Klick auf Marker scrollt zur/hebt die zugehörige Tabellenzeile hervor (und umgekehrt) —
   kein WebGL, keine neue Abhängigkeit nötig.
+- Ist eine Anlage mit mehreren Zeichnungen hinterlegt (Übersicht + Details), werden diese als
+  Tabs/Reiter über dem Bild angeboten; ein Ersatzteil mit mehreren `PlantMaterialPosition`-Einträgen
+  erscheint entsprechend auf mehreren Reitern.
 - Pflege der Positionen: einfacher Klick-auf-Bild-Editor im internen Admin-/Anlagen-Bereich
-  (schreibt `positionX/positionY`), analog zu bestehenden Editor-Mustern im Projekt.
+  (legt beim Klick eine `PlantMaterialPosition` an), analog zu bestehenden Editor-Mustern im
+  Projekt.
 
 ## 7. Rollout-Phasen
 
@@ -268,6 +302,14 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 2. ~~Preise im Portal?~~ Nein, keine Preise sichtbar — nur Mengenanfrage, Preis erst im Angebot.
 3. ~~Eigener Bestellprozess oder bestehender Anfrage-Workflow?~~ Bestehender `PlantRequest`-
    Workflow, neue Kategorie „Ersatzteil", kein separater Bereich.
+4. ~~Wie tief soll der Katalog gehen, wie werden Baugruppen/Einzelteile dargestellt?~~ Keine
+   generische Baugruppen-Hierarchie in der App — Datenquelle ist die bereits vorhandene,
+   ingenieurseitig kuratierte „Empfohlene Ersatzteile"-Excel-Liste pro Auftrag/Anlage
+   (Abschnitt 4.3), nicht die volle Fertigungsstückliste.
+5. ~~Liegt die Ersatzteilliste digital vor?~~ Ja, als Excel-Tabelle pro Auftrag — direkter
+   XLSX-Import möglich (Abschnitt 4.6).
+6. ~~Muss eine Position auf mehreren Zeichnungen markierbar sein?~~ Ja, theoretisch — dafür das
+   n:m-Modell `PlantMaterialPosition` (Abschnitt 4.3/5).
 
 **Weiterhin offen:**
 
@@ -285,8 +327,9 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 ## 9. Zuordnung zu bestehenden Agenten (laut `.claude/CLAUDE.md` Abschnitt 10)
 
 - **Solution Architect**: Freigabe dieses Konzepts, Entscheidung Phase-1-Scope
-- **Database/Prisma**: Migrationen für `PlantDrawing`, Feldergänzungen `PartTypeItem`/
-  `PlantMaterial`, `PlantRequestPart`, Enum-Erweiterung `ERSATZTEIL`
+- **Database/Prisma**: Migrationen für `PlantMaterialPosition`, Feldergänzungen `PlantDocument`
+  (`width`/`height`) und `PlantMaterial` (`positionLabel`/`specification`/`orderable`),
+  `PlantRequestPart`, Enum-Erweiterung `ERSATZTEIL`
 - **Customer & Plant**: Zeichnungs-/Positionspflege-UI im internen Bereich
 - **Security & Permission**: neue Ressource `parts-catalog`, Rollen-Defaults, Scope-Tests
 - **UI/UX**: Portal-Katalogseite, Hotspot-Overlay, Warenkorb-artige Bestellauswahl,
