@@ -43,6 +43,27 @@ export default async function ErsatzteilePage({
     select: { id: true, label: true, partNumber: true, positionLabel: true, specification: true },
   })
 
+  // Zeichnungen mit Hotspot-Positionen für die anfragbaren Ersatzteile dieser Anlage
+  const orderableIds = materials.map(m => m.id)
+  const positions = orderableIds.length > 0
+    ? await prisma.plantMaterialPosition.findMany({
+        where: { materialId: { in: orderableIds } },
+        select: {
+          materialId: true,
+          positionX: true,
+          positionY: true,
+          document: { select: { id: true, title: true, fileUrl: true, mimeType: true } },
+        },
+      })
+    : []
+
+  const drawingsById = new Map<string, { id: string; title: string; fileUrl: string }>()
+  const hotspots: { materialId: string; documentId: string; positionX: number; positionY: number }[] = []
+  for (const p of positions) {
+    drawingsById.set(p.document.id, { id: p.document.id, title: p.document.title, fileUrl: p.document.fileUrl })
+    hotspots.push({ materialId: p.materialId, documentId: p.document.id, positionX: p.positionX, positionY: p.positionY })
+  }
+
   const canRequest = CAN_REQUEST_ROLES.includes(role)
 
   return (
@@ -79,6 +100,8 @@ export default async function ErsatzteilePage({
           plantId={plant.id}
           plantName={plant.name}
           parts={materials}
+          drawings={Array.from(drawingsById.values())}
+          hotspots={hotspots}
         />
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">

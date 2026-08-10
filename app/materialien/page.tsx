@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useConfirm } from '@/components/ConfirmDialog'
+import PartsPositionEditor from '@/components/PartsPositionEditor'
 
 const INTERNAL_ROLES = ['ADMIN', 'SERVICE_MANAGER', 'SERVICE_TECHNICIAN']
 
@@ -450,6 +451,19 @@ export default function MaterialienPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Zeichnung & Positionen — nur für Admin/Service Manager, Ersatzteilportal-Katalog */}
+              {['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') && (
+                <div className="px-5 py-4 border-t border-gray-100">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                    Zeichnung &amp; Positionen (Ersatzteilportal)
+                  </h3>
+                  <PartsPositionEditor
+                    plantId={selectedPlant.id}
+                    materials={materials.map(m => ({ id: m.id, label: m.label, positionLabel: m.positionLabel }))}
+                  />
                 </div>
               )}
             </div>

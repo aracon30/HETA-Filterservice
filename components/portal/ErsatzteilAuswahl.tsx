@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toFileUrl } from '@/lib/file-url'
 
 interface Part {
   id: string
@@ -11,14 +12,31 @@ interface Part {
   specification: string | null
 }
 
+interface Drawing {
+  id: string
+  title: string
+  fileUrl: string
+}
+
+interface Hotspot {
+  materialId: string
+  documentId: string
+  positionX: number
+  positionY: number
+}
+
 export default function ErsatzteilAuswahl({
   plantId,
   plantName,
   parts,
+  drawings = [],
+  hotspots = [],
 }: {
   plantId: string
   plantName: string
   parts: Part[]
+  drawings?: Drawing[]
+  hotspots?: Hotspot[]
 }) {
   const router = useRouter()
   const [quantities, setQuantities] = useState<Record<string, number>>({})
@@ -26,6 +44,10 @@ export default function ErsatzteilAuswahl({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [activeDrawingId, setActiveDrawingId] = useState(drawings[0]?.id ?? null)
+  const [highlighted, setHighlighted] = useState<string | null>(null)
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const setQuantity = (id: string, value: number) => {
     setQuantities(prev => {
@@ -37,6 +59,20 @@ export default function ErsatzteilAuswahl({
   }
 
   const selectedCount = Object.keys(quantities).length
+
+  const jumpToMaterial = (materialId: string) => {
+    rowRefs.current[materialId]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    inputRefs.current[materialId]?.focus()
+    setHighlighted(materialId)
+    setTimeout(() => setHighlighted(prev => (prev === materialId ? null : prev)), 1500)
+  }
+
+  const activeHotspots = hotspots.filter(h => h.documentId === activeDrawingId)
+  const activeDrawing = drawings.find(d => d.id === activeDrawingId)
+  const hotspotLabel = (materialId: string) => {
+    const p = parts.find(p => p.id === materialId)
+    return p ? (p.positionLabel || p.label.slice(0, 3)) : '?'
+  }
 
   const handleSubmit = async () => {
     setError('')
@@ -99,6 +135,46 @@ export default function ErsatzteilAuswahl({
         <div className="bg-red-50 border-b border-red-200 text-red-700 text-sm px-4 py-3">{error}</div>
       )}
 
+      {drawings.length > 0 && (
+        <div className="p-4 border-b border-gray-100">
+          {drawings.length > 1 && (
+            <div className="flex gap-1.5 mb-2">
+              {drawings.map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setActiveDrawingId(d.id)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    activeDrawingId === d.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {d.title}
+                </button>
+              ))}
+            </div>
+          )}
+          {activeDrawing && (
+            <div className="relative border border-gray-200 rounded-lg overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={toFileUrl(activeDrawing.fileUrl)} alt={activeDrawing.title} className="w-full h-auto block" />
+              {activeHotspots.map(h => (
+                <button
+                  key={h.materialId}
+                  onClick={() => jumpToMaterial(h.materialId)}
+                  style={{ left: `${h.positionX * 100}%`, top: `${h.positionY * 100}%` }}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow transition-colors ${
+                    quantities[h.materialId] ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  title={hotspotLabel(h.materialId)}
+                >
+                  {hotspotLabel(h.materialId).slice(0, 3)}
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-2">Auf eine Markierung klicken, um zum Ersatzteil in der Liste zu springen.</p>
+        </div>
+      )}
+
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-100">
           <tr>
@@ -110,12 +186,17 @@ export default function ErsatzteilAuswahl({
         </thead>
         <tbody className="divide-y divide-gray-50">
           {parts.map(p => (
-            <tr key={p.id} className={quantities[p.id] ? 'bg-blue-50/40' : undefined}>
+            <tr
+              key={p.id}
+              ref={el => { rowRefs.current[p.id] = el }}
+              className={`transition-colors ${highlighted === p.id ? 'bg-yellow-100' : quantities[p.id] ? 'bg-blue-50/40' : undefined}`}
+            >
               <td className="px-4 py-3 text-gray-400 font-mono text-xs">{p.positionLabel ?? '—'}</td>
               <td className="px-4 py-3 text-gray-800">{p.label}</td>
               <td className="px-4 py-3 text-gray-500">{p.specification ?? '—'}</td>
               <td className="px-4 py-3 text-right">
                 <input
+                  ref={el => { inputRefs.current[p.id] = el }}
                   type="number"
                   min={0}
                   value={quantities[p.id] ?? 0}

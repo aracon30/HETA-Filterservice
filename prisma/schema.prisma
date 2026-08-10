@@ -268,10 +268,27 @@ model PlantDocument {
   uploadedById   String
   uploadedByName String
   createdAt      DateTime     @default(now())
+  materialPositions PlantMaterialPosition[]
 
   @@index([plantId])
   @@index([customerId])
   @@index([jobId])
+}
+
+// Hotspot-Position eines Ersatzteils auf einer Zeichnung (n:m — eine Position kann auf
+// mehreren Zeichnungen markiert sein, z.B. Übersicht + Detailzeichnung).
+model PlantMaterialPosition {
+  id         String        @id @default(cuid())
+  materialId String
+  material   PlantMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  documentId String
+  document   PlantDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  positionX  Float
+  positionY  Float
+  createdAt  DateTime      @default(now())
+
+  @@unique([materialId, documentId])
+  @@index([documentId])
 }
 
 model ServiceJobTechnician {
@@ -347,6 +364,7 @@ model PlantMaterial {
   specification String?
   orderable     Boolean  @default(true)
   requestParts  PlantRequestPart[]
+  positions     PlantMaterialPosition[]
 
   @@index([plantId])
 }
