@@ -1,3 +1,6 @@
+// Prisma 7 no longer auto-loads .env for standalone scripts — load it explicitly
+// (Next.js does this itself, but a plain `ts-node prisma/seed.ts` run does not).
+import 'dotenv/config'
 import { PrismaClient, UserRole } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
