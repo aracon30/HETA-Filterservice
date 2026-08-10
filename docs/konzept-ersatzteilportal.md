@@ -29,6 +29,9 @@ vorhanden ist, und schlägt ein konkretes Datenmodell sowie einen Umsetzungsweg 
 5. Auf der Anlagen-Detailseite im Portal (`app/portal/plants/[id]/page.tsx`) erhält der Kunde
    einen Button **„Ersatzteile anfragen"**, der direkt zur Teileauswahl und in den
    Anfrageprozess führt (siehe Abschnitt 4.4).
+6. Die **Pflege** von Ersatzteilen und Zeichnungen (Anlegen, Bearbeiten, Hochladen) ist vorerst
+   **ausschließlich `ADMIN` und `SERVICE_MANAGER`** vorbehalten — nicht `SERVICE_TECHNICIAN`
+   (siehe Abschnitt 4.5).
 
 ## 2. Ist-Stand — was schon existiert
 
@@ -166,11 +169,16 @@ Anfragearten — Ersatzteilanfragen sind lediglich eine weitere Kategorie darin.
 
 ### 4.5 Berechtigungen & Mandantentrennung
 
-- Neue Ressource `parts-catalog` in `Resources`-Typ (`lib/permissions-config.ts`), Default:
-  externe Rollen `view`, `SERVICE_MANAGER`/`ADMIN` volles CRUD, `SERVICE_TECHNICIAN` `view`.
-  `MAINTENANCE_TECHNICIAN`/`BUYER` analog zu bestehenden Regeln für `plants`/`requests` — Scope
-  richtet sich nach `getExternalPlantScope` (dieselbe Anlagen-Sichtbarkeit wie für
-  Dokumente/Checklisten, kein separates Berechtigungsmodell nötig).
+- Neue Ressource `parts-catalog` in `Resources`-Typ (`lib/permissions-config.ts`). **Pflege
+  (create/edit/delete — Ersatzteile, Zeichnungen, Hotspot-Positionen) ist vorerst ausschließlich
+  `ADMIN` und `SERVICE_MANAGER` vorbehalten.** `SERVICE_TECHNICIAN` erhält (anders als beim
+  bestehenden `materials`-Endpunkt für die interne Auftragsplanung) **keine** Schreibrechte auf
+  `parts-catalog` — das ist eine bewusste Abweichung vom bisherigen `WRITE_ROLES`-Muster in
+  `app/api/plants/[id]/materials/route.ts`, da die neue Ressource kundenseitig sichtbaren Inhalt
+  pflegt und enger kontrolliert werden soll. Externe Rollen (`MAINTENANCE_MANAGER`,
+  `MAINTENANCE_TECHNICIAN`, `BUYER`) erhalten nur `view`, gescoped über `getExternalPlantScope`
+  (dieselbe Anlagen-Sichtbarkeit wie für Dokumente/Checklisten, kein separates
+  Berechtigungsmodell nötig).
 - API-Routen folgen dem Standardmuster aus `.claude/CLAUDE.md` Abschnitt 6 (`getServerSession` →
   `checkPermission` → `getScopeFilter`).
 - Katalogdaten (`PlantMaterial`, `PlantMaterialPosition`, referenzierte `PlantDocument`) sind
@@ -310,6 +318,9 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
    XLSX-Import möglich (Abschnitt 4.6).
 6. ~~Muss eine Position auf mehreren Zeichnungen markierbar sein?~~ Ja, theoretisch — dafür das
    n:m-Modell `PlantMaterialPosition` (Abschnitt 4.3/5).
+7. ~~Wer darf Ersatzteile/Zeichnungen pflegen?~~ Vorerst nur `ADMIN` und `SERVICE_MANAGER`
+   (Abschnitt 4.5) — beantwortet auch einen Teil der bisherigen offenen Frage 4 zur
+   Pflege-Zuständigkeit.
 
 **Weiterhin offen:**
 
@@ -321,8 +332,6 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 3. Gibt es für 3D-Modelle (Phase 3) überhaupt einen validierten Kundenbedarf, oder reicht die
    2D-Lösung dauerhaft aus? Empfehlung: erst nach Phase 1–2 mit echtem Nutzerfeedback
    entscheiden.
-4. Wer pflegt künftig Zeichnungen/Positionen/CSV-Importe — bestehendes Servicepersonal oder eine
-   neue Rolle/Zuständigkeit?
 
 ## 9. Zuordnung zu bestehenden Agenten (laut `.claude/CLAUDE.md` Abschnitt 10)
 
