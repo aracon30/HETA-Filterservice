@@ -1,20 +1,33 @@
 # Konzept: Ersatzteilportal
 
-Status: Entwurf · Autor: Claude (im Auftrag) · Datum: 2026-08-10
+Status: Eckpunkte für Phase 1 abgestimmt · Autor: Claude (im Auftrag) · Datum: 2026-08-10
 
 ## 1. Ausgangslage
 
 Idee (Kurzfassung des Auftrags): Für jede Anlage eines Kunden soll im Kundenportal ein
-Ersatzteilkatalog hinterlegt werden. Offen ist, ob dieser als Tabelle mit Zeichnung oder als
-interaktives 3D-Modell (klickbare Bauteile) umgesetzt wird. Zusätzlich soll die komplette
-Anlagendokumentation im Portal verfügbar sein, um den Dokumentenversand zu vereinfachen.
-Auftragsnummern und Kundenzugänge sollen wie bisher funktionieren.
+Ersatzteilkatalog hinterlegt werden. Zusätzlich soll die komplette Anlagendokumentation im
+Portal verfügbar sein, um den Dokumentenversand zu vereinfachen. Auftragsnummern und
+Kundenzugänge sollen wie bisher funktionieren.
 
 Dieses Dokument ordnet die Idee in die bestehende Architektur ein, zeigt auf, was bereits
-vorhanden ist, und schlägt ein konkretes Datenmodell sowie einen Umsetzungsweg vor. Es ist
-bewusst als **Konzept** verfasst — die Detailentscheidung zur Darstellungsform (Tabelle+Zeichnung
-vs. 3D-Modell) wird begründet vorgeschlagen, aber nicht final festgelegt, da sie von Faktoren
-abhängt, die noch zu klären sind (siehe Abschnitt 8).
+vorhanden ist, und schlägt ein konkretes Datenmodell sowie einen Umsetzungsweg vor.
+
+**In der Abstimmung festgelegte Eckpunkte für Phase 1** (Ergebnis der Konzept-Besprechung):
+
+1. Darstellung als **2D-Zeichnung mit klickbaren Positionsmarkierungen (Hotspots)** —
+   kein interaktives 3D-Modell. 3D bleibt eine mögliche, aber unverbindliche spätere Ausbaustufe.
+2. Digitale Explosionszeichnungen/Ersatzteillisten liegen **aktuell noch nicht vor** — sie müssen
+   pro Anlagentyp aus dem CAD-System (**Autodesk Inventor**) exportiert und hochgeladen werden.
+   Es soll kein Sonderaufwand in Digitalisierung/Aufbereitung gesteckt werden — einfache,
+   bereits vorhandene Inventor-Exporte reichen (siehe Abschnitt 4.6).
+3. Ersatzteilanfragen laufen über **denselben Prozess** wie heutige Wartungsanfragen
+   (`PlantRequest`), nur mit neuer Kategorie „Ersatzteil" — kein getrennter Bereich.
+4. **Keine Preise im Portal sichtbar**, da Kunden unterschiedliche Konditionen haben. Der Kunde
+   kann nur eine Anfrage mit Menge/Teilenummer stellen; die Preisnennung erfolgt wie bisher erst
+   im individuellen Angebot.
+5. Auf der Anlagen-Detailseite im Portal (`app/portal/plants/[id]/page.tsx`) erhält der Kunde
+   einen Button **„Ersatzteile anfragen"**, der direkt zur Teileauswahl und in den
+   Anfrageprozess führt (siehe Abschnitt 4.4).
 
 ## 2. Ist-Stand — was schon existiert
 
@@ -84,41 +97,48 @@ Ergänzungen, um "Dokumentenversand erleichtern" vollständig abzudecken:
 - Kunden-Sichtbarkeit wird über eine neue Ressource `parts-catalog` in `lib/permissions.ts` /
   `permissions-config.ts` gesteuert (view für externe Rollen, create/edit nur intern).
 
-**Darstellungsform — Tabelle+Zeichnung vs. interaktives 3D-Modell:**
+**Darstellungsform — entschieden: Tabelle + 2D-Zeichnung mit Hotspots.**
 
-| Kriterium | Tabelle + Zeichnung (2D-Bild mit Positionsnummern) | Interaktives 3D-Modell |
-|---|---|---|
-| Datenbasis | Vorhandene Explosionszeichnungen/PDFs genügen | Erfordert CAD-Export (glTF/GLB) je Anlagentyp — muss erst beschafft/konvertiert werden |
-| Umsetzungsaufwand | Gering–mittel: Bild-Hotspot-Komponente (Klick-Koordinaten auf `<img>`), Standard-Webtechnik | Hoch: 3D-Viewer (z. B. `@react-three/fiber` + `three.js` oder `<model-viewer>`), Performance/Mobilgeräte, Interaktionsdesign für Klick-Picking auf Meshes |
-| Pflegeaufwand | Neue Position = X/Y-Koordinate auf bestehendem Bild eintragen | Neues Bauteil = Mesh im 3D-Modell taggen, Modellpflege durch CAD-Konstrukteur nötig |
-| Bestehender Verladearm-Bestand | Vorhandene technische Zeichnungen direkt nutzbar | Für keinen Anlagentyp aktuell 3D-Daten vorhanden (Rücksprache nötig) |
-| Kundennutzen | Vertraut (wie gedruckte Ersatzteilliste), funktioniert auf jedem Gerät/Browser ohne WebGL | Höherer "Wow-Effekt", intuitiver bei komplexen Baugruppen, aber nur nötig wenn Anlagen sehr komplex/verschachtelt sind |
-| Risiko | Gering | Mittel–hoch (Scope-Risiko, Abhängigkeit von CAD-Daten, die evtl. nicht existieren) |
+Ein interaktives 3D-Modell wurde bewusst verworfen für Phase 1: Es würde CAD-Exporte (glTF/GLB)
+je Anlagentyp voraussetzen, die aktuell für keinen Anlagentyp vorliegen, dazu eine 3D-Viewer-
+Komponente (z. B. `@react-three/fiber`/`three.js`) mit entsprechendem Interaktionsdesign
+(Mesh-Picking, Mobilgeräte-Performance) — deutlich höherer Aufwand ohne aktuell validierten
+Mehrwert gegenüber der einfacheren 2D-Lösung. 3D bleibt eine mögliche **spätere, optionale
+Ausbaustufe** (vgl. `Zukunft`-Einträge in `.claude/CLAUDE.md` Abschnitt 11), siehe Abschnitt 4.6
+zur Autodesk-Platform-Services-Option, falls dieser Bedarf einmal entsteht.
 
-**Empfehlung:** Phase 1 mit **Tabelle + Zeichnung inkl. klickbarer Positionsmarkierungen auf
-einem 2D-Bild** umsetzen (Hotspot-Overlay, keine 3D-Engine). Das deckt den Kernnutzen (Kunde
-identifiziert Teil, sieht Teilenummer, bestellt) mit überschaubarem Aufwand und ohne Abhängigkeit
-von noch nicht vorhandenen CAD-Daten ab. Ein interaktives 3D-Modell wird als **spätere,
-optionale Ausbaustufe** vorgeschlagen (siehe `Zukunft`-Einträge in `.claude/CLAUDE.md` Abschnitt
-11 — passt zu "Predictive Maintenance"/"Smart Monitoring" als längerfristige Erweiterung), sobald
-für mindestens einen Anlagentyp 3D-Daten tatsächlich verfügbar sind und der Bedarf (z. B. durch
-Kundenfeedback zu Phase 1) bestätigt ist.
+Stattdessen: **Tabelle + Zeichnung inkl. klickbarer Positionsmarkierungen auf einem 2D-Bild**
+(Hotspot-Overlay, reines HTML/CSS, keine 3D-Engine). Das deckt den Kernnutzen (Kunde
+identifiziert Teil, sieht Teilenummer, stellt Anfrage) mit überschaubarem Aufwand ab und passt zu
+den vorhandenen Inventor-Exportmöglichkeiten (Abschnitt 4.6).
 
 ### 4.4 Bestellworkflow
 
-Kein neues Bestellsystem — Wiederverwendung von `PlantRequest`:
+Kein neues Bestellsystem — Wiederverwendung von `PlantRequest`. **Keine Preise sichtbar**; der
+Kunde stellt ausschließlich eine Anfrage mit Menge/Teilenummer, das Angebot inkl. Preis kommt wie
+bisher separat zurück.
 
 - `RequestType`-Enum um `ERSATZTEIL` ergänzen.
-- Aus dem Katalog heraus wählt der Kunde Positionen (Menge je Teil) → beim Absenden wird eine
-  `PlantRequest` vom Typ `ERSATZTEIL` mit den gewählten Teilen (z. B. als strukturierte Zeilen,
-  analog zu `PlantRequestPlant`, neu: `PlantRequestPart`) erzeugt.
+- **Einstieg:** Auf der Anlagen-Detailseite im Portal (`app/portal/plants/[id]/page.tsx`, gut
+  sichtbar im Kopfbereich, z. B. neben dem „Einsätze"-Zähler) erscheint ein Button
+  **„Ersatzteile anfragen"**. Er führt auf eine neue Unterseite
+  `app/portal/plants/[id]/ersatzteile/page.tsx`.
+- **Auswahlseite:** Zeigt — falls vorhanden — die Zeichnung mit Hotspots (Abschnitt 4.6) plus
+  darunter die Tabelle aller Ersatzteile dieser Anlage (Bezeichnung, Teilenummer,
+  Mengen-Eingabefeld, kein Preis). Ist keine Zeichnung hinterlegt, wird nur die Tabelle gezeigt
+  (Fallback, kein Blocker).
+- Kunde wählt Positionen mit Menge, klickt „Anfrage absenden" → es wird eine `PlantRequest` vom
+  Typ `ERSATZTEIL` mit den gewählten Teilen erzeugt (strukturierte Zeilen, analog zu
+  `PlantRequestPlant`, neu: `PlantRequestPart`).
 - Der bestehende Status-Fluss (`OPEN` → `IN_REVIEW` → `OFFER_SENT` → `OFFER_ACCEPTED` → ggf.
   `JOB_PLANNED`/`CLOSED`) und die Nachrichtenfunktion (`PlantRequestMessage`) werden unverändert
-  genutzt — intern prüft Vertrieb/Service die Anfrage und erstellt ein Angebot
-  (`PlantRequestOffer`, PDF-Upload wie bisher).
+  genutzt — intern prüft Vertrieb/Service die Anfrage und erstellt ein Angebot mit den für den
+  jeweiligen Kunden gültigen Preisen (`PlantRequestOffer`, PDF-Upload wie bisher).
+- Die Anfrage landet danach ganz normal in der bestehenden Anfragen-Übersicht
+  (`/portal/requests`), nicht in einem separaten Bereich.
 
 Vorteil: kein Parallelprozess, ein Team, ein Kunden-UI-Muster (`app/portal/requests/**`) für alle
-Anfragearten.
+Anfragearten — Ersatzteilanfragen sind lediglich eine weitere Kategorie darin.
 
 ### 4.5 Berechtigungen & Mandantentrennung
 
@@ -131,6 +151,35 @@ Anfragearten.
   `checkPermission` → `getScopeFilter`).
 - Katalogdaten (`PlantMaterial`, `PlantDrawing`) sind über `plantId` an die Anlage und damit
   transitiv an `customerId` gebunden — bestehende Scope-Filter greifen ohne Sonderfall.
+
+### 4.6 CAD-Datenpflege — Übernahme aus Autodesk Inventor
+
+Zeichnungen und Ersatzteillisten entstehen im CAD-System **Autodesk Inventor**. Damit die
+Pflege im Portal möglichst wenig Aufwand macht, wird bewusst **keine** direkte
+API-/Cloud-Integration mit Inventor gebaut, sondern der einfachste funktionierende Weg genutzt
+("Stufe 0"):
+
+- **Zeichnung:** Inventor exportiert eine 2D-Ansicht direkt als PNG/JPG/PDF (Bordmittel,
+  „Speichern unter"/„Veröffentlichen") — dieser Export wird wie jedes andere Anlagendokument über
+  den bestehenden Upload (`PlantDocument`/`PlantDrawing`) hochgeladen.
+- **Stückliste (BOM):** Inventor kann die Stückliste direkt als **CSV/Excel** exportieren
+  (Positionsnummer, Teilenummer, Bezeichnung, Menge) — ebenfalls Bordmittel, kein Skript/Add-in
+  nötig.
+- **Import auf unserer Seite:** Eine kleine, neu zu bauende CSV-Import-Funktion auf der
+  internen Materialpflegeseite liest die exportierte Stückliste ein und legt/aktualisiert
+  `PlantMaterial`-Zeilen daraus (Spalten → Felder: Bezeichnung, Teilenummer, Menge). Das ersetzt
+  manuelles Abtippen der Teileliste.
+- **Praktische Erleichterung für Hotspots:** Inventor nummeriert Bauteile auf der Zeichnung
+  bereits automatisch mit denselben Positionsnummern wie in der Stückliste ("Positionsballons").
+  Die Positionsmarkierungen im Portal können sich an dieser bereits vorhandenen Nummerierung
+  orientieren — die Pflegekraft muss beim Setzen der Hotspots nur die schon sichtbaren Nummern
+  auf der Zeichnung mit den (bereits importierten) Tabellenzeilen verknüpfen, nicht neu erfinden.
+- **Bewusst nicht umgesetzt (höherer Aufwand, aktuell nicht nötig):** ein Inventor-Makro
+  (iLogic/VBA) für automatischen Export bei Freigabe, oder eine Anbindung an Autodesk Platform
+  Services (Model Derivative/Design Automation API) für vollautomatische Cloud-Konvertierung.
+  Letzteres wäre auch der Weg, falls später doch ein 3D-Viewer gewünscht wird (Model Derivative
+  kann native Inventor-Dateien ohne eigene Konvertierungs-Pipeline darstellbar machen) — für
+  Phase 1 aber nicht erforderlich.
 
 ## 5. Datenmodell-Vorschlag (Skizze)
 
@@ -155,9 +204,11 @@ model PlantDrawing {
 }
 
 // Ergänzungen an bestehenden Modellen (nicht neu, nur zusätzliche Felder):
-// PartTypeItem  + unit String? + price Float? + drawingId String? + positionX Float? + positionY Float?
-// PlantMaterial + unit String? + price Float? + drawingId String? + positionX Float? + positionY Float?
-//               + orderable Boolean @default(true)  // ob Kunde dieses Teil bestellen darf
+// PartTypeItem  + unit String? + drawingId String? + positionX Float? + positionY Float?
+// PlantMaterial + unit String? + drawingId String? + positionX Float? + positionY Float?
+//               + orderable Boolean @default(true)  // ob Kunde dieses Teil anfragen darf
+// Bewusst KEIN price-Feld — Preise sind kundenindividuell und werden nicht im Portal angezeigt,
+// sondern erst im Angebot (PlantRequestOffer) genannt.
 
 enum RequestType {
   STOERUNG
@@ -199,29 +250,37 @@ geräte-/auflösungsunabhängig für das Hotspot-Overlay im Frontend.
 
 | Phase | Inhalt | Voraussetzung |
 |---|---|---|
-| 1 | Ersatzteilkatalog (Tabelle) je Anlage im Portal sichtbar machen — Wiederverwendung/Erweiterung `PlantMaterial`, neue Berechtigungsressource, Portal-UI | Keine (Daten teils vorhanden) |
-| 2 | Zeichnung + Hotspot-Positionen (`PlantDrawing`), Bestellung aus Katalog via `PlantRequest`/`ERSATZTEIL` | Zeichnungen je Anlagentyp digitalisiert vorliegend |
-| 3 | Dokumentenportal-Ausbau: Sammel-Download, Kategorie-Filter | Keine |
-| 4 (Zukunft, optional) | Interaktives 3D-Modell für ausgewählte, komplexe Anlagentypen | CAD-Daten (glTF/GLB) vorhanden, Bedarf aus Phase 1–3 bestätigt |
+| 1a | Ersatzteilkatalog (Tabelle, ohne Zeichnung) je Anlage im Portal sichtbar machen + Button „Ersatzteile anfragen" → `PlantRequest`/`ERSATZTEIL` + CSV-Import für `PlantMaterial` | Keine — CSV-Export aus Inventor je Anlage/-typ |
+| 1b | Zeichnung + Hotspot-Positionen ergänzen (`PlantDrawing`, Positionsfelder) | Bild-Export je Anlagentyp aus Inventor (Stufe 0, Abschnitt 4.6) |
+| 2 | Dokumentenportal-Ausbau: Sammel-Download, Kategorie-Filter | Keine |
+| 3 (Zukunft, optional) | Interaktives 3D-Modell für ausgewählte, komplexe Anlagentypen; ggf. über Autodesk Platform Services statt eigener 3D-Pipeline | Validierter Bedarf aus Phase 1–2, CAD-Exportweg geklärt |
 
 Reihenfolge passt zur bestehenden Vorgehensweise in `.claude/CLAUDE.md` Abschnitt 9
 (Solution Architect → DB/Prisma → Backend → Security → Frontend → QA) und zu den in Abschnitt 11
 gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 
-## 8. Offene Fragen (vor Umsetzungsstart zu klären)
+## 8. Geklärte und offene Fragen
 
-1. Liegen für den ersten vollständigen Anlagentyp (**Verladearm**, laut `CLAUDE.md` Abschnitt 11
-   "in Vorbereitung") bereits digitale Explosionszeichnungen/Ersatzteillisten vor, die als
-   `PlantDrawing`-Bilder verwendet werden können?
-2. Sollen Preise im Portal sichtbar sein, oder nur Teilebezeichnung/-nummer mit Mengenanfrage
-   (Preis erst im Angebot, wie beim bestehenden `PlantRequestOffer`-Flow)?
-3. Soll die Bestellung direkt einen Auftrag/eine Rechnung auslösen können, oder — wie
+**Geklärt in der Konzept-Besprechung:**
+
+1. ~~Liegen digitale Explosionszeichnungen vor?~~ Nein — werden erst nach Bedarf aus Inventor
+   exportiert (Abschnitt 4.6), kein vorhandener Bestand vorausgesetzt.
+2. ~~Preise im Portal?~~ Nein, keine Preise sichtbar — nur Mengenanfrage, Preis erst im Angebot.
+3. ~~Eigener Bestellprozess oder bestehender Anfrage-Workflow?~~ Bestehender `PlantRequest`-
+   Workflow, neue Kategorie „Ersatzteil", kein separater Bereich.
+
+**Weiterhin offen:**
+
+1. Für welchen Anlagentyp soll die erste Zeichnung/Stückliste aus Inventor exportiert und ins
+   Portal aufgenommen werden — vermutlich **Verladearm** (laut `CLAUDE.md` Abschnitt 11 "in
+   Vorbereitung" als erster vollständiger Anlagentyp)? Muss mit Konstruktion abgestimmt werden.
+2. Soll die Bestellung/Anfrage direkt einen Auftrag/eine Rechnung auslösen können, oder — wie
    vorgeschlagen — ausschließlich über den bestehenden Anfrage-/Angebotsprozess laufen?
-4. Gibt es für 3D-Modelle (Phase 4) überhaupt einen validierten Kundenbedarf, oder reicht die
-   2D-Lösung dauerhaft aus? Empfehlung: erst nach Phase 1–3 mit echtem Nutzerfeedback
+3. Gibt es für 3D-Modelle (Phase 3) überhaupt einen validierten Kundenbedarf, oder reicht die
+   2D-Lösung dauerhaft aus? Empfehlung: erst nach Phase 1–2 mit echtem Nutzerfeedback
    entscheiden.
-5. Wer pflegt künftig Zeichnungen/Positionen — bestehendes Servicepersonal oder eine neue
-   Rolle/Zuständigkeit?
+4. Wer pflegt künftig Zeichnungen/Positionen/CSV-Importe — bestehendes Servicepersonal oder eine
+   neue Rolle/Zuständigkeit?
 
 ## 9. Zuordnung zu bestehenden Agenten (laut `.claude/CLAUDE.md` Abschnitt 10)
 
