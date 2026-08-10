@@ -137,9 +137,9 @@ if [ "${PIPESTATUS[0]}" -ne 0 ]; then
   echo "FEHLER: npm install fehlgeschlagen."
   exit 1
 fi
-npx prisma migrate deploy 2>&1 | grep -E "migrations|applied|Error" || true
+npx prisma db push --accept-data-loss --skip-generate
 npx prisma generate
-npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
+npx ts-node --transpile-only --compiler-options '{"module":"CommonJS","rootDir":"."}' prisma/seed.ts
 
 echo "    Abhängigkeiten und Datenbank eingerichtet."
 
