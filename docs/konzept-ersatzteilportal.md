@@ -290,11 +290,16 @@ model PlantRequestPart {
 
 ## 7. Rollout-Phasen
 
+**Pilot:** Kantenspaltfilter, Typ KS-401.13.065, Kunde Follmann (Auftrag K-04532-24) — an dieser
+einen Anlage wird der Ersatzteilkatalog zuerst umgesetzt und geprüft, bevor er auf weitere Kunden
+und Anlagentypen ausgerollt wird.
+
 | Phase | Inhalt | Voraussetzung |
 |---|---|---|
-| 1a | Ersatzteilkatalog (Tabelle, ohne Zeichnung) je Anlage im Portal sichtbar machen + Button „Ersatzteile anfragen" → `PlantRequest`/`ERSATZTEIL` + CSV-Import für `PlantMaterial` | Keine — CSV-Export aus Inventor je Anlage/-typ |
-| 1b | Zeichnung + Hotspot-Positionen ergänzen (`PlantDrawing`, Positionsfelder) | Bild-Export je Anlagentyp aus Inventor (Stufe 0, Abschnitt 4.6) |
-| 2 | Dokumentenportal-Ausbau: Sammel-Download, Kategorie-Filter | Keine |
+| 0 | Vorbereitung Piloten: „Kantenspaltfilter" als Anlagentyp in `PLANT_TYPES` ergänzen; `Customer`/`Plant`-Datensatz für Follmann/KS-401.13.065 anlegen bzw. prüfen | Keine |
+| 1a | Ersatzteilkatalog (Tabelle, ohne Zeichnung) für die Pilot-Anlage im Portal sichtbar machen + Button „Ersatzteile anfragen" → `PlantRequest`/`ERSATZTEIL` + XLSX-Import für `PlantMaterial` | Excel „Empfohlene Ersatzteile" für K-04532-24 (liegt bereits vor) |
+| 1b | Zeichnung(en) + Hotspot-Positionen ergänzen (`PlantDocument`, `PlantMaterialPosition`) | Bild-Export der relevanten Zeichnungsblätter aus Inventor (Stufe 0, Abschnitt 4.6) |
+| 2 | Rollout auf weitere Anlagen/Kunden; Dokumentenportal-Ausbau: Sammel-Download, Kategorie-Filter | Erfahrungen aus dem Piloten |
 | 3 (Zukunft, optional) | Interaktives 3D-Modell für ausgewählte, komplexe Anlagentypen; ggf. über Autodesk Platform Services statt eigener 3D-Pipeline | Validierter Bedarf aus Phase 1–2, CAD-Exportweg geklärt |
 
 Reihenfolge passt zur bestehenden Vorgehensweise in `.claude/CLAUDE.md` Abschnitt 9
@@ -321,15 +326,26 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 7. ~~Wer darf Ersatzteile/Zeichnungen pflegen?~~ Vorerst nur `ADMIN` und `SERVICE_MANAGER`
    (Abschnitt 4.5) — beantwortet auch einen Teil der bisherigen offenen Frage 4 zur
    Pflege-Zuständigkeit.
+8. ~~Für welchen Anlagentyp/welche Anlage wird die erste Umsetzung (Pilot) gemacht?~~
+   **Kantenspaltfilter, Typ KS-401.13.065, Kunde Follmann** (Auftrag K-04532-24 — dasselbe
+   Beispiel, dessen Zeichnungen/Stückliste bereits in Abschnitt 4.3 zur Herleitung der
+   Katalogtiefe herangezogen wurden). Nicht Verladearm, wie in einer früheren Version dieses
+   Konzepts anhand von `CLAUDE.md` Abschnitt 11 vermutet.
+
+   **Wichtiger Hinweis:** „Kantenspaltfilter" existiert aktuell **nicht** in
+   `lib/plant-types.ts` → `PLANT_TYPES` (vorhanden sind aktuell u. a. Verladearm, Druckfilter,
+   Saugfilter, Rücklauffilter, Belüftungsfilter, Filteraggregat, Sonstige). Bevor der
+   Pilot-Ersatzteilkatalog für diese Anlage angelegt werden kann, muss „Kantenspaltfilter" zuerst
+   als regulärer Anlagentyp ergänzt werden (Standardprozess aus `.claude/CLAUDE.md` Abschnitt 7,
+   „Neue Anlagentypen und Checklisten" — Eintrag in `PLANT_TYPES`, optional Checkliste). Ebenso ist
+   zu prüfen, ob der Kunde **Follmann** und die konkrete Anlage (Seriennummer/K-04532-24) bereits
+   als `Customer`/`Plant`-Datensatz existieren oder für den Piloten neu angelegt werden müssen.
 
 **Weiterhin offen:**
 
-1. Für welchen Anlagentyp soll die erste Zeichnung/Stückliste aus Inventor exportiert und ins
-   Portal aufgenommen werden — vermutlich **Verladearm** (laut `CLAUDE.md` Abschnitt 11 "in
-   Vorbereitung" als erster vollständiger Anlagentyp)? Muss mit Konstruktion abgestimmt werden.
-2. Soll die Bestellung/Anfrage direkt einen Auftrag/eine Rechnung auslösen können, oder — wie
+1. Soll die Bestellung/Anfrage direkt einen Auftrag/eine Rechnung auslösen können, oder — wie
    vorgeschlagen — ausschließlich über den bestehenden Anfrage-/Angebotsprozess laufen?
-3. Gibt es für 3D-Modelle (Phase 3) überhaupt einen validierten Kundenbedarf, oder reicht die
+2. Gibt es für 3D-Modelle (Phase 3) überhaupt einen validierten Kundenbedarf, oder reicht die
    2D-Lösung dauerhaft aus? Empfehlung: erst nach Phase 1–2 mit echtem Nutzerfeedback
    entscheiden.
 
