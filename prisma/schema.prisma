@@ -333,16 +333,20 @@ model ServiceJob {
 }
 
 model PlantMaterial {
-  id           String   @id @default(cuid())
-  plantId      String
-  plant        Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
-  label        String
-  partNumber   String?
-  quantity     Int      @default(1)
-  status       String   @default("TO_ORDER")
-  deliveryDate DateTime?
-  notes        String?
-  order        Int      @default(0)
+  id            String   @id @default(cuid())
+  plantId       String
+  plant         Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  label         String
+  partNumber    String?
+  quantity      Int      @default(1)
+  status        String   @default("TO_ORDER")
+  deliveryDate  DateTime?
+  notes         String?
+  order         Int      @default(0)
+  positionLabel String?
+  specification String?
+  orderable     Boolean  @default(true)
+  requestParts  PlantRequestPart[]
 
   @@index([plantId])
 }
@@ -430,6 +434,7 @@ enum RequestType {
   WARTUNG
   ANGEBOT
   INFORMATION
+  ERSATZTEIL
   SONSTIGES
 }
 
@@ -490,11 +495,26 @@ model PlantRequest {
   rejectionNote   String?
   serviceJobId    String?
   serviceJobNumber String?
+  parts           PlantRequestPart[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([customerId])
   @@index([status])
+}
+
+model PlantRequestPart {
+  id         String         @id @default(cuid())
+  requestId  String
+  request    PlantRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  materialId String?
+  material   PlantMaterial? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  label      String
+  partNumber String?
+  quantity   Int            @default(1)
+
+  @@index([requestId])
+  @@index([materialId])
 }
 
 model PlantRequestPlant {

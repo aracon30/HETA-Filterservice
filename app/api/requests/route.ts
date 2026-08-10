@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, description, type, priority, plantIds } = body
+  const { title, description, type, priority, plantIds, parts } = body
 
   if (!title?.trim()) {
     return NextResponse.json({ error: 'Titel ist erforderlich' }, { status: 400 })
@@ -119,6 +119,36 @@ export async function POST(request: NextRequest) {
     plantsData = plants.map(p => ({ plantId: p.id, plantName: p.name }))
   }
 
+  // Ersatzteil-Positionen (nur relevant für type === 'ERSATZTEIL'): jede Zeile muss auf ein
+  // PlantMaterial der ausgewählten Anlage(n) verweisen — verhindert, dass fremde/erfundene
+  // materialId-Werte in die Anfrage gelangen.
+  let partsData: { materialId: string | null; label: string; partNumber: string | null; quantity: number }[] = []
+  if (Array.isArray(parts) && parts.length > 0) {
+    const requestedMaterialIds = parts
+      .map((p: { materialId?: string }) => p.materialId)
+      .filter((id: unknown): id is string => typeof id === 'string')
+
+    const validMaterials = requestedMaterialIds.length > 0
+      ? await prisma.plantMaterial.findMany({
+          where: { id: { in: requestedMaterialIds }, plantId: { in: selectedPlantIds }, orderable: true },
+          select: { id: true, label: true, partNumber: true },
+        })
+      : []
+    const validById = new Map(validMaterials.map(m => [m.id, m]))
+
+    partsData = parts
+      .filter((p: { materialId?: string }) => p.materialId && validById.has(p.materialId))
+      .map((p: { materialId: string; quantity?: number }) => {
+        const m = validById.get(p.materialId)!
+        return {
+          materialId: m.id,
+          label: m.label,
+          partNumber: m.partNumber,
+          quantity: Math.max(1, Number(p.quantity) || 1),
+        }
+      })
+  }
+
   const requestNumber = await generateRequestNumber()
 
   const newRequest = await prisma.plantRequest.create({
@@ -134,10 +164,14 @@ export async function POST(request: NextRequest) {
       plants: plantsData.length > 0
         ? { create: plantsData }
         : undefined,
+      parts: partsData.length > 0
+        ? { create: partsData }
+        : undefined,
     },
     include: {
       customer: { select: { id: true, name: true } },
       plants: { select: { plantId: true, plantName: true } },
+      parts: true,
       messages: true,
       offerPdfs: true,
     },

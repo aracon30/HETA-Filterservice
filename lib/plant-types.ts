@@ -53,6 +53,11 @@ export const PLANT_TYPES: PlantTypeDefinition[] = [
     ],
   },
   {
+    value: 'Kantenspaltfilter',
+    label: 'Kantenspaltfilter',
+    checklist: [],
+  },
+  {
     value: 'Druckfilter',
     label: 'Druckfilter',
     checklist: [],

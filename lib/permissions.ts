@@ -135,11 +135,13 @@ export async function getScopeFilter(
     if (ext.all) {
       if (resource === 'plants' || resource === 'jobs' || resource === 'sites' || resource === 'contacts')
         return { customerId }
+      if (resource === 'parts_catalog') return { plant: { customerId } }
       return {}
     }
 
     const ids = ext.plantIds.length > 0 ? ext.plantIds : ['__none__']
     if (resource === 'plants') return { id: { in: ids } }
+    if (resource === 'parts_catalog') return { plantId: { in: ids } }
     if (resource === 'jobs') return { plants: { some: { plantId: { in: ids } } } }
     // Sites that contain at least one visible plant
     if (resource === 'sites') return { customerId, plants: { some: { id: { in: ids } } } }

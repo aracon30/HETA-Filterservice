@@ -33,10 +33,16 @@ interface Material {
   deliveryDate: string
   notes: string
   order: number
+  positionLabel: string
+  specification: string
+  orderable: boolean
 }
 
 function emptyMaterial(order: number): Material {
-  return { label: '', partNumber: '', quantity: 1, status: 'TO_ORDER', deliveryDate: '', notes: '', order }
+  return {
+    label: '', partNumber: '', quantity: 1, status: 'TO_ORDER', deliveryDate: '', notes: '', order,
+    positionLabel: '', specification: '', orderable: true,
+  }
 }
 
 function StatusDot({ materials }: { materials: Material[] }) {
@@ -103,11 +109,14 @@ export default function MaterialienPage() {
     const res = await fetch(`/api/plants/${plant.id}/materials`)
     if (res.ok) {
       const data = await res.json()
-      const parsed = data.map((m: Material & { deliveryDate: string | null }) => ({
+      const parsed = data.map((m: Material & { deliveryDate: string | null; positionLabel: string | null; specification: string | null }) => ({
         ...m,
         deliveryDate: m.deliveryDate ? m.deliveryDate.slice(0, 10) : '',
         partNumber: m.partNumber ?? '',
         notes: m.notes ?? '',
+        positionLabel: m.positionLabel ?? '',
+        specification: m.specification ?? '',
+        orderable: m.orderable ?? true,
       }))
       setMaterials(parsed)
       setMaterialCache(prev => ({ ...prev, [plant.id]: parsed }))
@@ -134,7 +143,7 @@ export default function MaterialienPage() {
     setDirty(true)
   }
 
-  const updateRow = (idx: number, field: keyof Material, value: string | number) => {
+  const updateRow = (idx: number, field: keyof Material, value: string | number | boolean) => {
     setMaterials(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m))
     setDirty(true)
   }
@@ -149,11 +158,14 @@ export default function MaterialienPage() {
     })
     if (res.ok) {
       const updated = await res.json()
-      const parsed = updated.map((m: Material & { deliveryDate: string | null }) => ({
+      const parsed = updated.map((m: Material & { deliveryDate: string | null; positionLabel: string | null; specification: string | null }) => ({
         ...m,
         deliveryDate: m.deliveryDate ? m.deliveryDate.slice(0, 10) : '',
         partNumber: m.partNumber ?? '',
         notes: m.notes ?? '',
+        positionLabel: m.positionLabel ?? '',
+        specification: m.specification ?? '',
+        orderable: m.orderable ?? true,
       }))
       setMaterials(parsed)
       setMaterialCache(prev => ({ ...prev, [selectedPlant.id]: parsed }))
@@ -174,11 +186,14 @@ export default function MaterialienPage() {
     const res = await fetch(`/api/plants/${selectedPlant.id}/materials`, { method: 'POST' })
     if (res.ok) {
       const data = await res.json()
-      const parsed = data.map((m: Material & { deliveryDate: string | null }) => ({
+      const parsed = data.map((m: Material & { deliveryDate: string | null; positionLabel: string | null; specification: string | null }) => ({
         ...m,
         deliveryDate: m.deliveryDate ? m.deliveryDate.slice(0, 10) : '',
         partNumber: m.partNumber ?? '',
         notes: m.notes ?? '',
+        positionLabel: m.positionLabel ?? '',
+        specification: m.specification ?? '',
+        orderable: m.orderable ?? true,
       }))
       setMaterials(parsed)
       setMaterialCache(prev => ({ ...prev, [selectedPlant.id]: parsed }))
@@ -405,6 +420,32 @@ export default function MaterialienPage() {
                             placeholder="Notiz (optional)"
                             className="w-full border border-gray-100 rounded px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 bg-gray-50"
                           />
+                        </div>
+                      )}
+                      {/* Ersatzteilportal-Katalog — Pflege nur für Admin/Service Manager */}
+                      {['ADMIN', 'SERVICE_MANAGER'].includes(role ?? '') && (
+                        <div className="col-span-12 col-start-2 flex items-center gap-2">
+                          <input
+                            value={mat.positionLabel}
+                            onChange={e => updateRow(idx, 'positionLabel', e.target.value)}
+                            placeholder="Pos.-Nr. (z. B. 3.2)"
+                            className="w-32 border border-gray-100 rounded px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 bg-gray-50"
+                          />
+                          <input
+                            value={mat.specification}
+                            onChange={e => updateRow(idx, 'specification', e.target.value)}
+                            placeholder="Abmessungen / Material (optional)"
+                            className="flex-1 border border-gray-100 rounded px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 bg-gray-50"
+                          />
+                          <label className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap px-1" title="Im Kundenportal anfragbar">
+                            <input
+                              type="checkbox"
+                              checked={mat.orderable}
+                              onChange={e => updateRow(idx, 'orderable', e.target.checked)}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Im Portal
+                          </label>
                         </div>
                       )}
                     </div>
