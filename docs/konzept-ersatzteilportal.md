@@ -1,6 +1,6 @@
 # Konzept: Ersatzteilportal
 
-Status: Eckpunkte für Phase 1 abgestimmt · Autor: Claude (im Auftrag) · Datum: 2026-08-10
+Status: Konzept abgestimmt, bereit für Umsetzung (Phase 0/1a) · Autor: Claude (im Auftrag) · Datum: 2026-08-10
 
 ## 1. Ausgangslage
 
@@ -326,7 +326,11 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 7. ~~Wer darf Ersatzteile/Zeichnungen pflegen?~~ Vorerst nur `ADMIN` und `SERVICE_MANAGER`
    (Abschnitt 4.5) — beantwortet auch einen Teil der bisherigen offenen Frage 4 zur
    Pflege-Zuständigkeit.
-8. ~~Für welchen Anlagentyp/welche Anlage wird die erste Umsetzung (Pilot) gemacht?~~
+8. ~~Soll die Anfrage direkt einen Auftrag/eine Rechnung auslösen?~~ Nein — nicht jede Anfrage
+   führt zu einem Kauf. Es bleibt bewusst beim bestehenden `PlantRequest`-Ablauf: Anfrage →
+   interne Prüfung → Angebot (`PlantRequestOffer`) → erst bei Annahme durch den Kunden
+   (`OFFER_ACCEPTED`) ggf. Folgeauftrag. Kein automatischer Auftrags-/Rechnungsauslöser.
+9. ~~Für welchen Anlagentyp/welche Anlage wird die erste Umsetzung (Pilot) gemacht?~~
    **Kantenspaltfilter, Typ KS-401.13.065, Kunde Follmann** (Auftrag K-04532-24 — dasselbe
    Beispiel, dessen Zeichnungen/Stückliste bereits in Abschnitt 4.3 zur Herleitung der
    Katalogtiefe herangezogen wurden). Nicht Verladearm, wie in einer früheren Version dieses
@@ -343,11 +347,12 @@ gelisteten "Zukunft"-Punkten (Ersatzteilmanagement, Smart Monitoring).
 
 **Weiterhin offen:**
 
-1. Soll die Bestellung/Anfrage direkt einen Auftrag/eine Rechnung auslösen können, oder — wie
-   vorgeschlagen — ausschließlich über den bestehenden Anfrage-/Angebotsprozess laufen?
-2. Gibt es für 3D-Modelle (Phase 3) überhaupt einen validierten Kundenbedarf, oder reicht die
+1. Gibt es für 3D-Modelle (Phase 3) überhaupt einen validierten Kundenbedarf, oder reicht die
    2D-Lösung dauerhaft aus? Empfehlung: erst nach Phase 1–2 mit echtem Nutzerfeedback
    entscheiden.
+
+Damit sind alle für den Start von Phase 0/1a notwendigen Entscheidungen getroffen; die 3D-Frage
+betrifft erst eine spätere, optionale Ausbaustufe und blockiert die Umsetzung nicht.
 
 ## 9. Zuordnung zu bestehenden Agenten (laut `.claude/CLAUDE.md` Abschnitt 10)
 
