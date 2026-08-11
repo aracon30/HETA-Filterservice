@@ -46,6 +46,7 @@ export default function ErsatzteilAuswahl({
   const [done, setDone] = useState(false)
   const [activeDrawingId, setActiveDrawingId] = useState(drawings[0]?.id ?? null)
   const [highlighted, setHighlighted] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -153,23 +154,46 @@ export default function ErsatzteilAuswahl({
             </div>
           )}
           {activeDrawing && (
-            <div className="relative border border-gray-200 rounded-lg overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={toFileUrl(activeDrawing.fileUrl)} alt={activeDrawing.title} className="w-full h-auto block" />
-              {activeHotspots.map(h => (
-                <button
-                  key={h.materialId}
-                  onClick={() => jumpToMaterial(h.materialId)}
-                  style={{ left: `${h.positionX * 100}%`, top: `${h.positionY * 100}%` }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow transition-colors ${
-                    quantities[h.materialId] ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                  title={hotspotLabel(h.materialId)}
-                >
-                  {hotspotLabel(h.materialId).slice(0, 3)}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[11px] text-gray-400">Zoom:</span>
+                {[1, 2, 3].map(z => (
+                  <button
+                    key={z}
+                    onClick={() => setZoom(z)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      zoom === z ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {z}×
+                  </button>
+                ))}
+              </div>
+              <div className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 480 }}>
+                <div className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={toFileUrl(activeDrawing.fileUrl)}
+                    alt={activeDrawing.title}
+                    style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
+                    className="block"
+                  />
+                  {activeHotspots.map(h => (
+                    <button
+                      key={h.materialId}
+                      onClick={() => jumpToMaterial(h.materialId)}
+                      style={{ left: `${h.positionX * 100}%`, top: `${h.positionY * 100}%` }}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow transition-colors ${
+                        quantities[h.materialId] ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                      title={hotspotLabel(h.materialId)}
+                    >
+                      {hotspotLabel(h.materialId).length <= 4 ? hotspotLabel(h.materialId) : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
           <p className="text-xs text-gray-400 mt-2">Auf eine Markierung klicken, um zum Ersatzteil in der Liste zu springen.</p>
         </div>

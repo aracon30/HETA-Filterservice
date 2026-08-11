@@ -36,6 +36,7 @@ export default function PartsPositionEditor({
   const [activeDrawingId, setActiveDrawingId] = useState<string | null>(null)
   const [armedMaterialId, setArmedMaterialId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
     setLoading(true)
@@ -68,6 +69,8 @@ export default function PartsPositionEditor({
 
   const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
     if (!armedMaterialId || !activeDrawingId) return
+    // Koordinaten relativ zum bildgroßen Wrapper (nicht zum scrollbaren Außencontainer) —
+    // funktioniert dadurch unabhängig von Zoom-Stufe und Scroll-Position exakt.
     const rect = e.currentTarget.getBoundingClientRect()
     const positionX = (e.clientX - rect.left) / rect.width
     const positionY = (e.clientY - rect.top) / rect.height
@@ -124,25 +127,48 @@ export default function PartsPositionEditor({
 
       <div className="flex gap-3">
         {/* Image with hotspots */}
-        <div
-          onClick={handleImageClick}
-          className={`relative flex-1 border rounded-lg overflow-hidden ${armedMaterialId ? 'cursor-crosshair ring-2 ring-blue-400' : 'border-gray-200'}`}
-        >
-          {activeDrawing && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={toFileUrl(activeDrawing.fileUrl)} alt={activeDrawing.title} className="w-full h-auto block select-none" draggable={false} />
-          )}
-          {activePositions.map(p => (
-            <button
-              key={p.id}
-              onClick={e => { e.stopPropagation(); if (confirm(`Position „${materialLabel(p.materialId)}" entfernen?`)) removePosition(p.id) }}
-              style={{ left: `${p.positionX * 100}%`, top: `${p.positionY * 100}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow hover:bg-red-500 transition-colors"
-              title={`${materialLabel(p.materialId)} — Klicken zum Entfernen`}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-[11px] text-gray-400">Zoom:</span>
+            {[1, 2, 3].map(z => (
+              <button
+                key={z}
+                onClick={() => setZoom(z)}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                  zoom === z ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {z}×
+              </button>
+            ))}
+            <span className="text-[11px] text-gray-300 ml-1">Zum präzisen Setzen hineinzoomen, Bild ist scrollbar</span>
+          </div>
+          <div className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 520 }}>
+            <div
+              onClick={handleImageClick}
+              className={`relative inline-block ${armedMaterialId ? 'cursor-crosshair' : ''}`}
             >
-              {materialLabel(p.materialId).slice(0, 3)}
-            </button>
-          ))}
+              {activeDrawing && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={toFileUrl(activeDrawing.fileUrl)}
+                  alt={activeDrawing.title}
+                  style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
+                  className="block select-none"
+                  draggable={false}
+                />
+              )}
+              {activePositions.map(p => (
+                <button
+                  key={p.id}
+                  onClick={e => { e.stopPropagation(); if (confirm(`Position „${materialLabel(p.materialId)}“ entfernen?`)) removePosition(p.id) }}
+                  style={{ left: `${p.positionX * 100}%`, top: `${p.positionY * 100}%` }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow ring-1 ring-blue-600 hover:bg-red-500 hover:ring-red-500 transition-colors"
+                  title={`${materialLabel(p.materialId)} — Klicken zum Entfernen`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Material picker */}
