@@ -28,7 +28,7 @@ export default async function ErsatzteilePage({
 
   const plant = await prisma.plant.findUnique({
     where: { id },
-    select: { id: true, name: true, type: true, customerId: true, customer: { select: { name: true } } },
+    select: { id: true, name: true, type: true, orderNumber: true, customerId: true, customer: { select: { name: true } } },
   })
   if (!plant || plant.customerId !== customerId) notFound()
 
@@ -99,6 +99,7 @@ export default async function ErsatzteilePage({
         <ErsatzteilAuswahl
           plantId={plant.id}
           plantName={plant.name}
+          plantOrderNumber={plant.orderNumber}
           parts={materials}
           drawings={Array.from(drawingsById.values())}
           hotspots={hotspots}

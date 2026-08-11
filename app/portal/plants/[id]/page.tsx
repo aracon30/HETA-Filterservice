@@ -193,6 +193,7 @@ export default async function PortalPlantPage({
           <Field label="Hersteller"      value={plant.manufacturer} />
           <Field label="Modell"          value={plant.model} />
           <Field label="Seriennummer"    value={plant.serialNumber} />
+          <Field label="Auftragsnummer"  value={plant.orderNumber} />
           <Field label="Baujahr"         value={plant.buildYear} />
           <Field label="In Betrieb seit" value={plant.installedAt ? fmtDate(plant.installedAt) : null} />
           <Field label="Standort"        value={plant.site ? [plant.site.name, [plant.site.zip, plant.site.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : null} />

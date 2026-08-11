@@ -67,6 +67,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       type: body.type,
       siteId: body.siteId === undefined ? undefined : (body.siteId || null),
       serialNumber: body.serialNumber || null,
+      orderNumber: body.orderNumber || null,
       location: body.location || null,
       installedAt: body.installedAt ? new Date(body.installedAt) : null,
       buildYear: body.buildYear ?? null,

@@ -28,12 +28,14 @@ interface Hotspot {
 export default function ErsatzteilAuswahl({
   plantId,
   plantName,
+  plantOrderNumber,
   parts,
   drawings = [],
   hotspots = [],
 }: {
   plantId: string
   plantName: string
+  plantOrderNumber: string | null
   parts: Part[]
   drawings?: Drawing[]
   hotspots?: Hotspot[]
@@ -111,12 +113,17 @@ export default function ErsatzteilAuswahl({
       .map(p => `- ${p.positionLabel ? `[${p.positionLabel}] ` : ''}${p.label} (Menge: ${quantities[p.id]})`)
       .join('\n')
 
+    // Anlagen-Auftragsnummer prominent an den Anfang der Beschreibung stellen, damit sie beim
+    // internen Bearbeiten der Anfrage sofort sichtbar ist (nicht identisch mit einer späteren
+    // Service-Auftragsnummer — dient nur der Zuordnung zur richtigen Anlage).
+    const orderNumberLine = plantOrderNumber ? `Auftragsnummer der Anlage: ${plantOrderNumber}\n\n` : ''
+
     const res = await fetch('/api/requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: `Ersatzteilanfrage – ${plantName}`,
-        description: `Angefragte Ersatzteile:\n${partLines}${note.trim() ? `\n\nAnmerkung: ${note.trim()}` : ''}`,
+        title: `Ersatzteilanfrage – ${plantName}${plantOrderNumber ? ` (${plantOrderNumber})` : ''}`,
+        description: `${orderNumberLine}Angefragte Ersatzteile:\n${partLines}${note.trim() ? `\n\nAnmerkung: ${note.trim()}` : ''}`,
         type: 'ERSATZTEIL',
         priority: 'NORMAL',
         plantIds: [plantId],

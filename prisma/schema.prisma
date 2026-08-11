@@ -212,6 +212,9 @@ model Plant {
   name              String
   type              String
   serialNumber      String?
+  // Fertigungs-/Kommissionsnummer der Anlage (z.B. "K-04532-24") — nicht zu verwechseln mit
+  // ServiceJob.orderNumber (Auftragsnummer einzelner Serviceeinsätze).
+  orderNumber       String?
   location          String?
   installedAt       DateTime?
   buildYear         Int?
