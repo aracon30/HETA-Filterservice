@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toFileUrl, isImageFile } from '@/lib/file-url'
 
 interface Drawing {
@@ -38,6 +38,7 @@ export default function PartsPositionEditor({
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(1)
   const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -57,6 +58,13 @@ export default function PartsPositionEditor({
 
   useEffect(() => {
     setNaturalWidth(null)
+    // Bereits im Browser-Cache liegende Bilder feuern das onLoad-Event teils nicht mehr,
+    // da sie schon vor der React-Anbindung fertig geladen sind — hier direkt nachschauen.
+    const id = requestAnimationFrame(() => {
+      const img = imgRef.current
+      if (img?.complete && img.naturalWidth > 0) setNaturalWidth(img.naturalWidth)
+    })
+    return () => cancelAnimationFrame(id)
   }, [activeDrawingId])
 
   const savableMaterials = useMemo(
@@ -164,6 +172,7 @@ export default function PartsPositionEditor({
               {activeDrawing && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  ref={imgRef}
                   src={toFileUrl(activeDrawing.fileUrl)}
                   alt={activeDrawing.title}
                   onLoad={handleImageLoad}

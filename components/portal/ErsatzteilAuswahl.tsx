@@ -50,10 +50,19 @@ export default function ErsatzteilAuswahl({
   const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const imgRef = useRef<HTMLImageElement>(null)
 
   // Feste Pixelbreite statt CSS-%-Breite — sonst laufen Bild- und Marker-Größe beim Zoomen
   // auseinander (mehrdeutige Bezugsgröße für % in einem inline-block-Wrapper).
-  useEffect(() => { setNaturalWidth(null) }, [activeDrawingId])
+  useEffect(() => {
+    setNaturalWidth(null)
+    // Bereits im Browser-Cache liegende Bilder feuern onLoad teils nicht mehr — direkt prüfen.
+    const id = requestAnimationFrame(() => {
+      const img = imgRef.current
+      if (img?.complete && img.naturalWidth > 0) setNaturalWidth(img.naturalWidth)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [activeDrawingId])
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setNaturalWidth(e.currentTarget.naturalWidth)
   }
@@ -181,6 +190,7 @@ export default function ErsatzteilAuswahl({
                 <div className="relative inline-block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
+                    ref={imgRef}
                     src={toFileUrl(activeDrawing.fileUrl)}
                     alt={activeDrawing.title}
                     onLoad={handleImageLoad}
