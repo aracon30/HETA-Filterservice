@@ -49,25 +49,22 @@ export default function ErsatzteilAuswahl({
   const [activeDrawingId, setActiveDrawingId] = useState(drawings[0]?.id ?? null)
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
-  const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
+  const [containerWidth, setContainerWidth] = useState<number | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const imgRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Feste Pixelbreite statt CSS-%-Breite — sonst laufen Bild- und Marker-Größe beim Zoomen
-  // auseinander (mehrdeutige Bezugsgröße für % in einem inline-block-Wrapper).
+  // "1×" soll die ganze Zeichnung einpassen — dafür wird die tatsächlich sichtbare
+  // Containerbreite gemessen; "2×"/"3×" sind Vielfache davon (nicht der Rohpixelgröße
+  // des Bildes, die je nach Scan/Export viel größer als der verfügbare Platz sein kann).
   useEffect(() => {
-    setNaturalWidth(null)
-    // Bereits im Browser-Cache liegende Bilder feuern onLoad teils nicht mehr — direkt prüfen.
-    const id = requestAnimationFrame(() => {
-      const img = imgRef.current
-      if (img?.complete && img.naturalWidth > 0) setNaturalWidth(img.naturalWidth)
-    })
-    return () => cancelAnimationFrame(id)
+    const measure = () => {
+      if (containerRef.current) setContainerWidth(containerRef.current.clientWidth)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
   }, [activeDrawingId])
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    setNaturalWidth(e.currentTarget.naturalWidth)
-  }
 
   const setQuantity = (id: string, value: number) => {
     setQuantities(prev => {
@@ -193,15 +190,13 @@ export default function ErsatzteilAuswahl({
                   </button>
                 ))}
               </div>
-              <div className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 480 }}>
+              <div ref={containerRef} className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 480 }}>
                 <div className="relative inline-block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    ref={imgRef}
                     src={toFileUrl(activeDrawing.fileUrl)}
                     alt={activeDrawing.title}
-                    onLoad={handleImageLoad}
-                    style={naturalWidth ? { width: naturalWidth * zoom, maxWidth: 'none' } : { width: '100%' }}
+                    style={containerWidth ? { width: containerWidth * zoom, maxWidth: 'none' } : { width: '100%' }}
                     className="block"
                   />
                   {activeHotspots.map(h => (

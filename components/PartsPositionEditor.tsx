@@ -37,8 +37,8 @@ export default function PartsPositionEditor({
   const [armedMaterialId, setArmedMaterialId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(1)
-  const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
-  const imgRef = useRef<HTMLImageElement>(null)
+  const [containerWidth, setContainerWidth] = useState<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -56,15 +56,16 @@ export default function PartsPositionEditor({
     })
   }, [plantId])
 
+  // "1×" soll die ganze Zeichnung einpassen — dafür wird die tatsächlich sichtbare
+  // Containerbreite gemessen; "2×"/"3×" sind Vielfache davon (nicht der Rohpixelgröße
+  // des Bildes, die je nach Scan/Export viel größer als der verfügbare Platz sein kann).
   useEffect(() => {
-    setNaturalWidth(null)
-    // Bereits im Browser-Cache liegende Bilder feuern das onLoad-Event teils nicht mehr,
-    // da sie schon vor der React-Anbindung fertig geladen sind — hier direkt nachschauen.
-    const id = requestAnimationFrame(() => {
-      const img = imgRef.current
-      if (img?.complete && img.naturalWidth > 0) setNaturalWidth(img.naturalWidth)
-    })
-    return () => cancelAnimationFrame(id)
+    const measure = () => {
+      if (containerRef.current) setContainerWidth(containerRef.current.clientWidth)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
   }, [activeDrawingId])
 
   const savableMaterials = useMemo(
@@ -74,14 +75,6 @@ export default function PartsPositionEditor({
 
   const activePositions = positions.filter(p => p.documentId === activeDrawingId)
   const activeDrawing = drawings.find(d => d.id === activeDrawingId)
-
-  // Bildbreite wird bewusst aus der geladenen Bild-Pixelgröße berechnet statt aus einem
-  // CSS-Prozentwert: In einem inline-block-Wrapper ist eine prozentuale <img>-Breite
-  // mehrdeutig (zirkuläre Bezugsgröße), wodurch Bild- und Marker-Größe beim Zoomen
-  // auseinanderlaufen können. Mit einer festen Pixelbreite ist die Größe eindeutig.
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    setNaturalWidth(e.currentTarget.naturalWidth)
-  }
 
   const materialLabel = (materialId: string) => {
     const m = savableMaterials.find(m => m.id === materialId)
@@ -164,7 +157,7 @@ export default function PartsPositionEditor({
             ))}
             <span className="text-[11px] text-gray-300 ml-1">Zum präzisen Setzen hineinzoomen, Bild ist scrollbar</span>
           </div>
-          <div className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 520 }}>
+          <div ref={containerRef} className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 520 }}>
             <div
               onClick={handleImageClick}
               className={`relative inline-block ${armedMaterialId ? 'cursor-crosshair' : ''}`}
@@ -172,11 +165,9 @@ export default function PartsPositionEditor({
               {activeDrawing && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  ref={imgRef}
                   src={toFileUrl(activeDrawing.fileUrl)}
                   alt={activeDrawing.title}
-                  onLoad={handleImageLoad}
-                  style={naturalWidth ? { width: naturalWidth * zoom, maxWidth: 'none' } : { width: '100%' }}
+                  style={containerWidth ? { width: containerWidth * zoom, maxWidth: 'none' } : { width: '100%' }}
                   className="block select-none"
                   draggable={false}
                 />
