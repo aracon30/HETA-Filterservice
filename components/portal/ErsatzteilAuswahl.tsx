@@ -201,14 +201,19 @@ export default function ErsatzteilAuswahl({
                     <button
                       key={h.materialId}
                       onClick={() => jumpToMaterial(h.materialId)}
-                      style={{ left: `${h.positionX * 100}%`, top: `${h.positionY * 100}%` }}
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow transition-colors ${
-                        quantities[h.materialId] ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
+                      style={{
+                        left: `${h.positionX * 100}%`,
+                        top: `${h.positionY * 100}%`,
+                        width: 28 * zoom,
+                        height: 28 * zoom,
+                      }}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-transparent transition-colors ${
+                        quantities[h.materialId]
+                          ? 'border-green-500 hover:border-green-600'
+                          : 'border-blue-500 hover:border-blue-600'
                       }`}
                       title={hotspotLabel(h.materialId)}
-                    >
-                      {hotspotLabel(h.materialId).length <= 4 ? hotspotLabel(h.materialId) : ''}
-                    </button>
+                    />
                   ))}
                 </div>
               </div>

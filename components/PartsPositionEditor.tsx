@@ -185,8 +185,13 @@ export default function PartsPositionEditor({
                 <button
                   key={p.id}
                   onClick={e => { e.stopPropagation(); if (confirm(`Position „${materialLabel(p.materialId)}“ entfernen?`)) removePosition(p.id) }}
-                  style={{ left: `${p.positionX * 100}%`, top: `${p.positionY * 100}%` }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow ring-1 ring-blue-600 hover:bg-red-500 hover:ring-red-500 transition-colors"
+                  style={{
+                    left: `${p.positionX * 100}%`,
+                    top: `${p.positionY * 100}%`,
+                    width: 28 * zoom,
+                    height: 28 * zoom,
+                  }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-600 bg-transparent hover:border-red-500 transition-colors"
                   title={`${materialLabel(p.materialId)} — Klicken zum Entfernen`}
                 />
               ))}
