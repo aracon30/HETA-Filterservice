@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toFileUrl } from '@/lib/file-url'
 
@@ -47,8 +47,16 @@ export default function ErsatzteilAuswahl({
   const [activeDrawingId, setActiveDrawingId] = useState(drawings[0]?.id ?? null)
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
+  const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // Feste Pixelbreite statt CSS-%-Breite — sonst laufen Bild- und Marker-Größe beim Zoomen
+  // auseinander (mehrdeutige Bezugsgröße für % in einem inline-block-Wrapper).
+  useEffect(() => { setNaturalWidth(null) }, [activeDrawingId])
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    setNaturalWidth(e.currentTarget.naturalWidth)
+  }
 
   const setQuantity = (id: string, value: number) => {
     setQuantities(prev => {
@@ -175,7 +183,8 @@ export default function ErsatzteilAuswahl({
                   <img
                     src={toFileUrl(activeDrawing.fileUrl)}
                     alt={activeDrawing.title}
-                    style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
+                    onLoad={handleImageLoad}
+                    style={naturalWidth ? { width: naturalWidth * zoom, maxWidth: 'none' } : { width: '100%' }}
                     className="block"
                   />
                   {activeHotspots.map(h => (

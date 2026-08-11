@@ -37,6 +37,7 @@ export default function PartsPositionEditor({
   const [armedMaterialId, setArmedMaterialId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(1)
+  const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -54,6 +55,10 @@ export default function PartsPositionEditor({
     })
   }, [plantId])
 
+  useEffect(() => {
+    setNaturalWidth(null)
+  }, [activeDrawingId])
+
   const savableMaterials = useMemo(
     () => materials.filter((m): m is MaterialRef & { id: string } => !!m.id),
     [materials]
@@ -61,6 +66,14 @@ export default function PartsPositionEditor({
 
   const activePositions = positions.filter(p => p.documentId === activeDrawingId)
   const activeDrawing = drawings.find(d => d.id === activeDrawingId)
+
+  // Bildbreite wird bewusst aus der geladenen Bild-Pixelgröße berechnet statt aus einem
+  // CSS-Prozentwert: In einem inline-block-Wrapper ist eine prozentuale <img>-Breite
+  // mehrdeutig (zirkuläre Bezugsgröße), wodurch Bild- und Marker-Größe beim Zoomen
+  // auseinanderlaufen können. Mit einer festen Pixelbreite ist die Größe eindeutig.
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    setNaturalWidth(e.currentTarget.naturalWidth)
+  }
 
   const materialLabel = (materialId: string) => {
     const m = savableMaterials.find(m => m.id === materialId)
@@ -153,7 +166,8 @@ export default function PartsPositionEditor({
                 <img
                   src={toFileUrl(activeDrawing.fileUrl)}
                   alt={activeDrawing.title}
-                  style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
+                  onLoad={handleImageLoad}
+                  style={naturalWidth ? { width: naturalWidth * zoom, maxWidth: 'none' } : { width: '100%' }}
                   className="block select-none"
                   draggable={false}
                 />
