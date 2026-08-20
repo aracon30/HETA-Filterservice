@@ -272,6 +272,10 @@ model PlantDocument {
   uploadedByName String
   createdAt      DateTime     @default(now())
   materialPositions PlantMaterialPosition[]
+  // Durchmesser (px) der Hotspot-Marker-Ringe auf dieser Zeichnung bei Zoom 1x — je nach
+  // Zeichnung unterschiedlich groß bedruckte Positionsnummern brauchen unterschiedlich
+  // große Ringe. null = Standardgröße (28px) im Frontend.
+  markerSize     Int?
 
   @@index([plantId])
   @@index([customerId])

@@ -8,7 +8,10 @@ interface Drawing {
   title: string
   fileUrl: string
   mimeType: string | null
+  markerSize: number | null
 }
+
+const DEFAULT_MARKER_SIZE = 28
 
 interface MaterialRef {
   id?: string
@@ -49,6 +52,9 @@ export default function PartsPositionEditor({
       const drawingDocs: Drawing[] = (Array.isArray(docs) ? docs : [])
         .filter((d: { type: string; fileUrl: string; mimeType: string | null }) =>
           d.type === 'DRAWING' && isImageFile(d.fileUrl, d.mimeType))
+        .map((d: { id: string; title: string; fileUrl: string; mimeType: string | null; markerSize: number | null }) => ({
+          id: d.id, title: d.title, fileUrl: d.fileUrl, mimeType: d.mimeType, markerSize: d.markerSize,
+        }))
       setDrawings(drawingDocs)
       setActiveDrawingId(prev => prev ?? drawingDocs[0]?.id ?? null)
       setPositions(Array.isArray(pos) ? pos : [])
@@ -75,6 +81,23 @@ export default function PartsPositionEditor({
 
   const activePositions = positions.filter(p => p.documentId === activeDrawingId)
   const activeDrawing = drawings.find(d => d.id === activeDrawingId)
+  const markerSize = activeDrawing?.markerSize ?? DEFAULT_MARKER_SIZE
+
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleMarkerSizeChange = (size: number) => {
+    if (!activeDrawingId) return
+    // Sofortige, optimistische Aktualisierung für flüssiges Ziehen am Regler,
+    // aber nur verzögert (debounced) ans Backend senden statt bei jedem Zwischenwert.
+    setDrawings(prev => prev.map(d => d.id === activeDrawingId ? { ...d, markerSize: size } : d))
+    if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    saveTimeout.current = setTimeout(() => {
+      fetch(`/api/plants/${plantId}/documents/${activeDrawingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markerSize: size }),
+      })
+    }, 400)
+  }
 
   const materialLabel = (materialId: string) => {
     const m = savableMaterials.find(m => m.id === materialId)
@@ -157,6 +180,20 @@ export default function PartsPositionEditor({
             ))}
             <span className="text-[11px] text-gray-300 ml-1">Zum präzisen Setzen hineinzoomen, Bild ist scrollbar</span>
           </div>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-[11px] text-gray-400">Markergröße:</span>
+            <input
+              type="range"
+              min={12}
+              max={80}
+              step={2}
+              value={markerSize}
+              onChange={e => handleMarkerSizeChange(Number(e.target.value))}
+              className="w-32 accent-blue-600"
+            />
+            <span className="text-[11px] text-gray-400 w-8">{markerSize}px</span>
+            <span className="text-[11px] text-gray-300 ml-1">passend zur Beschriftungsgröße dieser Zeichnung</span>
+          </div>
           <div ref={containerRef} className="border border-gray-200 rounded-lg overflow-auto" style={{ maxHeight: 520 }}>
             <div
               onClick={handleImageClick}
@@ -179,8 +216,8 @@ export default function PartsPositionEditor({
                   style={{
                     left: `${p.positionX * 100}%`,
                     top: `${p.positionY * 100}%`,
-                    width: 28 * zoom,
-                    height: 28 * zoom,
+                    width: markerSize * zoom,
+                    height: markerSize * zoom,
                   }}
                   className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-600 bg-transparent hover:border-red-500 transition-colors"
                   title={`${materialLabel(p.materialId)} — Klicken zum Entfernen`}

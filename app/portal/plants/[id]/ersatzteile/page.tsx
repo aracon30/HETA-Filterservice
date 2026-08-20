@@ -52,15 +52,15 @@ export default async function ErsatzteilePage({
           materialId: true,
           positionX: true,
           positionY: true,
-          document: { select: { id: true, title: true, fileUrl: true, mimeType: true } },
+          document: { select: { id: true, title: true, fileUrl: true, mimeType: true, markerSize: true } },
         },
       })
     : []
 
-  const drawingsById = new Map<string, { id: string; title: string; fileUrl: string }>()
+  const drawingsById = new Map<string, { id: string; title: string; fileUrl: string; markerSize: number | null }>()
   const hotspots: { materialId: string; documentId: string; positionX: number; positionY: number }[] = []
   for (const p of positions) {
-    drawingsById.set(p.document.id, { id: p.document.id, title: p.document.title, fileUrl: p.document.fileUrl })
+    drawingsById.set(p.document.id, { id: p.document.id, title: p.document.title, fileUrl: p.document.fileUrl, markerSize: p.document.markerSize })
     hotspots.push({ materialId: p.materialId, documentId: p.document.id, positionX: p.positionX, positionY: p.positionY })
   }
 

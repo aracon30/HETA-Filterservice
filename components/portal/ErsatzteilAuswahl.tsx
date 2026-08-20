@@ -16,7 +16,10 @@ interface Drawing {
   id: string
   title: string
   fileUrl: string
+  markerSize: number | null
 }
+
+const DEFAULT_MARKER_SIZE = 28
 
 interface Hotspot {
   materialId: string
@@ -206,8 +209,8 @@ export default function ErsatzteilAuswahl({
                       style={{
                         left: `${h.positionX * 100}%`,
                         top: `${h.positionY * 100}%`,
-                        width: 28 * zoom,
-                        height: 28 * zoom,
+                        width: (activeDrawing?.markerSize ?? DEFAULT_MARKER_SIZE) * zoom,
+                        height: (activeDrawing?.markerSize ?? DEFAULT_MARKER_SIZE) * zoom,
                       }}
                       className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-transparent transition-colors ${
                         quantities[h.materialId]
