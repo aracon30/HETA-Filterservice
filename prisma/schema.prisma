@@ -212,6 +212,9 @@ model Plant {
   name              String
   type              String
   serialNumber      String?
+  // Fertigungs-/Kommissionsnummer der Anlage (z.B. "K-04532-24") — nicht zu verwechseln mit
+  // ServiceJob.orderNumber (Auftragsnummer einzelner Serviceeinsätze).
+  orderNumber       String?
   location          String?
   installedAt       DateTime?
   buildYear         Int?
@@ -268,10 +271,31 @@ model PlantDocument {
   uploadedById   String
   uploadedByName String
   createdAt      DateTime     @default(now())
+  materialPositions PlantMaterialPosition[]
+  // Durchmesser (px) der Hotspot-Marker-Ringe auf dieser Zeichnung bei Zoom 1x — je nach
+  // Zeichnung unterschiedlich groß bedruckte Positionsnummern brauchen unterschiedlich
+  // große Ringe. null = Standardgröße (28px) im Frontend.
+  markerSize     Int?
 
   @@index([plantId])
   @@index([customerId])
   @@index([jobId])
+}
+
+// Hotspot-Position eines Ersatzteils auf einer Zeichnung (n:m — eine Position kann auf
+// mehreren Zeichnungen markiert sein, z.B. Übersicht + Detailzeichnung).
+model PlantMaterialPosition {
+  id         String        @id @default(cuid())
+  materialId String
+  material   PlantMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  documentId String
+  document   PlantDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  positionX  Float
+  positionY  Float
+  createdAt  DateTime      @default(now())
+
+  @@unique([materialId, documentId])
+  @@index([documentId])
 }
 
 model ServiceJobTechnician {
@@ -333,16 +357,21 @@ model ServiceJob {
 }
 
 model PlantMaterial {
-  id           String   @id @default(cuid())
-  plantId      String
-  plant        Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
-  label        String
-  partNumber   String?
-  quantity     Int      @default(1)
-  status       String   @default("TO_ORDER")
-  deliveryDate DateTime?
-  notes        String?
-  order        Int      @default(0)
+  id            String   @id @default(cuid())
+  plantId       String
+  plant         Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  label         String
+  partNumber    String?
+  quantity      Int      @default(1)
+  status        String   @default("TO_ORDER")
+  deliveryDate  DateTime?
+  notes         String?
+  order         Int      @default(0)
+  positionLabel String?
+  specification String?
+  orderable     Boolean  @default(true)
+  requestParts  PlantRequestPart[]
+  positions     PlantMaterialPosition[]
 
   @@index([plantId])
 }
@@ -430,6 +459,7 @@ enum RequestType {
   WARTUNG
   ANGEBOT
   INFORMATION
+  ERSATZTEIL
   SONSTIGES
 }
 
@@ -490,11 +520,26 @@ model PlantRequest {
   rejectionNote   String?
   serviceJobId    String?
   serviceJobNumber String?
+  parts           PlantRequestPart[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([customerId])
   @@index([status])
+}
+
+model PlantRequestPart {
+  id         String         @id @default(cuid())
+  requestId  String
+  request    PlantRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  materialId String?
+  material   PlantMaterial? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  label      String
+  partNumber String?
+  quantity   Int            @default(1)
+
+  @@index([requestId])
+  @@index([materialId])
 }
 
 model PlantRequestPlant {

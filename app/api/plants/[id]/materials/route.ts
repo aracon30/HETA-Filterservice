@@ -26,7 +26,11 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
 
   const body = await req.json()
-  const items: { label: string; partNumber?: string; quantity: number; status: string; deliveryDate?: string | null; notes?: string | null; order: number }[] = body.materials ?? []
+  const items: {
+    label: string; partNumber?: string; quantity: number; status: string
+    deliveryDate?: string | null; notes?: string | null; order: number
+    positionLabel?: string | null; specification?: string | null; orderable?: boolean
+  }[] = body.materials ?? []
 
   if (body.clientUpdatedAt) {
     const current = await prisma.plant.findUnique({ where: { id: params.id }, select: { updatedAt: true } })
@@ -51,6 +55,9 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         deliveryDate: item.deliveryDate ? new Date(item.deliveryDate) : null,
         notes: item.notes ?? null,
         order: item.order ?? idx,
+        positionLabel: item.positionLabel ?? null,
+        specification: item.specification ?? null,
+        orderable: item.orderable ?? true,
       })),
     }),
   ])

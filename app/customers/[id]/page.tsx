@@ -31,6 +31,7 @@ interface Plant {
   name: string
   type: string
   serialNumber: string | null
+  orderNumber: string | null
   location: string | null
   installedAt: string | null
   buildYear: number | null
@@ -106,6 +107,7 @@ interface PlantForm {
   name: string
   type: string
   serialNumber: string
+  orderNumber: string
   location: string
   installedAt: string
   buildYear: string
@@ -121,6 +123,7 @@ const emptyPlantForm: PlantForm = {
   name: '',
   type: '',
   serialNumber: '',
+  orderNumber: '',
   location: '',
   installedAt: '',
   buildYear: '',
@@ -508,6 +511,7 @@ export default function CustomerDetailPage() {
       name: plant.name,
       type: plant.type,
       serialNumber: plant.serialNumber ?? '',
+      orderNumber: plant.orderNumber ?? '',
       location: plant.location ?? '',
       installedAt: plant.installedAt ? plant.installedAt.slice(0, 10) : '',
       buildYear: plant.buildYear != null ? String(plant.buildYear) : '',
@@ -689,6 +693,7 @@ export default function CustomerDetailPage() {
         )}
         {plant.buildYear && <div className="text-gray-500">Baujahr: {plant.buildYear}</div>}
         {plant.serialNumber && <div className="text-gray-500">Seriennummer: {plant.serialNumber}</div>}
+        {plant.orderNumber && <div className="text-gray-500">Auftragsnummer: {plant.orderNumber}</div>}
         {plant.location && <div className="text-gray-500">Position: {plant.location}</div>}
         {plant.defaultTechnician && <div className="text-gray-500">Standardtechniker: {plant.defaultTechnician.name}</div>}
         {plant.description && <p className="text-gray-500 line-clamp-2 mt-2">{plant.description}</p>}
@@ -1238,6 +1243,21 @@ export default function CustomerDetailPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Auftragsnummer (Kommission)</label>
+                <input
+                  type="text"
+                  value={plantForm.orderNumber}
+                  onChange={e => setPlantForm(f => ({ ...f, orderNumber: e.target.value }))}
+                  placeholder="z. B. K-04532-24"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Ursprüngliche Fertigungs-/Kommissionsnummer dieser Anlage — nicht identisch mit der
+                  Service-Auftragsnummer einzelner Einsätze. Wird bei Ersatzteilanfragen aus dem Portal
+                  mitgegeben, um die Anlage intern zuzuordnen.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Standort</label>

@@ -1,7 +1,13 @@
+// Prisma 7 no longer auto-loads .env for standalone scripts — load it explicitly
+// (Next.js does this itself, but a plain `ts-node prisma/seed.ts` run does not).
+import 'dotenv/config'
 import { PrismaClient, UserRole } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 
-const prisma = new PrismaClient()
+// Prisma 7 requires a driver adapter — same setup as lib/prisma.ts.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   const existingAdmin = await prisma.user.findFirst({ where: { role: UserRole.ADMIN } })

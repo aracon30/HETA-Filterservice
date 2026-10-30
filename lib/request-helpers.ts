@@ -3,6 +3,7 @@ export const REQUEST_TYPE_LABELS: Record<string, string> = {
   WARTUNG: 'Wartungsanfrage',
   ANGEBOT: 'Angebotsanfrage',
   INFORMATION: 'Informationsanfrage',
+  ERSATZTEIL: 'Ersatzteilanfrage',
   SONSTIGES: 'Sonstiges',
 }
 

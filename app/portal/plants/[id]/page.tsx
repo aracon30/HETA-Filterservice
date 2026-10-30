@@ -174,12 +174,26 @@ export default async function PortalPlantPage({
           </div>
         </div>
 
+        {/* Ersatzteile-Aktion */}
+        <div className="border-t border-gray-100 px-6 py-3 flex justify-end">
+          <Link
+            href={`/portal/plants/${plant.id}/ersatzteile`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h4M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+            </svg>
+            Ersatzteile anfragen
+          </Link>
+        </div>
+
         {/* Technical data grid */}
         <div className="border-t border-gray-100 px-6 py-5 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
           <Field label="Anlagentyp"      value={plant.type} />
           <Field label="Hersteller"      value={plant.manufacturer} />
           <Field label="Modell"          value={plant.model} />
           <Field label="Seriennummer"    value={plant.serialNumber} />
+          <Field label="Auftragsnummer"  value={plant.orderNumber} />
           <Field label="Baujahr"         value={plant.buildYear} />
           <Field label="In Betrieb seit" value={plant.installedAt ? fmtDate(plant.installedAt) : null} />
           <Field label="Standort"        value={plant.site ? [plant.site.name, [plant.site.zip, plant.site.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : null} />

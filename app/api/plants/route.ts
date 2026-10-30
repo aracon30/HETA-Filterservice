@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
       customerId: body.customerId,
       siteId: body.siteId || null,
       serialNumber: body.serialNumber || null,
+      orderNumber: body.orderNumber || null,
       location: body.location || null,
       installedAt: body.installedAt ? new Date(body.installedAt) : null,
       buildYear: body.buildYear ?? null,

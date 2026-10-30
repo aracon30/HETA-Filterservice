@@ -1,7 +1,7 @@
 // Pure permission data and types — no server-only dependencies (no Prisma).
 // Safe to import from both server and client components.
 
-export type Resource = 'customers' | 'plants' | 'sites' | 'contacts' | 'jobs' | 'checklist' | 'opportunities' | 'users' | 'requests' | 'invoices' | 'plant_documents'
+export type Resource = 'customers' | 'plants' | 'sites' | 'contacts' | 'jobs' | 'checklist' | 'opportunities' | 'users' | 'requests' | 'invoices' | 'plant_documents' | 'parts_catalog'
 export type Action = 'view' | 'create' | 'edit' | 'delete'
 
 export type PermEntry = {
@@ -26,6 +26,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     requests:        { canView: true,  canCreate: false, canEdit: true,  canDelete: true,  scope: 'all' },
     invoices:        { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
     plant_documents: { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
+    parts_catalog:   { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
   },
   SERVICE_MANAGER: {
     customers:       { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
@@ -39,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     requests:        { canView: true,  canCreate: false, canEdit: true,  canDelete: false, scope: 'all' },
     invoices:        { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, scope: 'all' },
     plant_documents: { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, scope: 'all' },
+    parts_catalog:   { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  scope: 'all' },
   },
   SERVICE_TECHNICIAN: {
     customers:       { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
@@ -52,6 +54,9 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     requests:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     invoices:        { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     plant_documents: { canView: true,  canCreate: true,  canEdit: false, canDelete: false, scope: 'all' },
+    // Ersatzteilkatalog: Techniker dürfen den Katalog einsehen, aber nicht pflegen —
+    // Pflege ist bewusst auf ADMIN/SERVICE_MANAGER beschränkt (kundenseitig sichtbarer Inhalt).
+    parts_catalog:   { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
   },
   MAINTENANCE_MANAGER: {
     customers:       { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
@@ -67,6 +72,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     invoices:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
     // Plant documents: view all types, upload only IMAGE and OTHER (enforced in API)
     plant_documents: { canView: true,  canCreate: true,  canEdit: false, canDelete: false, scope: 'own_company' },
+    parts_catalog:   { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
   },
   MAINTENANCE_TECHNICIAN: {
     customers:       { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
@@ -80,6 +86,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     requests:        { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     invoices:        { canView: false, canCreate: false, canEdit: false, canDelete: false, scope: 'all' },
     plant_documents: { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
+    parts_catalog:   { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_plant' },
   },
   BUYER: {
     customers:       { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
@@ -94,6 +101,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<string, PermEntry>> = {
     // Buyer can view invoices but NOT upload
     invoices:        { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
     plant_documents: { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
+    parts_catalog:   { canView: true,  canCreate: false, canEdit: false, canDelete: false, scope: 'own_company' },
   },
 }
 
