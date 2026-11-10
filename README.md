@@ -4,6 +4,11 @@ Interne Serviceplattform für Filtrationssysteme — gebaut mit Next.js 14, Type
 
 ---
 
+> **Zusatzprojekt:** Im Ordner [`heta-kalkulationsassistent/`](heta-kalkulationsassistent/README.md) liegt der lokal laufende
+> HETA Kalkulationsassistent (Python/FastAPI) zur Auswertung historischer Angebotskalkulationen.
+
+---
+
 ## Installation (Linux/Ubuntu)
 
 **Voraussetzungen:** `sudo`-Rechte und Internetzugang.
